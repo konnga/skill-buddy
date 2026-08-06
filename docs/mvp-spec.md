@@ -101,13 +101,17 @@
 
 ## 4. MVP 适配器范围
 
+实现顺序（已确认）：**Codex → Claude Code（首版已有，加固）→ Cursor →
+OpenCode → WorkBuddy**
+
 | 平台 | 优先级 | 依据 |
 |---|---|---|
-| Claude Code | 已完成首版 | SKILL.md + frontmatter，规范公开 |
-| Codex | P0 | AGENTS.md / prompts，规范公开 |
-| OpenCode | P0 | command / AGENTS.md，规范公开 |
-| Cursor | P1 | 用户体量大（竞品 16 平台之首） |
-| Trae / CodeBuddy / WorkBuddy | P2 | 需逐个调研目录约定后排期 |
+| Codex | P0，第一个 | 规范公开 |
+| Claude Code | 已完成首版，需加固 + 单测 | SKILL.md + frontmatter |
+| Cursor | P0 | 用户体量大（竞品 16 平台之首） |
+| OpenCode | P0 | 规范公开 |
+| WorkBuddy | P0 | 用户明确要求进入首批 |
+| Trae / CodeBuddy | P2 | 调研后排期 |
 
 每个 adapter 交付标准：detect / list / install / uninstall +
 真实样本 fixtures 的双向转换单测。**质量红线：宁可少支持，
