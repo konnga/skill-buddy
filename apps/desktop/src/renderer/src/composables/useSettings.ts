@@ -19,9 +19,11 @@ const theme = ref<ThemeMode>(load('skm.theme', 'system'))
 const language = ref<Locale>(load('skm.language', detectLocale()))
 const registryUrl = ref<string>(load('skm.registryUrl', ''))
 const registryToken = ref<string>(load('skm.registryToken', ''))
+const sidebarCollapsed = ref<boolean>(load('skm.sidebarCollapsed', false))
 
 watch(registryUrl, (v) => localStorage.setItem('skm.registryUrl', JSON.stringify(v)))
 watch(registryToken, (v) => localStorage.setItem('skm.registryToken', JSON.stringify(v)))
+watch(sidebarCollapsed, (v) => localStorage.setItem('skm.sidebarCollapsed', JSON.stringify(v)))
 
 i18n.global.locale.value = language.value
 watch(language, (v) => {
@@ -58,5 +60,5 @@ export async function syncCustomPlatforms(): Promise<void> {
 }
 
 export function useSettings() {
-  return { projectRoots, customPlatforms, theme, language, registryUrl, registryToken }
+  return { projectRoots, customPlatforms, theme, language, registryUrl, registryToken, sidebarCollapsed }
 }

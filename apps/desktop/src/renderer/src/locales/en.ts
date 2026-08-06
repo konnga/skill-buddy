@@ -17,6 +17,7 @@ export default {
     driftOnly: 'Drift only',
     rescan: 'Rescan',
     scanning: 'Scanning…',
+    toggleSidebar: 'Toggle sidebar',
     empty: 'No installed skills found',
     emptyHint: 'Detected {n} agent platforms. Install a skill in any of them, then hit Rescan.',
     noMatch: 'No skills matching "{q}"',

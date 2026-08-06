@@ -192,6 +192,32 @@ function registerIpc(): void {
     return (data.skills ?? []).sort((a, b) => b.installs - a.installs)
   })
 
+  /* GitHub stars for skills.sh sources, cached per session */
+  const starsCache = new Map<string, number>()
+
+  ipcMain.handle('market:github-stars', async (_event, repos: string[]) => {
+    const missing = [...new Set(repos)].filter((r) => !starsCache.has(r)).slice(0, 30)
+    await Promise.allSettled(
+      missing.map(async (repo) => {
+        const res = await fetch(`https://api.github.com/repos/${repo}`, {
+          headers: { accept: 'application/vnd.github+json' },
+          signal: AbortSignal.timeout(8_000),
+        })
+        if (!res.ok) return
+        const data = (await res.json()) as { stargazers_count?: number }
+        if (typeof data.stargazers_count === 'number') {
+          starsCache.set(repo, data.stargazers_count)
+        }
+      }),
+    )
+    const out: Record<string, number> = {}
+    for (const repo of repos) {
+      const stars = starsCache.get(repo)
+      if (stars !== undefined) out[repo] = stars
+    }
+    return out
+  })
+
   /* ---------- marketplace (skillhub.cn) ---------- */
 
   ipcMain.handle('market:skillhub-search', async (_event, q: string) => {
@@ -213,6 +239,7 @@ function registerIpc(): void {
           description_zh?: string
           downloads?: number
           installs?: number
+          stars?: number
           namespace?: { handle: string; canonicalName?: string }
           upstream_url?: string | null
         }[]
@@ -225,6 +252,7 @@ function registerIpc(): void {
       name: s.displayName || s.name,
       description: s.description_zh || s.description || '',
       installs: s.downloads ?? s.installs ?? 0,
+      stars: s.stars ?? 0,
       upstreamUrl: s.upstream_url ?? null,
     }))
   })

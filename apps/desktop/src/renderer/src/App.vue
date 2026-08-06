@@ -1,11 +1,12 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import {
   Blocks,
   FolderOpen,
   Import,
   LayoutDashboard,
+  PanelLeft,
   Plus,
   RefreshCw,
   Search,
@@ -47,7 +48,7 @@ const {
   refresh,
 } = useSkills()
 
-const { projectRoots } = useSettings()
+const { projectRoots, sidebarCollapsed } = useSettings()
 const { t } = useI18n()
 
 const basename = (p: string): string => p.split('/').filter(Boolean).pop() ?? p
@@ -86,18 +87,44 @@ watch(skills, (v) => {
   }
 })
 
+function onSidebarShortcut(e: KeyboardEvent): void {
+  if ((e.metaKey || e.ctrlKey) && !e.shiftKey && !e.altKey && e.key.toLowerCase() === 'b') {
+    e.preventDefault()
+    sidebarCollapsed.value = !sidebarCollapsed.value
+  }
+}
+
 onMounted(async () => {
+  window.addEventListener('keydown', onSidebarShortcut)
   await syncCustomPlatforms()
   await refresh()
 })
+
+onUnmounted(() => window.removeEventListener('keydown', onSidebarShortcut))
 </script>
 
 <template>
   <SettingsPage v-if="view === 'settings'" @back="view = prevView" />
-  <div v-else class="flex h-screen">
+  <div v-else :class="['flex h-screen', sidebarCollapsed && 'sidebar-collapsed']">
+    <!-- sidebar toggle (sits to the right of the macOS traffic lights) -->
+    <button
+      class="app-no-drag fixed left-[78px] top-2 z-40 rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-accent/60 hover:text-foreground"
+      :title="`${t('app.toggleSidebar')} (⌘B)`"
+      :aria-label="t('app.toggleSidebar')"
+      @click="sidebarCollapsed = !sidebarCollapsed"
+    >
+      <PanelLeft class="size-4" />
+    </button>
+
     <!-- sidebar -->
-    <aside class="flex w-56 shrink-0 flex-col border-r bg-muted/30">
-      <div class="flex items-center gap-2 px-4 pb-4 pt-10">
+    <aside
+      :class="[
+        'flex shrink-0 flex-col overflow-hidden bg-muted/30 transition-[width] duration-200',
+        sidebarCollapsed ? 'w-0' : 'w-56 border-r',
+      ]"
+    >
+      <div class="flex h-full w-56 shrink-0 flex-col">
+      <div class="app-drag flex items-center gap-2 px-4 pb-4 pt-10">
         <Blocks class="size-5 text-primary" />
         <span class="font-semibold tracking-tight">Skills Manager</span>
       </div>
@@ -209,6 +236,7 @@ onMounted(async () => {
           <Settings class="size-4" />
           {{ t('common.settings') }}
         </button>
+      </div>
       </div>
     </aside>
 
@@ -341,5 +369,10 @@ onMounted(async () => {
 }
 .app-no-drag {
   -webkit-app-region: no-drag;
+}
+/* with the sidebar hidden, the traffic lights + toggle button overlap the
+   main headers' left edge, so give them clearance */
+.sidebar-collapsed header.app-drag {
+  padding-left: 7rem;
 }
 </style>

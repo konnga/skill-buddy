@@ -1,9 +1,8 @@
 <script setup lang="ts">
 import { onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { CloudDownload, Search } from '@lucide/vue'
+import { CloudDownload, Download, Search, Star } from '@lucide/vue'
 import type { InstallTarget } from '../../../shared/ipc.js'
-import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import PlatformTargetPicker from '@/components/PlatformTargetPicker.vue'
@@ -18,6 +17,7 @@ interface MarketItem {
   name: string
   description: string
   installs: number
+  stars: number | null
   /** repo (skills.sh) or canonical name (skillhub) — shown under the title */
   sourceLabel: string
   /** external page to open */
@@ -53,17 +53,29 @@ async function search(): Promise<void> {
   try {
     if (source.value === 'skills-sh') {
       const term = query.value.trim() || DEFAULT_QUERY
-      items.value = (await window.skillsManager.marketSearch(term)).slice(0, 30).map((s) => ({
+      const list = (await window.skillsManager.marketSearch(term)).slice(0, 30)
+      items.value = list.map((s) => ({
         key: `sksh:${s.id}`,
         kind: 'skills-sh' as const,
         name: s.name,
         description: '',
         installs: s.installs,
+        stars: null,
         sourceLabel: s.source,
         link: `https://github.com/${s.source}`,
         repo: s.source,
         skillId: s.skillId,
       }))
+      // fill GitHub stars asynchronously (cached in main; degrades on rate limit)
+      void window.skillsManager
+        .githubStars([...new Set(list.map((s) => s.source))])
+        .then((stars) => {
+          items.value = items.value.map((it) =>
+            it.kind === 'skills-sh' && it.repo && stars[it.repo] !== undefined
+              ? { ...it, stars: stars[it.repo]! }
+              : it,
+          )
+        })
     } else {
       const list = await window.skillsManager.skillhubSearch(query.value.trim())
       items.value = list.map((s) => ({
@@ -72,6 +84,7 @@ async function search(): Promise<void> {
         name: s.name,
         description: s.description,
         installs: s.installs,
+        stars: s.stars,
         sourceLabel: s.canonicalName,
         link: s.upstreamUrl ?? 'https://skillhub.cn/',
         slug: s.slug,
@@ -199,31 +212,47 @@ onMounted(() => void search())
       {{ t('market.empty') }}
     </p>
 
-    <ul v-else class="flex flex-col gap-2">
-      <li v-for="item in items" :key="item.key" class="rounded-md border px-4 py-2.5">
-        <div class="flex items-center justify-between gap-3">
-          <div class="flex min-w-0 flex-col gap-0.5">
-            <span class="flex items-center gap-2 text-sm font-medium">
-              <span class="select-text truncate">{{ item.name }}</span>
-              <Badge variant="secondary" class="text-[10px]">
-                {{ t('market.installs', { n: formatInstalls(item.installs) }) }}
-              </Badge>
-            </span>
-            <span v-if="item.description" class="line-clamp-1 text-xs text-muted-foreground">
-              {{ item.description }}
-            </span>
-            <button
-              class="w-fit text-xs text-muted-foreground underline-offset-2 hover:underline"
-              :title="t('market.viewSource')"
-              @click="openLink(item)"
-            >
-              {{ item.sourceLabel }}
-            </button>
-          </div>
-          <Button variant="outline" size="sm" class="shrink-0" @click="toggleExpand(item.key)">
-            <CloudDownload />
+    <ul v-else class="grid grid-cols-1 gap-3 md:grid-cols-2">
+      <li
+        v-for="item in items"
+        :key="item.key"
+        class="flex flex-col rounded-lg border px-4 py-3 transition-colors hover:border-foreground/25"
+      >
+        <div class="flex items-start justify-between gap-2">
+          <span class="select-text truncate text-sm font-medium" :title="item.name">
+            {{ item.name }}
+          </span>
+          <Button
+            variant="outline"
+            size="sm"
+            class="h-7 shrink-0 px-2.5 text-xs"
+            @click="toggleExpand(item.key)"
+          >
+            <CloudDownload class="size-3.5" />
             {{ t('market.install') }}
           </Button>
+        </div>
+        <p class="mt-1 line-clamp-2 min-h-8 text-xs text-muted-foreground">
+          {{ item.description || ' ' }}
+        </p>
+        <div class="mt-2 flex items-center justify-between gap-2">
+          <button
+            class="min-w-0 truncate text-left text-xs text-muted-foreground underline-offset-2 hover:underline"
+            :title="t('market.viewSource')"
+            @click="openLink(item)"
+          >
+            {{ item.sourceLabel }}
+          </button>
+          <span class="flex shrink-0 items-center gap-3 text-xs tabular-nums text-muted-foreground">
+            <span v-if="item.stars !== null" class="flex items-center gap-1" :title="'stars'">
+              <Star class="size-3.5" />
+              {{ formatInstalls(item.stars) }}
+            </span>
+            <span class="flex items-center gap-1" :title="t('market.installs', { n: item.installs })">
+              <Download class="size-3.5" />
+              {{ formatInstalls(item.installs) }}
+            </span>
+          </span>
         </div>
         <div v-if="expanded === item.key" class="mt-3 flex flex-col gap-2 border-t pt-3">
           <span class="text-xs text-muted-foreground">{{ t('team.installTo') }}</span>

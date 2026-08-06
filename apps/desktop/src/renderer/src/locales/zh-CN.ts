@@ -17,6 +17,7 @@ export default {
     driftOnly: '仅看漂移',
     rescan: '重新扫描',
     scanning: '扫描中…',
+    toggleSidebar: '切换边栏',
     empty: '未发现已安装的 skills',
     emptyHint: '已检测到 {n} 个 agent 平台。在任一平台安装 skill 后点击「重新扫描」。',
     noMatch: '没有匹配「{q}」的 skill',
