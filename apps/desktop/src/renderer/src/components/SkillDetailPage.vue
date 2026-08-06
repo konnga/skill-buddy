@@ -276,7 +276,7 @@ async function runUninstall(): Promise<void> {
 <template>
   <div class="flex h-full flex-col">
     <!-- header -->
-    <header :class="['app-drag flex items-center gap-3 border-b px-6 py-3', props.inset && 'pl-[78px]']">
+    <header :class="['app-drag relative flex items-center gap-3 border-b px-6 py-3', props.inset && 'pl-[118px]']">
       <SidebarToggle />
       <Button variant="ghost" size="icon" class="app-no-drag" @click="emit('close')">
         <ArrowLeft />

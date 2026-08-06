@@ -260,7 +260,7 @@ onUnmounted(() => window.removeEventListener('keydown', onSidebarShortcut))
     <main v-else class="content-surface flex min-w-0 flex-1 flex-col">
       <header
         v-if="view === 'dashboard'"
-        :class="['app-drag flex items-center gap-3 px-6 py-3', sidebarCollapsed && 'pl-[78px]']"
+        :class="['app-drag relative flex items-center gap-3 px-6 py-3', sidebarCollapsed && 'pl-[118px]']"
       >
         <SidebarToggle />
         <div class="flex-1" />
@@ -277,14 +277,14 @@ onUnmounted(() => window.removeEventListener('keydown', onSidebarShortcut))
       </header>
       <header
         v-else-if="view === 'team'"
-        :class="['app-drag flex items-center gap-3 px-6 py-3', sidebarCollapsed && 'pl-[78px]']"
+        :class="['app-drag relative flex items-center gap-3 px-6 py-3', sidebarCollapsed && 'pl-[118px]']"
       >
         <SidebarToggle />
         <h1 class="text-sm font-semibold tracking-tight">{{ t('team.title') }}</h1>
       </header>
       <header
         v-else
-        :class="['app-drag flex items-center gap-3 px-6 py-3', sidebarCollapsed && 'pl-[78px]']"
+        :class="['app-drag relative flex items-center gap-3 px-6 py-3', sidebarCollapsed && 'pl-[118px]']"
       >
         <SidebarToggle />
         <div class="app-no-drag relative w-72">

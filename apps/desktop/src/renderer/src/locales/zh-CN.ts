@@ -114,6 +114,12 @@ export default {
     empty: '没有找到相关 skills',
     skillhubHint: 'SkillHub 暂无公开数据接口，可在浏览器中浏览后通过「导入 → Git 仓库」安装。',
     openSite: '在浏览器打开 {site}',
+    requiresApiKey: '需配置 API Key',
+    verified: '已认证',
+    updated: '{t}更新',
+    overview: '概述',
+    overviewLoading: '正在加载概述…',
+    overviewUnavailable: '暂无概述内容',
   },
   card: {
     noDescription: '（无描述）',

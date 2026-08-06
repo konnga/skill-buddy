@@ -114,6 +114,12 @@ export default {
     empty: 'No matching skills',
     skillhubHint: 'SkillHub has no public API yet — browse it in your browser, then install via Import → Git repository.',
     openSite: 'Open {site} in browser',
+    requiresApiKey: 'Requires API key',
+    verified: 'Verified',
+    updated: 'Updated {t}',
+    overview: 'Overview',
+    overviewLoading: 'Loading overview…',
+    overviewUnavailable: 'No overview available',
   },
   card: {
     noDescription: '(no description)',
