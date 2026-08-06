@@ -1,27 +1,31 @@
+import { BUILTIN_PLATFORMS, type PlatformDef } from '../platforms.js'
 import type { AgentAdapter, AgentId } from '../types.js'
-import { ClaudeCodeAdapter } from './claude-code.js'
-import { CodexAdapter } from './codex.js'
-import { CursorAdapter } from './cursor.js'
-import { OpenCodeAdapter } from './opencode.js'
-import { WorkBuddyAdapter } from './workbuddy.js'
+import { PlatformAdapter } from './platform-adapter.js'
 
-const adapters: Partial<Record<AgentId, AgentAdapter>> = {
-  'claude-code': new ClaudeCodeAdapter(),
-  codex: new CodexAdapter(),
-  cursor: new CursorAdapter(),
-  opencode: new OpenCodeAdapter(),
-  workbuddy: new WorkBuddyAdapter(),
-}
+const registry = new Map<AgentId, AgentAdapter>(
+  BUILTIN_PLATFORMS.map((def) => [def.id, new PlatformAdapter(def)]),
+)
 
 export function getAdapter(agent: AgentId): AgentAdapter {
-  const adapter = adapters[agent]
+  const adapter = registry.get(agent)
   if (!adapter) throw new Error(`No adapter registered for agent "${agent}"`)
   return adapter
 }
 
 export function allAdapters(): AgentAdapter[] {
-  return Object.values(adapters)
+  return [...registry.values()]
 }
 
-export { ClaudeCodeAdapter, CodexAdapter, CursorAdapter, OpenCodeAdapter, WorkBuddyAdapter }
+/**
+ * Register a user-defined platform (from app settings). Re-registering
+ * an id replaces the previous adapter, which is also how users override
+ * a built-in platform's paths.
+ */
+export function registerPlatform(def: PlatformDef, homeDir?: string): AgentAdapter {
+  const adapter = new PlatformAdapter(def, homeDir)
+  registry.set(def.id, adapter)
+  return adapter
+}
+
+export { PlatformAdapter }
 export { SkillDirAdapter } from './skill-dir-adapter.js'

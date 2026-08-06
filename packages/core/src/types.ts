@@ -1,5 +1,5 @@
-/** Agent platforms we can install skills into. */
-export type AgentId =
+/** Built-in agent platforms (rows in BUILTIN_PLATFORMS). */
+export type BuiltinAgentId =
   | 'claude-code'
   | 'codex'
   | 'cursor'
@@ -7,6 +7,12 @@ export type AgentId =
   | 'trae'
   | 'codebuddy'
   | 'workbuddy'
+
+/**
+ * An agent platform id: a built-in id (with autocomplete) or any string
+ * for user-defined custom platforms.
+ */
+export type AgentId = BuiltinAgentId | (string & {})
 
 /** Canonical, platform-neutral representation of a skill. */
 export interface Skill {
