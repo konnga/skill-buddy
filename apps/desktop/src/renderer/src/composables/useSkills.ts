@@ -11,12 +11,22 @@ const error = ref<string | null>(null)
 const search = ref('')
 /** null = all platforms */
 const platformFilter = ref<string | null>(null)
+/** null = all; 'user' = user scope only; other = a project root path */
+const projectFilter = ref<string | null>(null)
 const driftOnly = ref(false)
 
 const filtered = computed(() => {
   const q = search.value.trim().toLowerCase()
   return skills.value.filter((s) => {
     if (platformFilter.value && !s.installations.some((i) => i.agent === platformFilter.value))
+      return false
+    if (projectFilter.value === 'user' && !s.installations.some((i) => i.scope === 'user'))
+      return false
+    if (
+      projectFilter.value &&
+      projectFilter.value !== 'user' &&
+      !s.installations.some((i) => i.projectRoot === projectFilter.value)
+    )
       return false
     if (driftOnly.value && !s.hasDrift) return false
     if (!q) return true
@@ -36,6 +46,19 @@ const countByPlatform = computed(() => {
   for (const s of skills.value) {
     for (const agent of new Set(s.installations.map((i) => i.agent))) {
       counts.set(agent, (counts.get(agent) ?? 0) + 1)
+    }
+  }
+  return counts
+})
+
+/** Count of skills per project root, for the sidebar projects section. */
+const countByProject = computed(() => {
+  const counts = new Map<string, number>()
+  for (const s of skills.value) {
+    for (const root of new Set(
+      s.installations.flatMap((i) => (i.projectRoot ? [i.projectRoot] : [])),
+    )) {
+      counts.set(root, (counts.get(root) ?? 0) + 1)
     }
   }
   return counts
@@ -89,6 +112,8 @@ export function useSkills() {
     error,
     search,
     platformFilter,
+    projectFilter,
+    countByProject,
     driftOnly,
     filtered,
     refresh,

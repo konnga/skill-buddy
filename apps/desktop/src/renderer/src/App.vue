@@ -10,22 +10,28 @@ import SettingsSheet from '@/components/SettingsSheet.vue'
 import SkillCard from '@/components/SkillCard.vue'
 import SkillDetailSheet from '@/components/SkillDetailSheet.vue'
 import { setPlatformNames } from '@/lib/agents'
-import { syncCustomPlatforms } from '@/composables/useSettings'
+import { syncCustomPlatforms, useSettings } from '@/composables/useSettings'
 import { useSkills } from '@/composables/useSkills'
 
 const {
   platforms,
   detectedPlatforms,
   countByPlatform,
+  countByProject,
   loading,
   error,
   search,
   platformFilter,
+  projectFilter,
   driftOnly,
   filtered,
   skills,
   refresh,
 } = useSkills()
+
+const { projectRoots } = useSettings()
+
+const basename = (p: string): string => p.split('/').filter(Boolean).pop() ?? p
 
 const selected = ref<AggregatedSkill | null>(null)
 const settingsOpen = ref(false)
@@ -84,6 +90,41 @@ onMounted(async () => {
             {{ countByPlatform.get(p.id) ?? 0 }}
           </span>
         </button>
+
+        <template v-if="projectRoots.length > 0">
+          <p
+            class="mb-1 mt-4 px-3 text-xs font-medium uppercase tracking-wide text-muted-foreground"
+          >
+            范围
+          </p>
+          <button
+            :class="[
+              'flex items-center justify-between rounded-md px-3 py-1.5 text-sm transition-colors',
+              projectFilter === 'user' ? 'bg-accent font-medium' : 'hover:bg-accent/60',
+            ]"
+            @click="projectFilter = projectFilter === 'user' ? null : 'user'"
+          >
+            全局（user）
+          </button>
+          <button
+            v-for="root in projectRoots"
+            :key="root"
+            :class="[
+              'flex items-center justify-between rounded-md px-3 py-1.5 text-sm transition-colors',
+              projectFilter === root ? 'bg-accent font-medium' : 'hover:bg-accent/60',
+            ]"
+            :title="root"
+            @click="projectFilter = projectFilter === root ? null : root"
+          >
+            <span class="flex min-w-0 items-center gap-2">
+              <FolderOpen class="size-3.5 shrink-0 text-foreground/60" />
+              <span class="truncate">{{ basename(root) }}</span>
+            </span>
+            <span class="text-xs tabular-nums text-muted-foreground">
+              {{ countByProject.get(root) ?? 0 }}
+            </span>
+          </button>
+        </template>
       </nav>
 
       <div class="mt-auto px-2 pb-3">
