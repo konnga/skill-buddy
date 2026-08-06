@@ -24,7 +24,7 @@ import NewSkillSheet from '@/components/NewSkillSheet.vue'
 import PlatformIcon from '@/components/PlatformIcon.vue'
 import SettingsPage from '@/components/SettingsPage.vue'
 import SkillCard from '@/components/SkillCard.vue'
-import SkillDetailSheet from '@/components/SkillDetailSheet.vue'
+import SkillDetailPage from '@/components/SkillDetailPage.vue'
 import TeamPage from '@/components/TeamPage.vue'
 import { setPlatformNames } from '@/lib/agents'
 import { syncCustomPlatforms, useSettings } from '@/composables/useSettings'
@@ -213,7 +213,10 @@ onMounted(async () => {
     </aside>
 
     <!-- main -->
-    <main class="flex min-w-0 flex-1 flex-col">
+    <main v-if="selected" class="flex min-w-0 flex-1 flex-col">
+      <SkillDetailPage :key="selected.name" :skill="selected" @close="selected = null" />
+    </main>
+    <main v-else class="flex min-w-0 flex-1 flex-col">
       <header
         v-if="view === 'dashboard'"
         class="app-drag flex items-center gap-3 border-b px-6 py-3"
@@ -328,7 +331,6 @@ onMounted(async () => {
       </div>
     </main>
 
-    <SkillDetailSheet :skill="selected" @close="selected = null" />
     <NewSkillSheet :open="newOpen" @close="newOpen = false" />
     <ImportSheet :open="importOpen" @close="importOpen = false" />
   </div>
