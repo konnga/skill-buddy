@@ -5,6 +5,7 @@ import { TriangleAlert } from '@lucide/vue'
 import type { AggregatedSkill } from '@skills-manager/core'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import CopyButton from '@/components/CopyButton.vue'
 import PlatformIcon from '@/components/PlatformIcon.vue'
 import { agentLabel } from '@/lib/agents'
 
@@ -18,12 +19,18 @@ const hasProject = computed(() => props.skill.installations.some((i) => i.scope 
 
 <template>
   <Card
-    class="cursor-pointer transition-colors hover:border-foreground/25"
+    class="group cursor-pointer transition-colors hover:border-foreground/25"
     @click="$emit('open')"
   >
     <CardHeader class="pb-3">
       <div class="flex items-start justify-between gap-2">
-        <CardTitle class="text-sm">{{ skill.name }}</CardTitle>
+        <span class="flex min-w-0 items-center gap-1.5">
+          <CardTitle class="select-text truncate text-sm">{{ skill.name }}</CardTitle>
+          <CopyButton
+            :text="skill.name"
+            class="opacity-0 transition-opacity group-hover:opacity-100"
+          />
+        </span>
         <span class="flex shrink-0 items-center gap-1.5">
           <Badge v-if="hasProject" variant="secondary" class="text-[11px]">project</Badge>
           <Badge

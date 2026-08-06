@@ -7,6 +7,7 @@ import type { InstallTarget } from '../../../shared/ipc.js'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import CopyButton from '@/components/CopyButton.vue'
 import PlatformTargetPicker from '@/components/PlatformTargetPicker.vue'
 import { agentLabel } from '@/lib/agents'
 import { useSettings } from '@/composables/useSettings'
@@ -136,7 +137,10 @@ onMounted(search)
           <div class="flex items-center justify-between gap-3">
             <div class="flex min-w-0 flex-col gap-0.5">
               <span class="flex items-center gap-2 text-sm font-medium">
-                <span class="text-muted-foreground">{{ item.org }}/</span>{{ item.name }}
+                <span class="select-text"
+                  ><span class="text-muted-foreground">{{ item.org }}/</span>{{ item.name }}</span
+                >
+                <CopyButton :text="`${item.org}/${item.name}`" />
                 <Badge variant="outline">v{{ item.version }}</Badge>
                 <Badge v-for="tag in item.tags" :key="tag" variant="secondary" class="text-[10px]">
                   {{ tag }}

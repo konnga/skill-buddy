@@ -16,6 +16,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Select } from '@/components/ui/select'
+import CopyButton from '@/components/CopyButton.vue'
 import DiffView from '@/components/DiffView.vue'
 import PlatformIcon from '@/components/PlatformIcon.vue'
 import SkillEditor from '@/components/SkillEditor.vue'
@@ -230,9 +231,12 @@ async function runUninstall(): Promise<void> {
           <!-- header -->
           <header class="flex items-start justify-between gap-3 border-b px-6 py-4">
             <div class="min-w-0">
-              <DialogTitle class="truncate text-base font-semibold tracking-tight">
-                {{ skill.name }}
-              </DialogTitle>
+              <span class="flex min-w-0 items-center gap-2">
+                <DialogTitle class="select-text truncate text-base font-semibold tracking-tight">
+                  {{ skill.name }}
+                </DialogTitle>
+                <CopyButton :text="skill.name" />
+              </span>
               <p v-if="mode === 'view'" class="mt-1 line-clamp-2 text-sm text-muted-foreground">
                 {{ skill.description || t('card.noDescription') }}
               </p>
@@ -279,7 +283,9 @@ async function runUninstall(): Promise<void> {
                     <PlatformIcon :id="inst.agent" :size="15" />
                     <span class="shrink-0 text-sm">{{ agentLabel(inst.agent) }}</span>
                     <Badge variant="outline">{{ inst.scope }}</Badge>
-                    <code class="truncate text-xs text-muted-foreground/70">{{ inst.path }}</code>
+                    <code class="select-text truncate text-xs text-muted-foreground/70">{{
+                      inst.path
+                    }}</code>
                   </div>
                   <Button
                     variant="ghost"

@@ -4,6 +4,8 @@ export default {
     delete: 'Delete',
     add: 'Add',
     edit: 'Edit',
+    copy: 'Copy name',
+    copied: 'Copied',
     settings: 'Settings',
   },
   app: {
