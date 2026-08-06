@@ -2,6 +2,7 @@
 export type AgentId =
   | 'claude-code'
   | 'codex'
+  | 'cursor'
   | 'opencode'
   | 'trae'
   | 'codebuddy'
