@@ -6,7 +6,7 @@ import { platformIcon } from '@/lib/platform-icons'
 const props = withDefaults(
   defineProps<{
     id: string
-    /** Tailwind size utility value in px terms; default 16 */
+    /** Icon size in px; default 16 */
     size?: number
     class?: string
   }>(),
@@ -22,7 +22,7 @@ const def = computed(() => platformIcon(props.id))
     :width="size"
     :height="size"
     viewBox="0 0 24 24"
-    fill="currentColor"
+    :fill="def.color ?? 'currentColor'"
     :class="cn('shrink-0', props.class)"
     aria-hidden="true"
   >
@@ -30,10 +30,16 @@ const def = computed(() => platformIcon(props.id))
   </svg>
   <span
     v-else
-    :style="{ width: `${size}px`, height: `${size}px`, fontSize: `${size * 0.52}px` }"
+    :style="{
+      width: `${size}px`,
+      height: `${size}px`,
+      fontSize: `${size * 0.52}px`,
+      background: def.bg,
+    }"
     :class="
       cn(
-        'inline-flex shrink-0 select-none items-center justify-center rounded-[4px] bg-foreground/80 font-semibold leading-none text-background',
+        'inline-flex shrink-0 select-none items-center justify-center rounded-[4px] font-semibold leading-none',
+        def.bg ? 'text-white' : 'bg-foreground/80 text-background',
         props.class,
       )
     "

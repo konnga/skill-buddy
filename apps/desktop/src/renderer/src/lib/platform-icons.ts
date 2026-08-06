@@ -14,27 +14,33 @@ interface PlatformIconDef {
   path?: string
   /** Fallback monogram when no brand icon is available */
   monogram?: string
-  /** Brand color (for the optional colored mode) */
-  hex?: string
+  /**
+   * Brand fill color. Omitted for brands whose mark is pure black
+   * (Cursor/Copilot/OpenCode) — those render in currentColor so they
+   * stay visible in dark mode.
+   */
+  color?: string
+  /** Monogram background color */
+  bg?: string
 }
 
-const icon = (si: SimpleIcon): PlatformIconDef => ({ path: si.path, hex: `#${si.hex}` })
-
 const ICONS: Record<string, PlatformIconDef> = {
-  'claude-code': icon(siClaude),
+  'claude-code': { path: siClaude.path, color: `#${siClaude.hex}` },
   // OpenAI's mark is not distributable via simple-icons (trademark) —
   // use a monogram instead of an unofficial redraw.
   codex: { monogram: 'Cx' },
-  copilot: icon(siGithubcopilot),
-  cursor: icon(siCursor),
-  'gemini-cli': icon(siGooglegemini),
-  opencode: icon(siOpencode),
-  codebuddy: icon(siCodebuddy),
-  trae: icon(siTrae),
-  'trae-cn': icon(siTrae),
-  workbuddy: { monogram: 'W' },
+  copilot: { path: siGithubcopilot.path },
+  cursor: { path: siCursor.path },
+  'gemini-cli': { path: siGooglegemini.path, color: `#${siGooglegemini.hex}` },
+  opencode: { path: siOpencode.path },
+  codebuddy: { path: siCodebuddy.path, color: `#${siCodebuddy.hex}` },
+  trae: { path: siTrae.path, color: '#17b877' },
+  'trae-cn': { path: siTrae.path, color: '#17b877' },
+  workbuddy: { monogram: 'W', bg: '#0052d9' },
 }
 
 export function platformIcon(id: string): PlatformIconDef {
   return ICONS[id] ?? { monogram: id.slice(0, 1).toUpperCase() }
 }
+
+export type { SimpleIcon }
