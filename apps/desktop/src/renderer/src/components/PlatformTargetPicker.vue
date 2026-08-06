@@ -1,0 +1,56 @@
+<script setup lang="ts">
+import { computed } from 'vue'
+import { useI18n } from 'vue-i18n'
+import PlatformIcon from '@/components/PlatformIcon.vue'
+import { useSettings } from '@/composables/useSettings'
+import { useSkills } from '@/composables/useSkills'
+
+const scope = defineModel<string>('scope', { default: 'user' })
+const agents = defineModel<string[]>('agents', { default: () => [] })
+
+const { detectedPlatforms } = useSkills()
+const { projectRoots } = useSettings()
+const { t } = useI18n()
+
+const available = computed(() =>
+  detectedPlatforms.value.filter((p) => scope.value === 'user' || p.hasProjectScope),
+)
+
+function toggle(id: string): void {
+  agents.value = agents.value.includes(id)
+    ? agents.value.filter((a) => a !== id)
+    : [...agents.value, id]
+}
+</script>
+
+<template>
+  <div class="flex flex-col gap-2">
+    <select
+      v-if="projectRoots.length > 0"
+      v-model="scope"
+      class="h-8 w-fit rounded-md border bg-background px-2 text-sm"
+    >
+      <option value="user">{{ t('detail.userScope') }}</option>
+      <option v-for="root in projectRoots" :key="root" :value="root">
+        {{ t('detail.projectScope', { root }) }}
+      </option>
+    </select>
+    <div class="flex flex-wrap gap-2">
+      <button
+        v-for="p in available"
+        :key="p.id"
+        type="button"
+        :class="[
+          'flex items-center gap-2 rounded-md border px-3 py-1.5 text-sm transition-colors',
+          agents.includes(p.id)
+            ? 'border-foreground bg-foreground text-background'
+            : 'hover:border-foreground/40',
+        ]"
+        @click="toggle(p.id)"
+      >
+        <PlatformIcon :id="p.id" :size="14" />
+        {{ p.displayName }}
+      </button>
+    </div>
+  </div>
+</template>

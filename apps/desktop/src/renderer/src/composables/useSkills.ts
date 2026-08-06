@@ -14,10 +14,14 @@ const platformFilter = ref<string | null>(null)
 /** null = all; 'user' = user scope only; other = a project root path */
 const projectFilter = ref<string | null>(null)
 const driftOnly = ref(false)
+const sortBy = ref<'name' | 'recent'>('name')
+
+const lastModified = (s: AggregatedSkill): number =>
+  Math.max(0, ...s.installations.map((i) => i.modifiedAt ?? 0))
 
 const filtered = computed(() => {
   const q = search.value.trim().toLowerCase()
-  return skills.value.filter((s) => {
+  const list = skills.value.filter((s) => {
     if (platformFilter.value && !s.installations.some((i) => i.agent === platformFilter.value))
       return false
     if (projectFilter.value === 'user' && !s.installations.some((i) => i.scope === 'user'))
@@ -36,6 +40,9 @@ const filtered = computed(() => {
       s.tags.some((t) => t.toLowerCase().includes(q))
     )
   })
+  return sortBy.value === 'recent'
+    ? [...list].sort((a, b) => lastModified(b) - lastModified(a))
+    : list
 })
 
 const detectedPlatforms = computed(() => platforms.value.filter((p) => p.detected))
@@ -115,6 +122,7 @@ export function useSkills() {
     projectFilter,
     countByProject,
     driftOnly,
+    sortBy,
     filtered,
     refresh,
     install,

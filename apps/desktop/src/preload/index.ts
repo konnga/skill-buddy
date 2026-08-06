@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer } from 'electron'
-import type { AggregatedSkill, PlatformStatus, Skill } from '@skills-manager/core'
+import type { AggregatedSkill, FoundSkill, PlatformStatus, Skill } from '@skills-manager/core'
 import type { CustomPlatformInput, InstallTarget, TargetResult } from '../shared/ipc.js'
 
 const api = {
@@ -14,6 +14,12 @@ const api = {
     ipcRenderer.invoke('skills:uninstall', name, targets),
   revealInFolder: (path: string): Promise<void> => ipcRenderer.invoke('skills:reveal', path),
   pickDirectory: (): Promise<string | null> => ipcRenderer.invoke('dialog:pick-directory'),
+  findSkillsInDir: (root: string): Promise<FoundSkill[]> =>
+    ipcRenderer.invoke('skills:find-in-dir', root),
+  importFromGit: (url: string): Promise<{ root: string; items: FoundSkill[] }> =>
+    ipcRenderer.invoke('skills:import-git', url),
+  cleanupImport: (root: string): Promise<void> =>
+    ipcRenderer.invoke('skills:cleanup-import', root),
 }
 
 export type SkillsManagerApi = typeof api

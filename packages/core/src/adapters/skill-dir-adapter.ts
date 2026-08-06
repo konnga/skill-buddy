@@ -2,6 +2,7 @@ import { promises as fs } from 'node:fs'
 import { dirname, join } from 'node:path'
 import matter from 'gray-matter'
 import type { AgentAdapter, AgentId, InstallScope, InstalledSkill, Skill } from '../types.js'
+import { readSkillDir } from '../skill-io.js'
 import { exists, isKebabCase } from './shared.js'
 
 /**
@@ -24,35 +25,15 @@ export abstract class SkillDirAdapter implements AgentAdapter {
     for (const entry of entries) {
       if (!entry.isDirectory()) continue
       const skillPath = join(dir, entry.name)
-      const skillFile = join(skillPath, 'SKILL.md')
-      if (!(await exists(skillFile))) continue
-      let raw: string
+      const skill = await readSkillDir(skillPath, entry.name)
+      if (!skill) continue
       let modifiedAt: number | undefined
       try {
-        raw = await fs.readFile(skillFile, 'utf8')
-        modifiedAt = (await fs.stat(skillFile)).mtimeMs
+        modifiedAt = (await fs.stat(join(skillPath, 'SKILL.md'))).mtimeMs
       } catch {
-        continue
+        modifiedAt = undefined
       }
-      const { data, content } = matter(raw)
-      const resources = await collectResources(skillPath)
-      skills.push({
-        agent: this.agent,
-        scope,
-        path: skillPath,
-        modifiedAt,
-        skill: {
-          name: typeof data.name === 'string' ? data.name : entry.name,
-          description: typeof data.description === 'string' ? data.description : '',
-          version: typeof data.version === 'string' ? data.version : undefined,
-          tags: Array.isArray(data.tags)
-            ? data.tags.filter((t) => typeof t === 'string')
-            : undefined,
-          content: content.trim(),
-          resources,
-          metadata: data,
-        },
-      })
+      skills.push({ agent: this.agent, scope, path: skillPath, modifiedAt, skill })
     }
     return skills
   }
@@ -88,24 +69,4 @@ export abstract class SkillDirAdapter implements AgentAdapter {
     if (!dir) return
     await fs.rm(join(dir, name), { recursive: true, force: true })
   }
-}
-
-/** Walk a skill directory and collect non-SKILL.md files as resources. */
-async function collectResources(
-  skillPath: string,
-): Promise<Record<string, string> | undefined> {
-  const resources: Record<string, string> = {}
-  async function walk(dir: string, prefix: string): Promise<void> {
-    const entries = await fs.readdir(dir, { withFileTypes: true })
-    for (const entry of entries) {
-      const rel = prefix ? `${prefix}/${entry.name}` : entry.name
-      if (entry.isDirectory()) {
-        await walk(join(dir, entry.name), rel)
-      } else if (rel !== 'SKILL.md') {
-        resources[rel] = join(dir, entry.name)
-      }
-    }
-  }
-  await walk(skillPath, '')
-  return Object.keys(resources).length > 0 ? resources : undefined
 }

@@ -4,7 +4,9 @@ import { useI18n } from 'vue-i18n'
 import {
   Blocks,
   FolderOpen,
+  Import,
   LayoutDashboard,
+  Plus,
   RefreshCw,
   Search,
   Settings,
@@ -15,6 +17,8 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import DashboardPage from '@/components/DashboardPage.vue'
+import ImportSheet from '@/components/ImportSheet.vue'
+import NewSkillSheet from '@/components/NewSkillSheet.vue'
 import PlatformIcon from '@/components/PlatformIcon.vue'
 import SettingsSheet from '@/components/SettingsSheet.vue'
 import SkillCard from '@/components/SkillCard.vue'
@@ -34,6 +38,7 @@ const {
   platformFilter,
   projectFilter,
   driftOnly,
+  sortBy,
   filtered,
   skills,
   refresh,
@@ -46,6 +51,8 @@ const basename = (p: string): string => p.split('/').filter(Boolean).pop() ?? p
 
 const selected = ref<AggregatedSkill | null>(null)
 const settingsOpen = ref(false)
+const newOpen = ref(false)
+const importOpen = ref(false)
 const view = ref<'dashboard' | 'skills'>('dashboard')
 
 function filterPlatform(id: string | null): void {
@@ -223,7 +230,20 @@ onMounted(async () => {
           <TriangleAlert class="size-3.5" />
           {{ t('app.driftOnly') }}
         </button>
+        <select
+          v-model="sortBy"
+          class="app-no-drag h-8 rounded-md border bg-background px-2 text-xs text-muted-foreground"
+        >
+          <option value="name">{{ t('sort.name') }}</option>
+          <option value="recent">{{ t('sort.recent') }}</option>
+        </select>
         <div class="flex-1" />
+        <Button variant="outline" size="sm" class="app-no-drag" @click="newOpen = true">
+          <Plus />
+        </Button>
+        <Button variant="outline" size="sm" class="app-no-drag" @click="importOpen = true">
+          <Import />
+        </Button>
         <Button
           variant="outline"
           size="sm"
@@ -237,7 +257,11 @@ onMounted(async () => {
       </header>
 
       <div v-if="view === 'dashboard'" class="flex-1 overflow-y-auto">
-        <DashboardPage @open-skill="selected = $event" />
+        <DashboardPage
+          @open-skill="selected = $event"
+          @new-skill="newOpen = true"
+          @import="importOpen = true"
+        />
       </div>
 
       <div v-else class="flex-1 overflow-y-auto px-6 py-5">
@@ -278,6 +302,8 @@ onMounted(async () => {
 
     <SkillDetailSheet :skill="selected" @close="selected = null" />
     <SettingsSheet :open="settingsOpen" @close="settingsOpen = false" />
+    <NewSkillSheet :open="newOpen" @close="newOpen = false" />
+    <ImportSheet :open="importOpen" @close="importOpen = false" />
   </div>
 </template>
 

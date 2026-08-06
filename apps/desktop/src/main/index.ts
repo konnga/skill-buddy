@@ -1,13 +1,20 @@
 import { app, BrowserWindow, dialog, ipcMain, shell } from 'electron'
+import { execFile } from 'node:child_process'
+import { promises as fs } from 'node:fs'
+import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { promisify } from 'node:util'
 import {
   aggregateSkills,
+  findSkills,
   getAdapter,
   listPlatformStatus,
   registerPlatform,
   scanInstalledSkills,
   type Skill,
 } from '@skills-manager/core'
+
+const execFileAsync = promisify(execFile)
 import type { CustomPlatformInput, InstallTarget } from '../shared/ipc.js'
 
 function createWindow(): void {
@@ -79,6 +86,32 @@ function registerIpc(): void {
       properties: ['openDirectory', 'createDirectory'],
     })
     return result.canceled ? null : (result.filePaths[0] ?? null)
+  })
+
+  ipcMain.handle('skills:find-in-dir', (_event, root: string) => findSkills(root))
+
+  ipcMain.handle('skills:import-git', async (_event, url: string) => {
+    if (!/^(https?:\/\/|git@)[\w.@:/~-]+$/.test(url)) {
+      throw new Error(`invalid git url: ${url}`)
+    }
+    const tmp = await fs.mkdtemp(join(tmpdir(), 'skm-import-'))
+    try {
+      await execFileAsync('git', ['clone', '--depth', '1', url, tmp], {
+        timeout: 60_000,
+        env: { ...process.env, GIT_TERMINAL_PROMPT: '0' },
+      })
+    } catch (e) {
+      await fs.rm(tmp, { recursive: true, force: true })
+      throw new Error(`git clone failed: ${e instanceof Error ? e.message : String(e)}`)
+    }
+    return { root: tmp, items: await findSkills(tmp) }
+  })
+
+  ipcMain.handle('skills:cleanup-import', async (_event, root: string) => {
+    // Only remove dirs we created ourselves.
+    if (root.startsWith(join(tmpdir(), 'skm-import-'))) {
+      await fs.rm(root, { recursive: true, force: true })
+    }
   })
 }
 

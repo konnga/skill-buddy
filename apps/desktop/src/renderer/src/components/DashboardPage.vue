@@ -12,7 +12,6 @@ import {
   TriangleAlert,
 } from '@lucide/vue'
 import type { AggregatedSkill } from '@skills-manager/core'
-import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import PlatformIcon from '@/components/PlatformIcon.vue'
@@ -20,7 +19,11 @@ import { agentLabel } from '@/lib/agents'
 import { useSettings } from '@/composables/useSettings'
 import { useSkills } from '@/composables/useSkills'
 
-const emit = defineEmits<{ openSkill: [skill: AggregatedSkill] }>()
+const emit = defineEmits<{
+  openSkill: [skill: AggregatedSkill]
+  newSkill: []
+  import: []
+}>()
 
 const { skills, detectedPlatforms, loading, refresh } = useSkills()
 const { projectRoots } = useSettings()
@@ -114,15 +117,13 @@ function otherAgentCount(s: AggregatedSkill): number {
           <RefreshCw :class="loading ? 'animate-spin' : ''" />
           {{ t('app.rescan') }}
         </Button>
-        <Button variant="outline" size="sm" disabled :title="t('dashboard.comingSoon')">
+        <Button variant="outline" size="sm" @click="emit('newSkill')">
           <Plus />
           {{ t('dashboard.actionNew') }}
-          <Badge variant="secondary" class="text-[10px]">{{ t('dashboard.comingSoon') }}</Badge>
         </Button>
-        <Button variant="outline" size="sm" disabled :title="t('dashboard.comingSoon')">
+        <Button variant="outline" size="sm" @click="emit('import')">
           <Import />
           {{ t('dashboard.actionImport') }}
-          <Badge variant="secondary" class="text-[10px]">{{ t('dashboard.comingSoon') }}</Badge>
         </Button>
       </div>
     </section>
