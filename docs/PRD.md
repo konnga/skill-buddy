@@ -80,6 +80,10 @@ MVP 服务 P0 并为 P1 打地基；Phase 2 交付 P1；Phase 3 覆盖 P2。
 | 新建 | 从模板创建新 skill（含 frontmatter 脚手架） | P1 |
 | 适配器 | claude-code → codex → opencode（P0，做到极可靠）；cursor（P1）；trae/codebuddy/workbuddy（P2，调研后排期） | 递进 |
 
+> 状态（2026-08-06）：Phase 1 已交付；Phase 2 核心链路已交付
+> （registry + CLI + 桌面团队库，见 docs/registry.md）；Phase 3 已交付
+> 部署包/RBAC/策略下发/审计，SSO 与 Web 控制台为已预留扩展点。
+
 ### Phase 2 — 团队协作（核心主攻）
 
 - **Registry 服务**：发布 / 拉取 / 语义化版本 / 搜索，托管 + 可自建

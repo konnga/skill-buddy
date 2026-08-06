@@ -1,0 +1,18 @@
+# Self-hosted skills registry (enterprise deployment)
+#   ADMIN_TOKEN=change-me docker compose up -d
+services:
+  registry:
+    build:
+      context: .
+      dockerfile: apps/registry/Dockerfile
+    ports:
+      - '8787:8787'
+    environment:
+      ADMIN_TOKEN: ${ADMIN_TOKEN:?set ADMIN_TOKEN}
+      DB_PATH: /data/registry.db
+    volumes:
+      - registry-data:/data
+    restart: unless-stopped
+
+volumes:
+  registry-data:

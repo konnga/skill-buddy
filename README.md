@@ -9,9 +9,14 @@ AI agent skills 的可视化管理平台：统一管理、安装、同步各主�
 pnpm monorepo：
 
 ```
-packages/core     # 内核：统一 skill 格式、解析、各 agent 适配器、本地扫描
-apps/desktop      # 桌面端（Electron + Vue 3 + TypeScript）——可视化管理主入口
+packages/core     # 内核：统一 skill 格式、适配器、扫描/聚合/漂移、registry 客户端
+packages/cli      # skm 命令行（scan/install/publish/sync，CI 批量下发）
+apps/desktop      # 桌面端（Electron + Vue 3 + TS）——可视化管理主入口
+apps/registry     # 自托管 registry（Fastify + SQLite：org/令牌/版本/策略/审计）
 ```
+
+团队/企业：`docker compose up` 起私有 registry（见 [docs/registry.md](docs/registry.md)），
+桌面端「团队库」+ `skm sync` 完成共享与策略下发。
 
 UI 走 headless 路线：**Reka UI + Tailwind CSS v4 + shadcn-vue 约定**（组件源码在
 `apps/desktop/src/renderer/src/components/ui/`，归本仓库所有），图标用
