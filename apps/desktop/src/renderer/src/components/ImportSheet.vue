@@ -158,7 +158,7 @@ async function runImport(): Promise<void> {
     <DialogPortal>
       <DialogOverlay class="fixed inset-0 z-40 bg-black/30 backdrop-blur-[2px]" />
       <DialogContent
-        class="fixed inset-y-0 right-0 z-50 flex w-[600px] max-w-[92vw] flex-col border-l bg-background shadow-xl outline-none"
+        class="fixed inset-y-0 right-0 z-50 flex w-[600px] max-w-[92vw] flex-col border-l bg-background outline-none"
         @open-auto-focus.prevent
       >
         <header class="flex items-center justify-between border-b px-6 py-4">

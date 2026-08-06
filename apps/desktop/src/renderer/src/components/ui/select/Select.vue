@@ -33,7 +33,7 @@ const model = defineModel<string>()
     <SelectTrigger
       :class="
         cn(
-          'flex h-8 items-center justify-between gap-2 rounded-md border border-input bg-background py-1 pl-2.5 pr-2 text-sm shadow-sm transition-colors hover:border-foreground/40 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 [&>span]:truncate',
+          'flex h-8 items-center justify-between gap-2 rounded-md border border-input bg-background py-1 pl-2.5 pr-2 text-sm transition-colors hover:border-foreground/40 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 [&>span]:truncate',
           props.class,
         )
       "
@@ -45,7 +45,7 @@ const model = defineModel<string>()
       <SelectContent
         position="popper"
         :side-offset="4"
-        class="z-[70] max-h-72 min-w-[var(--reka-select-trigger-width)] overflow-hidden rounded-md border bg-popover text-popover-foreground shadow-md"
+        class="z-[70] max-h-72 min-w-[var(--reka-select-trigger-width)] overflow-hidden rounded-md border bg-popover text-popover-foreground"
       >
         <SelectViewport class="p-1">
           <SelectItem
