@@ -22,7 +22,8 @@
     "diff": "^9.0.0",
     "markdown-it": "^15.0.0",
     "reka-ui": "^2.10.1",
-    "tailwind-merge": "^3.6.0"
+    "tailwind-merge": "^3.6.0",
+    "vue-i18n": "^11.4.8"
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.3.3",

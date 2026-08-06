@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { onMounted, ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { Blocks, FolderOpen, RefreshCw, Search, Settings, TriangleAlert } from '@lucide/vue'
 import type { AggregatedSkill } from '@skills-manager/core'
 import { Badge } from '@/components/ui/badge'
@@ -30,6 +31,7 @@ const {
 } = useSkills()
 
 const { projectRoots } = useSettings()
+const { t } = useI18n()
 
 const basename = (p: string): string => p.split('/').filter(Boolean).pop() ?? p
 
@@ -67,11 +69,11 @@ onMounted(async () => {
           ]"
           @click="platformFilter = null"
         >
-          全部
+          {{ t('app.all') }}
           <span class="text-xs tabular-nums text-muted-foreground">{{ skills.length }}</span>
         </button>
         <p class="mb-1 mt-4 px-3 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-          平台
+          {{ t('app.platforms') }}
         </p>
         <button
           v-for="p in detectedPlatforms"
@@ -95,7 +97,7 @@ onMounted(async () => {
           <p
             class="mb-1 mt-4 px-3 text-xs font-medium uppercase tracking-wide text-muted-foreground"
           >
-            范围
+            {{ t('app.scope') }}
           </p>
           <button
             :class="[
@@ -104,7 +106,7 @@ onMounted(async () => {
             ]"
             @click="projectFilter = projectFilter === 'user' ? null : 'user'"
           >
-            全局（user）
+            {{ t('app.userGlobal') }}
           </button>
           <button
             v-for="root in projectRoots"
@@ -133,7 +135,7 @@ onMounted(async () => {
           @click="settingsOpen = true"
         >
           <Settings class="size-4" />
-          设置
+          {{ t('common.settings') }}
         </button>
       </div>
     </aside>
@@ -147,7 +149,7 @@ onMounted(async () => {
           <Search
             class="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
           />
-          <Input v-model="search" placeholder="搜索 skills…" class="pl-8" />
+          <Input v-model="search" :placeholder="t('app.searchPlaceholder')" class="pl-8" />
         </div>
         <button
           type="button"
@@ -160,7 +162,7 @@ onMounted(async () => {
           @click="driftOnly = !driftOnly"
         >
           <TriangleAlert class="size-3.5" />
-          仅看漂移
+          {{ t('app.driftOnly') }}
         </button>
         <div class="flex-1" />
         <Button
@@ -171,13 +173,13 @@ onMounted(async () => {
           @click="refresh"
         >
           <RefreshCw :class="loading ? 'animate-spin' : ''" />
-          重新扫描
+          {{ t('app.rescan') }}
         </Button>
       </header>
 
       <div class="flex-1 overflow-y-auto px-6 py-5">
         <div v-if="loading && skills.length === 0" class="py-24 text-center text-sm text-muted-foreground">
-          扫描中…
+          {{ t('app.scanning') }}
         </div>
 
         <div v-else-if="error" class="py-24 text-center text-sm text-destructive">{{ error }}</div>
@@ -187,10 +189,9 @@ onMounted(async () => {
           class="flex flex-col items-center gap-3 py-24 text-muted-foreground"
         >
           <FolderOpen class="size-10" />
-          <p class="text-sm">未发现已安装的 skills</p>
+          <p class="text-sm">{{ t('app.empty') }}</p>
           <p class="max-w-sm text-center text-xs">
-            已检测到 {{ detectedPlatforms.length }} 个 agent 平台。在任一平台安装 skill
-            后点击「重新扫描」。
+            {{ t('app.emptyHint', { n: detectedPlatforms.length }) }}
           </p>
         </div>
 
@@ -198,7 +199,7 @@ onMounted(async () => {
           v-else-if="filtered.length === 0"
           class="py-24 text-center text-sm text-muted-foreground"
         >
-          没有匹配「{{ search }}」的 skill
+          {{ t('app.noMatch', { q: search }) }}
         </div>
 
         <div v-else class="grid grid-cols-1 gap-3 lg:grid-cols-2 2xl:grid-cols-3">

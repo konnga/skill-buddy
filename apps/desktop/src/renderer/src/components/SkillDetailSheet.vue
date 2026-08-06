@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import {
   DialogContent,
   DialogOverlay,
@@ -25,6 +26,7 @@ const emit = defineEmits<{ close: [] }>()
 
 const { detectedPlatforms, install, installSkill, uninstall } = useSkills()
 const { projectRoots } = useSettings()
+const { t } = useI18n()
 
 const mode = ref<'view' | 'edit'>('view')
 
@@ -183,7 +185,7 @@ async function runUninstall(): Promise<void> {
                 {{ skill.name }}
               </DialogTitle>
               <p v-if="mode === 'view'" class="mt-1 line-clamp-2 text-sm text-muted-foreground">
-                {{ skill.description || '（无描述）' }}
+                {{ skill.description || t('card.noDescription') }}
               </p>
               <div v-if="mode === 'view'" class="mt-2 flex flex-wrap gap-1.5">
                 <Badge v-if="skill.version" variant="outline">v{{ skill.version }}</Badge>
@@ -198,7 +200,7 @@ async function runUninstall(): Promise<void> {
                 @click="mode = 'edit'"
               >
                 <Pencil />
-                编辑
+                {{ t('common.edit') }}
               </Button>
               <Button variant="ghost" size="icon" @click="emit('close')">
                 <X />
@@ -216,7 +218,7 @@ async function runUninstall(): Promise<void> {
             <!-- installations -->
             <section class="border-b px-6 py-4">
               <h3 class="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                已安装位置
+                {{ t('detail.installedLocations') }}
               </h3>
               <ul class="flex flex-col gap-2">
                 <li
@@ -234,7 +236,7 @@ async function runUninstall(): Promise<void> {
                     variant="ghost"
                     size="icon"
                     class="size-7 shrink-0"
-                    title="在 Finder 中显示"
+                    :title="t('detail.revealInFinder')"
                     @click="reveal(inst.path)"
                   >
                     <FolderOpen class="size-3.5" />
@@ -249,10 +251,10 @@ async function runUninstall(): Promise<void> {
                 class="mb-2 flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-amber-600 dark:text-amber-400"
               >
                 <TriangleAlert class="size-3.5" />
-                内容漂移
+                {{ t('detail.drift') }}
               </h3>
               <p class="mb-3 text-xs text-muted-foreground">
-                各端内容不一致。选择基准端，将其内容同步到其他端：
+                {{ t('detail.driftHint') }}
               </p>
               <div class="mb-3 flex flex-wrap gap-2">
                 <button
@@ -279,9 +281,7 @@ async function runUninstall(): Promise<void> {
               </div>
               <div v-for="other in driftOthers" :key="other.path" class="mb-3">
                 <p class="mb-1 flex items-center gap-1.5 text-xs text-muted-foreground">
-                  与
-                  <PlatformIcon :id="other.agent" :size="12" />
-                  {{ agentLabel(other.agent) }} 的差异（+ 表示基准端将写入的内容）：
+                  {{ t('detail.diffWith', { agent: agentLabel(other.agent) }) }}
                 </p>
                 <DiffView
                   :base="other.skill.content"
@@ -293,23 +293,23 @@ async function runUninstall(): Promise<void> {
                 :disabled="busy || driftOthers.length === 0"
                 @click="syncFromBase"
               >
-                {{ busy ? '同步中…' : `同步到其他 ${driftOthers.length} 端` }}
+                {{ busy ? t('detail.syncing') : t('detail.syncToOthers', { n: driftOthers.length }) }}
               </Button>
             </section>
 
             <!-- install to -->
             <section class="border-b px-6 py-4">
               <h3 class="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                安装到其他平台
+                {{ t('detail.installTo') }}
               </h3>
               <div v-if="projectRoots.length > 0" class="mb-2">
                 <select
                   v-model="installScope"
                   class="h-8 rounded-md border bg-background px-2 text-sm"
                 >
-                  <option value="user">user 级（全局）</option>
+                  <option value="user">{{ t('detail.userScope') }}</option>
                   <option v-for="root in projectRoots" :key="root" :value="root">
-                    项目：{{ root }}
+                    {{ t('detail.projectScope', { root }) }}
                   </option>
                 </select>
               </div>
@@ -330,7 +330,7 @@ async function runUninstall(): Promise<void> {
                   {{ p.displayName }}
                 </button>
               </div>
-              <p v-else class="text-xs text-muted-foreground">该范围下已安装到所有检测到的平台</p>
+              <p v-else class="text-xs text-muted-foreground">{{ t('detail.allInstalled') }}</p>
               <Button
                 v-if="installableTargets.length > 0"
                 class="mt-3"
@@ -338,7 +338,7 @@ async function runUninstall(): Promise<void> {
                 :disabled="selectedTargets.size === 0 || busy"
                 @click="runInstall"
               >
-                {{ busy ? '安装中…' : `安装（${selectedTargets.size}）` }}
+                {{ busy ? t('detail.installing') : t('detail.installN', { n: selectedTargets.size }) }}
               </Button>
               <p v-if="actionError" class="mt-2 text-xs text-destructive">{{ actionError }}</p>
             </section>
@@ -357,16 +357,16 @@ async function runUninstall(): Promise<void> {
             v-if="mode === 'view'"
             class="flex items-center justify-between border-t px-6 py-3"
           >
-            <p class="text-xs text-muted-foreground">装于 {{ skill.installations.length }} 处</p>
+            <p class="text-xs text-muted-foreground">{{ t('detail.installedCount', { n: skill.installations.length }) }}</p>
             <div class="flex items-center gap-2">
               <template v-if="confirmUninstall">
                 <span class="text-xs text-muted-foreground">
-                  将删除全部 {{ skill.installations.length }} 处安装，确定？
+                  {{ t('detail.deleteConfirm', { n: skill.installations.length }) }}
                 </span>
                 <Button variant="destructive" size="sm" :disabled="busy" @click="runUninstall">
-                  确认删除
+                  {{ t('detail.confirmDelete') }}
                 </Button>
-                <Button variant="ghost" size="sm" @click="confirmUninstall = false">取消</Button>
+                <Button variant="ghost" size="sm" @click="confirmUninstall = false">{{ t('common.cancel') }}</Button>
               </template>
               <Button
                 v-else
@@ -376,7 +376,7 @@ async function runUninstall(): Promise<void> {
                 @click="confirmUninstall = true"
               >
                 <Trash2 />
-                删除
+                {{ t('common.delete') }}
               </Button>
             </div>
           </footer>

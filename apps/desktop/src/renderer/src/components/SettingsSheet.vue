@@ -13,19 +13,27 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import PlatformIcon from '@/components/PlatformIcon.vue'
+import { useI18n } from 'vue-i18n'
 import { useSettings, syncCustomPlatforms, type ThemeMode } from '@/composables/useSettings'
+import type { Locale } from '@/i18n'
 import { useSkills } from '@/composables/useSkills'
 
 defineProps<{ open: boolean }>()
 const emit = defineEmits<{ close: [] }>()
 
-const { projectRoots, customPlatforms, theme } = useSettings()
+const { projectRoots, customPlatforms, theme, language } = useSettings()
+const { t } = useI18n()
 const { platforms, refresh } = useSkills()
 
-const themeOptions: { value: ThemeMode; label: string; icon: unknown }[] = [
-  { value: 'system', label: '跟随系统', icon: Monitor },
-  { value: 'light', label: '亮色', icon: Sun },
-  { value: 'dark', label: '暗色', icon: Moon },
+const themeOptions: { value: ThemeMode; labelKey: string; icon: unknown }[] = [
+  { value: 'system', labelKey: 'settings.themeSystem', icon: Monitor },
+  { value: 'light', labelKey: 'settings.themeLight', icon: Sun },
+  { value: 'dark', labelKey: 'settings.themeDark', icon: Moon },
+]
+
+const languageOptions: { value: Locale; label: string }[] = [
+  { value: 'zh-CN', label: '中文' },
+  { value: 'en', label: 'English' },
 ]
 
 /* project roots */
@@ -57,11 +65,11 @@ async function addCustomPlatform(): Promise<void> {
   formError.value = null
   const f = form.value
   if (!/^[a-z0-9]+(-[a-z0-9]+)*$/.test(f.id)) {
-    formError.value = 'ID 需为 kebab-case（如 my-agent）'
+    formError.value = t('settings.errKebab')
     return
   }
   if (!f.displayName || !f.detectPath || !f.userSkillsDir) {
-    formError.value = '名称、检测路径、user 级目录为必填'
+    formError.value = t('settings.errRequired')
     return
   }
   const def: CustomPlatformInput = {
@@ -94,7 +102,7 @@ async function removeCustomPlatform(id: string): Promise<void> {
         @open-auto-focus.prevent
       >
         <header class="flex items-center justify-between border-b px-6 py-4">
-          <DialogTitle class="text-base font-semibold tracking-tight">设置</DialogTitle>
+          <DialogTitle class="text-base font-semibold tracking-tight">{{ t('settings.title') }}</DialogTitle>
           <Button variant="ghost" size="icon" @click="emit('close')"><X /></Button>
         </header>
 
@@ -102,7 +110,7 @@ async function removeCustomPlatform(id: string): Promise<void> {
           <!-- theme -->
           <section class="border-b px-6 py-4">
             <h3 class="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-              外观
+              {{ t('settings.appearance') }}
             </h3>
             <div class="flex gap-2">
               <button
@@ -118,6 +126,25 @@ async function removeCustomPlatform(id: string): Promise<void> {
                 @click="theme = opt.value"
               >
                 <component :is="opt.icon" class="size-3.5" />
+                {{ t(opt.labelKey) }}
+              </button>
+            </div>
+            <h3 class="mb-2 mt-4 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+              {{ t('settings.language') }}
+            </h3>
+            <div class="flex gap-2">
+              <button
+                v-for="opt in languageOptions"
+                :key="opt.value"
+                type="button"
+                :class="[
+                  'rounded-md border px-3 py-1.5 text-sm transition-colors',
+                  language === opt.value
+                    ? 'border-foreground bg-foreground text-background'
+                    : 'hover:border-foreground/40',
+                ]"
+                @click="language = opt.value"
+              >
                 {{ opt.label }}
               </button>
             </div>
@@ -127,16 +154,15 @@ async function removeCustomPlatform(id: string): Promise<void> {
           <section class="border-b px-6 py-4">
             <div class="mb-2 flex items-center justify-between">
               <h3 class="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                项目目录（扫描 project 级 skills）
+                {{ t('settings.projectDirs') }}
               </h3>
               <Button variant="outline" size="sm" @click="addProjectRoot">
                 <FolderPlus />
-                添加
+                {{ t('common.add') }}
               </Button>
             </div>
             <p v-if="projectRoots.length === 0" class="text-xs text-muted-foreground">
-              未添加项目目录。添加后将扫描各平台在项目内的 skills（如
-              <code>.claude/skills</code>）。
+              {{ t('settings.noDirs') }}
             </p>
             <ul v-else class="flex flex-col gap-1.5">
               <li
@@ -161,38 +187,38 @@ async function removeCustomPlatform(id: string): Promise<void> {
           <section class="px-6 py-4">
             <div class="mb-2 flex items-center justify-between">
               <h3 class="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                平台
+                {{ t('settings.platforms') }}
               </h3>
               <Button variant="outline" size="sm" @click="showForm = !showForm">
                 <Plus />
-                自定义平台
+                {{ t('settings.customPlatform') }}
               </Button>
             </div>
 
             <div v-if="showForm" class="mb-3 flex flex-col gap-2 rounded-md border px-3 py-3">
               <div class="grid grid-cols-2 gap-2">
-                <Input v-model="form.id" placeholder="id（kebab-case）" class="text-sm" />
-                <Input v-model="form.displayName" placeholder="显示名称" class="text-sm" />
+                <Input v-model="form.id" :placeholder="t('settings.formIdPh')" class="text-sm" />
+                <Input v-model="form.displayName" :placeholder="t('settings.formNamePh')" class="text-sm" />
               </div>
               <Input
                 v-model="form.detectPath"
-                placeholder="检测路径，如 ~/.my-agent"
+                :placeholder="t('settings.formDetectPh')"
                 class="text-sm"
               />
               <Input
                 v-model="form.userSkillsDir"
-                placeholder="user 级 skills 目录，如 ~/.my-agent/skills"
+                :placeholder="t('settings.formUserDirPh')"
                 class="text-sm"
               />
               <Input
                 v-model="form.projectSkillsDir"
-                placeholder="project 级目录（可选），如 .my-agent/skills"
+                :placeholder="t('settings.formProjectDirPh')"
                 class="text-sm"
               />
               <p v-if="formError" class="text-xs text-destructive">{{ formError }}</p>
               <div class="flex justify-end gap-2">
-                <Button variant="ghost" size="sm" @click="showForm = false">取消</Button>
-                <Button size="sm" @click="addCustomPlatform">添加</Button>
+                <Button variant="ghost" size="sm" @click="showForm = false">{{ t('common.cancel') }}</Button>
+                <Button size="sm" @click="addCustomPlatform">{{ t('common.add') }}</Button>
               </div>
             </div>
 
@@ -206,7 +232,7 @@ async function removeCustomPlatform(id: string): Promise<void> {
                   <PlatformIcon :id="p.id" :size="15" />
                   <span class="text-sm">{{ p.displayName }}</span>
                   <Badge :variant="p.detected ? 'success' : 'secondary'">
-                    {{ p.detected ? '已检测到' : '未检测到' }}
+                    {{ p.detected ? t('settings.detected') : t('settings.notDetected') }}
                   </Badge>
                 </div>
                 <Button
@@ -214,7 +240,7 @@ async function removeCustomPlatform(id: string): Promise<void> {
                   variant="ghost"
                   size="icon"
                   class="size-7 shrink-0 text-muted-foreground"
-                  title="移除（重启后完全生效）"
+                  :title="t('settings.removeNote')"
                   @click="removeCustomPlatform(p.id)"
                 >
                   <Trash2 class="size-3.5" />

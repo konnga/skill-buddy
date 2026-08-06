@@ -1,5 +1,6 @@
 import { ref, watch } from 'vue'
 import type { CustomPlatformInput } from '../../../shared/ipc.js'
+import { detectLocale, i18n, type Locale } from '../i18n.js'
 
 export type ThemeMode = 'system' | 'light' | 'dark'
 
@@ -15,6 +16,13 @@ function load<T>(key: string, fallback: T): T {
 const projectRoots = ref<string[]>(load('skm.projectRoots', []))
 const customPlatforms = ref<CustomPlatformInput[]>(load('skm.customPlatforms', []))
 const theme = ref<ThemeMode>(load('skm.theme', 'system'))
+const language = ref<Locale>(load('skm.language', detectLocale()))
+
+i18n.global.locale.value = language.value
+watch(language, (v) => {
+  localStorage.setItem('skm.language', JSON.stringify(v))
+  i18n.global.locale.value = v
+})
 
 watch(projectRoots, (v) => localStorage.setItem('skm.projectRoots', JSON.stringify(v)), {
   deep: true,
@@ -45,5 +53,5 @@ export async function syncCustomPlatforms(): Promise<void> {
 }
 
 export function useSettings() {
-  return { projectRoots, customPlatforms, theme }
+  return { projectRoots, customPlatforms, theme, language }
 }

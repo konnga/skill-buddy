@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 import type { AggregatedSkill, Skill } from '@skills-manager/core'
 import type { InstallTarget } from '../../../shared/ipc.js'
 import { Badge } from '@/components/ui/badge'
@@ -14,6 +15,7 @@ const props = defineProps<{ skill: AggregatedSkill }>()
 const emit = defineEmits<{ done: [] ; cancel: [] }>()
 
 const { installSkill } = useSkills()
+const { t } = useI18n()
 
 const source = props.skill.installations[0]!
 const description = ref(props.skill.description)
@@ -74,26 +76,26 @@ async function save(): Promise<void> {
   <div class="flex flex-col gap-4 px-6 py-4">
     <div class="grid grid-cols-2 gap-3">
       <label class="col-span-2 flex flex-col gap-1.5 text-xs text-muted-foreground">
-        描述
-        <Input v-model="description" class="text-sm" placeholder="这个 skill 做什么、何时使用" />
+        {{ t('editor.description') }}
+        <Input v-model="description" class="text-sm" :placeholder="t('editor.descriptionPh')" />
       </label>
       <label class="flex flex-col gap-1.5 text-xs text-muted-foreground">
-        版本
-        <Input v-model="version" class="text-sm" placeholder="1.0.0（可选）" />
+        {{ t('editor.version') }}
+        <Input v-model="version" class="text-sm" :placeholder="t('editor.versionPh')" />
       </label>
       <label class="flex flex-col gap-1.5 text-xs text-muted-foreground">
-        标签（逗号分隔）
+        {{ t('editor.tags') }}
         <Input v-model="tagsInput" class="text-sm" placeholder="git, style" />
       </label>
     </div>
 
     <div class="flex flex-col gap-1.5">
-      <span class="text-xs text-muted-foreground">SKILL.md 正文</span>
+      <span class="text-xs text-muted-foreground">{{ t('editor.body') }}</span>
       <MarkdownEditor v-model="content" />
     </div>
 
     <div v-if="multiInstalled" class="flex flex-col gap-2 rounded-md border px-3 py-2.5">
-      <span class="text-xs text-muted-foreground">保存到（默认同步全部安装位置）</span>
+      <span class="text-xs text-muted-foreground">{{ t('editor.saveTo') }}</span>
       <label
         v-for="inst in skill.installations"
         :key="inst.path"
@@ -114,9 +116,11 @@ async function save(): Promise<void> {
     <p v-if="error" class="text-xs text-destructive">{{ error }}</p>
 
     <div class="flex items-center justify-end gap-2 pb-2">
-      <Button variant="ghost" size="sm" :disabled="busy" @click="emit('cancel')">取消</Button>
+      <Button variant="ghost" size="sm" :disabled="busy" @click="emit('cancel')">
+        {{ t('common.cancel') }}
+      </Button>
       <Button size="sm" :disabled="busy || !description.trim()" @click="save">
-        {{ busy ? '保存中…' : `保存（${targetPaths.size} 处）` }}
+        {{ busy ? t('editor.saving') : t('editor.saveN', { n: targetPaths.size }) }}
       </Button>
     </div>
   </div>

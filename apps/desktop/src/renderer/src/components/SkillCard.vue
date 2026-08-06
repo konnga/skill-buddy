@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { TriangleAlert } from '@lucide/vue'
 import type { AggregatedSkill } from '@skills-manager/core'
 import { Badge } from '@/components/ui/badge'
@@ -9,6 +10,7 @@ import { agentLabel } from '@/lib/agents'
 
 const props = defineProps<{ skill: AggregatedSkill }>()
 defineEmits<{ open: [] }>()
+const { t } = useI18n()
 
 const agents = computed(() => [...new Set(props.skill.installations.map((i) => i.agent))])
 const hasProject = computed(() => props.skill.installations.some((i) => i.scope === 'project'))
@@ -30,12 +32,12 @@ const hasProject = computed(() => props.skill.installations.some((i) => i.scope 
             class="gap-1 border-amber-500/40 text-amber-600 dark:text-amber-400"
           >
             <TriangleAlert class="size-3" />
-            漂移
+            {{ t('card.drift') }}
           </Badge>
         </span>
       </div>
       <CardDescription class="line-clamp-2 min-h-10">
-        {{ skill.description || '（无描述）' }}
+        {{ skill.description || t('card.noDescription') }}
       </CardDescription>
     </CardHeader>
     <CardContent class="flex flex-wrap items-center gap-x-3 gap-y-1.5">
