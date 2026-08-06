@@ -122,7 +122,7 @@ onUnmounted(() => window.removeEventListener('keydown', onSidebarShortcut))
     <!-- sidebar -->
     <aside
       :class="[
-        'sidebar-surface flex shrink-0 flex-col overflow-hidden bg-muted/30 transition-[width] duration-200',
+        'sidebar-surface flex shrink-0 flex-col overflow-hidden transition-[width] duration-200',
         sidebarCollapsed ? 'w-0' : 'w-56 border-r',
       ]"
     >

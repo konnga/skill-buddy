@@ -82,6 +82,9 @@
   .vibrancy body {
     background: transparent;
   }
+  .sidebar-surface {
+    @apply bg-muted/30;
+  }
   .vibrancy .sidebar-surface {
     background: transparent;
   }
