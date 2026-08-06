@@ -41,6 +41,7 @@ const { t } = useI18n()
 
 const teamBusy = ref<string | null>(null)
 const todoOpen = ref(false)
+const recentOpen = ref(false)
 
 const todoCount = computed(
   () =>
@@ -272,15 +273,17 @@ function otherAgentCount(s: AggregatedSkill): number {
       </ul>
     </section>
 
-    <!-- marketplace discovery -->
-    <MarketDiscovery @open="emit('openMarket', $event)" />
-
-    <!-- recent -->
+    <!-- recent (collapsed, mirrors needs-attention) -->
     <section v-if="recentSkills.length > 0">
-      <h3 class="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+      <button
+        class="mb-2 flex w-full items-center gap-2 text-xs font-medium uppercase tracking-wide text-muted-foreground transition-colors hover:text-foreground"
+        @click="recentOpen = !recentOpen"
+      >
+        <component :is="recentOpen ? ChevronDown : ChevronRight" class="size-3.5" />
         {{ t('dashboard.recent') }}
-      </h3>
-      <ul class="flex flex-col gap-1.5">
+        <Badge variant="secondary" class="text-[10px]">{{ recentSkills.length }}</Badge>
+      </button>
+      <ul v-if="recentOpen" class="flex flex-col gap-1.5">
         <li v-for="item in recentSkills" :key="item.skill.name">
           <button
             class="flex w-full items-center justify-between gap-3 rounded-md border px-4 py-2 text-left transition-colors hover:border-foreground/25"
@@ -304,5 +307,8 @@ function otherAgentCount(s: AggregatedSkill): number {
         </li>
       </ul>
     </section>
+
+    <!-- marketplace discovery -->
+    <MarketDiscovery @open="emit('openMarket', $event)" />
   </div>
 </template>
