@@ -122,7 +122,7 @@ onUnmounted(() => window.removeEventListener('keydown', onSidebarShortcut))
     <!-- sidebar -->
     <aside
       :class="[
-        'flex shrink-0 flex-col overflow-hidden bg-muted/30 transition-[width] duration-200',
+        'sidebar-surface flex shrink-0 flex-col overflow-hidden bg-muted/30 transition-[width] duration-200',
         sidebarCollapsed ? 'w-0' : 'w-56 border-r',
       ]"
     >
@@ -244,10 +244,10 @@ onUnmounted(() => window.removeEventListener('keydown', onSidebarShortcut))
     </aside>
 
     <!-- main -->
-    <main v-if="selected" class="flex min-w-0 flex-1 flex-col">
+    <main v-if="selected" class="content-surface flex min-w-0 flex-1 flex-col">
       <SkillDetailPage :key="selected.name" :skill="selected" @close="selected = null" />
     </main>
-    <main v-else class="flex min-w-0 flex-1 flex-col">
+    <main v-else class="content-surface flex min-w-0 flex-1 flex-col">
       <header
         v-if="view === 'dashboard'"
         class="app-drag flex items-center gap-3 px-6 py-3"

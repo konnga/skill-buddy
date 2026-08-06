@@ -135,7 +135,7 @@ async function removeCustomPlatform(id: string): Promise<void> {
 <template>
   <div class="flex h-screen">
     <!-- settings sidebar -->
-    <aside class="flex w-64 shrink-0 flex-col border-r bg-muted/30">
+    <aside class="sidebar-surface flex w-64 shrink-0 flex-col border-r bg-muted/30">
       <div class="app-drag px-4 pb-2 pt-10">
         <button
           class="app-no-drag flex items-center gap-2 rounded-md px-2 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-accent/60 hover:text-foreground"
@@ -178,7 +178,7 @@ async function removeCustomPlatform(id: string): Promise<void> {
     </aside>
 
     <!-- content -->
-    <main class="min-w-0 flex-1 overflow-y-auto">
+    <main class="content-surface min-w-0 flex-1 overflow-y-auto">
       <div class="mx-auto max-w-3xl px-10 py-10">
         <h1 class="mb-8 text-2xl font-semibold tracking-tight">{{ activeTitle }}</h1>
 

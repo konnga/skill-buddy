@@ -77,6 +77,18 @@
 }
 
 @layer components {
+  /* macOS sidebar vibrancy: window material shows through the sidebar,
+     while content surfaces stay opaque. */
+  .vibrancy body {
+    background: transparent;
+  }
+  .vibrancy .sidebar-surface {
+    background: transparent;
+  }
+  .content-surface {
+    @apply bg-background;
+  }
+
   /* Codex-style sidebar selection: a quiet flat gray pill, one step
      darker than the sidebar background — no border, shadow or blur. */
   .nav-active {
