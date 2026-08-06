@@ -146,10 +146,14 @@ async function removeCustomPlatform(id: string): Promise<void> {
                     {{ t('settings.languageDesc') }}
                   </p>
                 </div>
-                <Select v-model="language" class="w-36 shrink-0">
-                  <option value="zh-CN">中文</option>
-                  <option value="en">English</option>
-                </Select>
+                <Select
+                  v-model="language"
+                  class="w-36 shrink-0"
+                  :options="[
+                    { value: 'zh-CN', label: '中文' },
+                    { value: 'en', label: 'English' },
+                  ]"
+                />
               </div>
 
               <div class="flex items-center justify-between gap-6 rounded-lg border px-5 py-4">
@@ -157,11 +161,15 @@ async function removeCustomPlatform(id: string): Promise<void> {
                   <p class="text-sm font-medium">{{ t('settings.themeTitle') }}</p>
                   <p class="mt-0.5 text-xs text-muted-foreground">{{ t('settings.themeDesc') }}</p>
                 </div>
-                <Select v-model="theme" class="w-36 shrink-0">
-                  <option value="system">{{ t('settings.themeSystem') }}</option>
-                  <option value="light">{{ t('settings.themeLight') }}</option>
-                  <option value="dark">{{ t('settings.themeDark') }}</option>
-                </Select>
+                <Select
+                  v-model="theme"
+                  class="w-36 shrink-0"
+                  :options="[
+                    { value: 'system', label: t('settings.themeSystem') },
+                    { value: 'light', label: t('settings.themeLight') },
+                    { value: 'dark', label: t('settings.themeDark') },
+                  ]"
+                />
               </div>
             </div>
 

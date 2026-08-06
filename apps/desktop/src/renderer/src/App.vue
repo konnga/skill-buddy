@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, ref, watch } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import {
   Blocks,
@@ -51,6 +51,11 @@ const { projectRoots } = useSettings()
 const { t } = useI18n()
 
 const basename = (p: string): string => p.split('/').filter(Boolean).pop() ?? p
+
+const sortOptions = computed(() => [
+  { value: 'name', label: t('sort.name') },
+  { value: 'recent', label: t('sort.recent') },
+])
 
 const selected = ref<AggregatedSkill | null>(null)
 const settingsOpen = ref(false)
@@ -249,10 +254,7 @@ onMounted(async () => {
           <TriangleAlert class="size-3.5" />
           {{ t('app.driftOnly') }}
         </button>
-        <Select v-model="sortBy" class="app-no-drag">
-          <option value="name">{{ t('sort.name') }}</option>
-          <option value="recent">{{ t('sort.recent') }}</option>
-        </Select>
+        <Select v-model="sortBy" class="app-no-drag" :options="sortOptions" />
         <div class="flex-1" />
         <Button variant="outline" size="sm" class="app-no-drag" @click="newOpen = true">
           <Plus />

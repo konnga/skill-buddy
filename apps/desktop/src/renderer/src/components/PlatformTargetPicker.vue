@@ -17,6 +17,14 @@ const available = computed(() =>
   detectedPlatforms.value.filter((p) => scope.value === 'user' || p.hasProjectScope),
 )
 
+const scopeOptions = computed(() => [
+  { value: 'user', label: t('detail.userScope') },
+  ...projectRoots.value.map((root) => ({
+    value: root,
+    label: t('detail.projectScope', { root }),
+  })),
+])
+
 function toggle(id: string): void {
   agents.value = agents.value.includes(id)
     ? agents.value.filter((a) => a !== id)
@@ -26,12 +34,12 @@ function toggle(id: string): void {
 
 <template>
   <div class="flex flex-col gap-2">
-    <Select v-if="projectRoots.length > 0" v-model="scope" class="w-fit max-w-full">
-      <option value="user">{{ t('detail.userScope') }}</option>
-      <option v-for="root in projectRoots" :key="root" :value="root">
-        {{ t('detail.projectScope', { root }) }}
-      </option>
-    </Select>
+    <Select
+      v-if="projectRoots.length > 0"
+      v-model="scope"
+      class="w-fit max-w-full"
+      :options="scopeOptions"
+    />
     <div class="flex flex-wrap gap-2">
       <button
         v-for="p in available"

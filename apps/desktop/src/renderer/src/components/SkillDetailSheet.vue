@@ -86,6 +86,14 @@ const rendered = computed(() =>
 /** 'user' or a project root path */
 const installScope = ref<string>('user')
 
+const scopeOptions = computed(() => [
+  { value: 'user', label: t('detail.userScope') },
+  ...projectRoots.value.map((root) => ({
+    value: root,
+    label: t('detail.projectScope', { root }),
+  })),
+])
+
 const installedKeys = computed(
   () =>
     new Set(
@@ -361,12 +369,7 @@ async function runUninstall(): Promise<void> {
                 {{ t('detail.installTo') }}
               </h3>
               <div v-if="projectRoots.length > 0" class="mb-2">
-                <Select v-model="installScope" class="max-w-full">
-                  <option value="user">{{ t('detail.userScope') }}</option>
-                  <option v-for="root in projectRoots" :key="root" :value="root">
-                    {{ t('detail.projectScope', { root }) }}
-                  </option>
-                </Select>
+                <Select v-model="installScope" class="max-w-full" :options="scopeOptions" />
               </div>
               <div v-if="installableTargets.length > 0" class="flex flex-wrap gap-2">
                 <button
@@ -404,9 +407,10 @@ async function runUninstall(): Promise<void> {
                 {{ t('team.publish') }}
               </h3>
               <div class="flex flex-wrap items-center gap-2">
-                <Select v-model="publishOrg">
-                  <option v-for="o in orgs" :key="o.name" :value="o.name">{{ o.name }}</option>
-                </Select>
+                <Select
+                  v-model="publishOrg"
+                  :options="orgs.map((o) => ({ value: o.name, label: o.name }))"
+                />
                 <Input
                   v-model="publishVersion"
                   :placeholder="t('team.publishVersion')"
