@@ -13,6 +13,11 @@
 | Cursor 2.4+ | `~/.cursor/skills/` | `.cursor/skills/` | `~/.cursor` | 官方 |
 | OpenCode | `~/.config/opencode/skills/` | `.opencode/skills/` | `~/.config/opencode` | 官方 |
 | WorkBuddy | `~/.workbuddy/skills/` | 无（桌面助手，无项目概念） | `~/.workbuddy` | 多来源一致（非官方一手） |
+| GitHub Copilot | `~/.copilot/skills/` | `.github/skills/` | `~/.copilot` | 官方 |
+| Gemini CLI | `~/.gemini/skills/` | `.gemini/skills/` | `~/.gemini` | 官方 |
+| CodeBuddy | `~/.codebuddy/skills/` | `.codebuddy/skills/` | `~/.codebuddy` | 官方 |
+| Trae（国际版） | `~/.trae/skills/` | `.trae/skills/` | `~/.trae` | 官方（间接确认） |
+| Trae CN | `~/.trae-cn/skills/` | `.trae/skills/` | `~/.trae-cn` | 官方社区帖 |
 
 ## 平台备注
 
@@ -48,6 +53,32 @@
   待有真机后实测验证**
 - 单一来源提到 frontmatter 需 `agent_created: true` WorkBuddy 才能后续
   修改该 skill——未采信（单来源），待实测后决定是否写入
+
+### GitHub Copilot（docs.github.com，2026-04 agent mode 铺开 / 2026-07 code review GA）
+- `.github/skills/` 是 CLI / agent mode / code review 全线识别的项目级路径；
+  VS Code 额外兼容读 `.agents/skills` 与 `.claude/skills`
+- user 级 `~/.copilot/skills/`（COPILOT_HOME 可覆盖根目录）
+- instructions 体系（copilot-instructions.md / *.instructions.md）与
+  prompt files 并存，官方已提供向 skills 的迁移引导
+
+### Gemini CLI（google-gemini/gemini-cli docs）
+- 原生 `~/.gemini/skills/` 与 `.gemini/skills/`，同层级 `.agents/skills`
+  别名优先；skills 激活需用户 consent、workspace 需 `/trust`
+- 另有 commands（TOML）与 extensions 体系；GEMINI.md 三层拼接
+
+### CodeBuddy（codebuddy.ai/docs/cli/skills，官方）
+- `~/.codebuddy/skills/` 与 `.codebuddy/skills/`，项目级同名优先
+- frontmatter 扩展字段最多（allowed-tools / context: fork / hooks 等），
+  基础 name/description 与标准一致；**不**自动读 `.claude/skills`
+  （官方策略是格式兼容：复制进来即可用）
+- 记忆文件用 CODEBUDDY.md
+
+### Trae（docs.trae.ai/ide/skills）
+- 国际版 `~/.trae/skills/`；**国内版独立目录 `~/.trae-cn/`**（两行数据分开管理）
+- project 级 `.trae/skills/`（IDE 自动生成），禁用状态在 `.trae/skill-config.json`
+- 官方支持读 `.agents/skills/`（同名时 `.trae/skills/` 优先）
+- frontmatter 仅 name/description，最简
+- 注意：开源的 trae-agent CLI 是另一套配置体系，不要混用
 
 ## 跨平台聚合的两个推论
 

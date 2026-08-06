@@ -2,9 +2,12 @@
 export type BuiltinAgentId =
   | 'claude-code'
   | 'codex'
+  | 'copilot'
   | 'cursor'
+  | 'gemini-cli'
   | 'opencode'
   | 'trae'
+  | 'trae-cn'
   | 'codebuddy'
   | 'workbuddy'
 

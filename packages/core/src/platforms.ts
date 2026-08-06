@@ -52,6 +52,44 @@ export const BUILTIN_PLATFORMS: readonly PlatformDef[] = [
     detectPath: '~/.config/opencode',
   },
   {
+    id: 'copilot',
+    displayName: 'GitHub Copilot',
+    // .github/skills is the path recognized across CLI, agent mode and
+    // code review; VS Code additionally reads .agents/.claude skills.
+    userSkillsDir: '~/.copilot/skills',
+    projectSkillsDir: '.github/skills',
+    detectPath: '~/.copilot',
+  },
+  {
+    id: 'gemini-cli',
+    displayName: 'Gemini CLI',
+    userSkillsDir: '~/.gemini/skills',
+    projectSkillsDir: '.gemini/skills',
+    detectPath: '~/.gemini',
+  },
+  {
+    id: 'codebuddy',
+    displayName: 'CodeBuddy',
+    userSkillsDir: '~/.codebuddy/skills',
+    projectSkillsDir: '.codebuddy/skills',
+    detectPath: '~/.codebuddy',
+  },
+  {
+    id: 'trae',
+    displayName: 'Trae',
+    userSkillsDir: '~/.trae/skills',
+    projectSkillsDir: '.trae/skills',
+    detectPath: '~/.trae',
+  },
+  {
+    // The China edition keeps a separate home dir from international Trae.
+    id: 'trae-cn',
+    displayName: 'Trae CN',
+    userSkillsDir: '~/.trae-cn/skills',
+    projectSkillsDir: '.trae/skills',
+    detectPath: '~/.trae-cn',
+  },
+  {
     id: 'workbuddy',
     displayName: 'WorkBuddy',
     // Desktop assistant — no per-project scope. Deliberately the
