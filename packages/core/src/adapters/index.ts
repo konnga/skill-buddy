@@ -3,13 +3,14 @@ import { ClaudeCodeAdapter } from './claude-code.js'
 import { CodexAdapter } from './codex.js'
 import { CursorAdapter } from './cursor.js'
 import { OpenCodeAdapter } from './opencode.js'
+import { WorkBuddyAdapter } from './workbuddy.js'
 
 const adapters: Partial<Record<AgentId, AgentAdapter>> = {
   'claude-code': new ClaudeCodeAdapter(),
   codex: new CodexAdapter(),
   cursor: new CursorAdapter(),
   opencode: new OpenCodeAdapter(),
-  // TODO: workbuddy
+  workbuddy: new WorkBuddyAdapter(),
 }
 
 export function getAdapter(agent: AgentId): AgentAdapter {
@@ -22,5 +23,5 @@ export function allAdapters(): AgentAdapter[] {
   return Object.values(adapters)
 }
 
-export { ClaudeCodeAdapter, CodexAdapter, CursorAdapter, OpenCodeAdapter }
+export { ClaudeCodeAdapter, CodexAdapter, CursorAdapter, OpenCodeAdapter, WorkBuddyAdapter }
 export { SkillDirAdapter } from './skill-dir-adapter.js'

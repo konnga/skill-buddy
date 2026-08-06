@@ -6,6 +6,7 @@ import { ClaudeCodeAdapter } from './claude-code.js'
 import { CodexAdapter } from './codex.js'
 import { CursorAdapter } from './cursor.js'
 import { OpenCodeAdapter } from './opencode.js'
+import { WorkBuddyAdapter } from './workbuddy.js'
 import type { SkillDirAdapter } from './skill-dir-adapter.js'
 import type { Skill } from '../types.js'
 
@@ -22,7 +23,8 @@ interface Case {
   make: (home: string) => SkillDirAdapter
   detectDir: string[]
   userDir: string[]
-  projectDir: (project: string) => string[]
+  /** null = platform has no project scope */
+  projectDir: ((project: string) => string[]) | null
 }
 
 const cases: Case[] = [
@@ -53,6 +55,13 @@ const cases: Case[] = [
     detectDir: ['.cursor'],
     userDir: ['.cursor', 'skills'],
     projectDir: (p) => [p, '.cursor', 'skills'],
+  },
+  {
+    label: 'WorkBuddyAdapter',
+    make: (home) => new WorkBuddyAdapter(home),
+    detectDir: ['.workbuddy'],
+    userDir: ['.workbuddy', 'skills'],
+    projectDir: null,
   },
 ]
 
@@ -89,12 +98,19 @@ describe.each(cases)('$label', ({ make, detectDir, userDir, projectDir }) => {
     expect(skill.content).toBe(sample.content)
   })
 
-  it('supports project scope', async () => {
+  it(projectDir ? 'supports project scope' : 'rejects project scope (unsupported)', async () => {
     const project = join(home, 'repo')
-    await adapter.install(sample, 'project', project)
-    const listed = await adapter.list('project', project)
-    expect(listed).toHaveLength(1)
-    expect(listed[0]!.path).toBe(join(...projectDir(project), 'commit-style'))
+    if (projectDir) {
+      await adapter.install(sample, 'project', project)
+      const listed = await adapter.list('project', project)
+      expect(listed).toHaveLength(1)
+      expect(listed[0]!.path).toBe(join(...projectDir(project), 'commit-style'))
+    } else {
+      await expect(adapter.install(sample, 'project', project)).rejects.toThrow(
+        /no skills directory/,
+      )
+      expect(await adapter.list('project', project)).toHaveLength(0)
+    }
   })
 
   it('install is idempotent (overwrite, no duplicates)', async () => {
