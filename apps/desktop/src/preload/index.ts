@@ -37,6 +37,24 @@ const api = {
   ): Promise<{ id: string; skillId: string; name: string; installs: number; source: string }[]> =>
     ipcRenderer.invoke('market:search', q),
   openExternal: (url: string): Promise<void> => ipcRenderer.invoke('shell:open-external', url),
+  skillhubSearch: (
+    q: string,
+  ): Promise<
+    {
+      slug: string
+      namespace: string
+      canonicalName: string
+      name: string
+      description: string
+      installs: number
+      upstreamUrl: string | null
+    }[]
+  > => ipcRenderer.invoke('market:skillhub-search', q),
+  skillhubFetch: (
+    slug: string,
+    namespace: string,
+  ): Promise<{ root: string; items: FoundSkill[] }> =>
+    ipcRenderer.invoke('market:skillhub-fetch', slug, namespace),
   registrySearch: (cfg: RegistryConfig, q?: string): Promise<RegistrySkillSummary[]> =>
     ipcRenderer.invoke('registry:search', cfg, q),
   registryOrgs: (cfg: RegistryConfig): Promise<{ name: string; displayName: string }[]> =>

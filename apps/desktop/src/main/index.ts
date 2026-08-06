@@ -192,6 +192,68 @@ function registerIpc(): void {
     return (data.skills ?? []).sort((a, b) => b.installs - a.installs)
   })
 
+  /* ---------- marketplace (skillhub.cn) ---------- */
+
+  ipcMain.handle('market:skillhub-search', async (_event, q: string) => {
+    const url = new URL('https://api.skillhub.cn/api/skills')
+    url.searchParams.set('page', '1')
+    url.searchParams.set('pageSize', '30')
+    url.searchParams.set('sortBy', 'score')
+    url.searchParams.set('order', 'desc')
+    if (q) url.searchParams.set('keyword', q)
+    const res = await fetch(url, { signal: AbortSignal.timeout(10_000) })
+    if (!res.ok) throw new Error(`skillhub ${res.status}`)
+    const data = (await res.json()) as {
+      data?: {
+        skills?: {
+          slug: string
+          name: string
+          displayName?: string
+          description?: string
+          description_zh?: string
+          downloads?: number
+          installs?: number
+          namespace?: { handle: string; canonicalName?: string }
+          upstream_url?: string | null
+        }[]
+      }
+    }
+    return (data.data?.skills ?? []).map((s) => ({
+      slug: s.slug,
+      namespace: s.namespace?.handle ?? '',
+      canonicalName: s.namespace?.canonicalName ?? s.slug,
+      name: s.displayName || s.name,
+      description: s.description_zh || s.description || '',
+      installs: s.downloads ?? s.installs ?? 0,
+      upstreamUrl: s.upstream_url ?? null,
+    }))
+  })
+
+  ipcMain.handle(
+    'market:skillhub-fetch',
+    async (_event, slug: string, namespace: string) => {
+      const dl = new URL('https://api.skillhub.cn/api/v1/download')
+      dl.searchParams.set('slug', slug)
+      if (namespace) dl.searchParams.set('namespace', namespace)
+      const res = await fetch(dl, { redirect: 'follow', signal: AbortSignal.timeout(60_000) })
+      if (!res.ok) throw new Error(`skillhub download ${res.status}`)
+      const tmp = await fs.mkdtemp(join(tmpdir(), 'skm-import-'))
+      try {
+        const zipPath = join(tmp, 'skill.zip')
+        await fs.writeFile(zipPath, Buffer.from(await res.arrayBuffer()))
+        const unpacked = join(tmp, 'unpacked')
+        await fs.mkdir(unpacked, { recursive: true })
+        await execFileAsync('unzip', ['-o', '-q', zipPath, '-d', unpacked], {
+          timeout: 30_000,
+        })
+        return { root: tmp, items: await findSkills(unpacked) }
+      } catch (e) {
+        await fs.rm(tmp, { recursive: true, force: true })
+        throw e
+      }
+    },
+  )
+
   /* ---------- registry ---------- */
 
   const clientOf = (cfg: RegistryConfig): RegistryClient =>
