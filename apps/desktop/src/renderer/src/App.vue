@@ -22,7 +22,7 @@ import DashboardPage from '@/components/DashboardPage.vue'
 import ImportSheet from '@/components/ImportSheet.vue'
 import NewSkillSheet from '@/components/NewSkillSheet.vue'
 import PlatformIcon from '@/components/PlatformIcon.vue'
-import SettingsSheet from '@/components/SettingsSheet.vue'
+import SettingsPage from '@/components/SettingsPage.vue'
 import SkillCard from '@/components/SkillCard.vue'
 import SkillDetailSheet from '@/components/SkillDetailSheet.vue'
 import TeamPage from '@/components/TeamPage.vue'
@@ -58,10 +58,15 @@ const sortOptions = computed(() => [
 ])
 
 const selected = ref<AggregatedSkill | null>(null)
-const settingsOpen = ref(false)
 const newOpen = ref(false)
 const importOpen = ref(false)
-const view = ref<'dashboard' | 'skills' | 'team'>('dashboard')
+const view = ref<'dashboard' | 'skills' | 'team' | 'settings'>('dashboard')
+const prevView = ref<'dashboard' | 'skills' | 'team'>('dashboard')
+
+function openSettings(): void {
+  if (view.value !== 'settings') prevView.value = view.value
+  view.value = 'settings'
+}
 
 function filterPlatform(id: string | null): void {
   platformFilter.value = platformFilter.value === id && id !== null ? null : id
@@ -88,7 +93,8 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div class="flex h-screen">
+  <SettingsPage v-if="view === 'settings'" @back="view = prevView" />
+  <div v-else class="flex h-screen">
     <!-- sidebar -->
     <aside class="flex w-56 shrink-0 flex-col border-r bg-muted/30">
       <div class="flex items-center gap-2 px-4 pb-4 pt-10">
@@ -198,7 +204,7 @@ onMounted(async () => {
       <div class="mt-auto px-2 pb-3">
         <button
           class="flex w-full items-center gap-2 rounded-md px-3 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-accent/60 hover:text-foreground"
-          @click="settingsOpen = true"
+          @click="openSettings"
         >
           <Settings class="size-4" />
           {{ t('common.settings') }}
@@ -283,7 +289,7 @@ onMounted(async () => {
       </div>
 
       <div v-else-if="view === 'team'" class="flex-1 overflow-y-auto">
-        <TeamPage @open-settings="settingsOpen = true" />
+        <TeamPage @open-settings="openSettings" />
       </div>
 
       <div v-else class="flex-1 overflow-y-auto px-6 py-5">
@@ -323,7 +329,6 @@ onMounted(async () => {
     </main>
 
     <SkillDetailSheet :skill="selected" @close="selected = null" />
-    <SettingsSheet :open="settingsOpen" @close="settingsOpen = false" />
     <NewSkillSheet :open="newOpen" @close="newOpen = false" />
     <ImportSheet :open="importOpen" @close="importOpen = false" />
   </div>
