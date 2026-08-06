@@ -9,7 +9,7 @@ import {
   DialogTitle,
 } from 'reka-ui'
 import { X } from '@lucide/vue'
-import type { Skill } from '@skills-manager/core'
+import type { Skill } from '@skillbuddy/core'
 import type { InstallTarget } from '../../../shared/ipc.js'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'

@@ -16,7 +16,7 @@ import {
   scanInstalledSkills,
   toSkill,
   type Skill,
-} from '@skills-manager/core'
+} from '@skillbuddy/core'
 
 const execFileAsync = promisify(execFile)
 import type { CustomPlatformInput, InstallTarget, RegistryConfig } from '../shared/ipc.js'
@@ -30,6 +30,8 @@ function createWindow(): void {
     show: false,
     autoHideMenuBar: true,
     titleBarStyle: process.platform === 'darwin' ? 'hiddenInset' : 'default',
+    // keep the traffic lights vertically centered in the renderer's h-10 title bar
+    ...(process.platform === 'darwin' ? { trafficLightPosition: { x: 14, y: 13 } } : {}),
     webPreferences: {
       preload: join(import.meta.dirname, '../preload/index.mjs'),
       sandbox: false,

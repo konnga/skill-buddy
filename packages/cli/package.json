@@ -1,5 +1,5 @@
 {
-  "name": "@skills-manager/cli",
+  "name": "@skillbuddy/cli",
   "version": "0.1.0",
   "type": "module",
   "description": "skm — manage AI agent skills across platforms from the terminal / CI",
@@ -11,7 +11,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
-    "@skills-manager/core": "workspace:*",
+    "@skillbuddy/core": "workspace:*",
     "commander": "^13.0.0"
   },
   "devDependencies": {

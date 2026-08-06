@@ -3,9 +3,9 @@ WORKDIR /app
 RUN corepack enable
 COPY package.json pnpm-workspace.yaml pnpm-lock.yaml tsconfig.base.json ./
 COPY apps/registry/package.json apps/registry/
-RUN pnpm install --filter @skills-manager/registry --frozen-lockfile
+RUN pnpm install --filter @skillbuddy/registry --frozen-lockfile
 COPY apps/registry apps/registry
-RUN pnpm --filter @skills-manager/registry build
+RUN pnpm --filter @skillbuddy/registry build
 
 FROM node:22-alpine
 WORKDIR /app
@@ -13,7 +13,7 @@ ENV NODE_ENV=production
 RUN corepack enable
 COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
 COPY apps/registry/package.json apps/registry/
-RUN pnpm install --filter @skills-manager/registry --frozen-lockfile --prod
+RUN pnpm install --filter @skillbuddy/registry --frozen-lockfile --prod
 COPY --from=build /app/apps/registry/dist apps/registry/dist
 VOLUME /data
 ENV DB_PATH=/data/registry.db

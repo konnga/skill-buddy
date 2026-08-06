@@ -1,14 +1,14 @@
 {
-  "name": "skills-manager",
+  "name": "skillbuddy",
   "version": "0.1.0",
   "private": true,
-  "description": "Visual management platform for AI agent skills (Claude Code, Codex, OpenCode, Trae, CodeBuddy, WorkBuddy, ...)",
+  "description": "SkillBuddy — visual management platform for AI agent skills (Claude Code, Codex, Cursor, OpenCode, Trae, CodeBuddy, WorkBuddy, ...)",
   "packageManager": "pnpm@10.32.1",
   "engines": {
     "node": ">=22"
   },
   "scripts": {
-    "dev": "pnpm --filter @skills-manager/desktop dev",
+    "dev": "pnpm --filter @skillbuddy/desktop dev",
     "build": "pnpm -r build",
     "typecheck": "pnpm -r typecheck",
     "lint": "eslint ."

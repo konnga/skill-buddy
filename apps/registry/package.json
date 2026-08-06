@@ -1,5 +1,5 @@
 {
-  "name": "@skills-manager/registry",
+  "name": "@skillbuddy/registry",
   "version": "0.1.0",
   "type": "module",
   "description": "Self-hostable skills registry: orgs, tokens, versions, policy, audit",

@@ -14,7 +14,7 @@ import {
   toSkill,
   type InstallScope,
   type Skill,
-} from '@skills-manager/core'
+} from '@skillbuddy/core'
 
 interface Config {
   registry?: string

@@ -6,7 +6,7 @@ import type {
   RegistrySkill,
   RegistrySkillSummary,
   Skill,
-} from '@skills-manager/core'
+} from '@skillbuddy/core'
 import type {
   CustomPlatformInput,
   InstallTarget,

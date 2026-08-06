@@ -15,7 +15,7 @@ import {
   ShieldAlert,
   TriangleAlert,
 } from '@lucide/vue'
-import type { AggregatedSkill } from '@skills-manager/core'
+import type { AggregatedSkill } from '@skillbuddy/core'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'

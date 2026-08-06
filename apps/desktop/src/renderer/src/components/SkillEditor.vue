@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import type { AggregatedSkill, Skill } from '@skills-manager/core'
+import type { AggregatedSkill, Skill } from '@skillbuddy/core'
 import type { InstallTarget } from '../../../shared/ipc.js'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'

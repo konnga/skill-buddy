@@ -1,4 +1,4 @@
-import type { PlatformStatus } from '@skills-manager/core'
+import type { PlatformStatus } from '@skillbuddy/core'
 
 let platformNames = new Map<string, string>()
 

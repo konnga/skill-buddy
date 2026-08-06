@@ -1,5 +1,5 @@
 import { computed, ref } from 'vue'
-import type { AggregatedSkill, PlatformStatus, Skill } from '@skills-manager/core'
+import type { AggregatedSkill, PlatformStatus, Skill } from '@skillbuddy/core'
 import type { InstallTarget, TargetResult } from '../../../shared/ipc.js'
 import { useSettings } from './useSettings.js'
 

@@ -2,7 +2,7 @@
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { TriangleAlert } from '@lucide/vue'
-import type { AggregatedSkill } from '@skills-manager/core'
+import type { AggregatedSkill } from '@skillbuddy/core'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import CopyButton from '@/components/CopyButton.vue'

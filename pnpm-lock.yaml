@@ -26,7 +26,7 @@ importers:
       '@lucide/vue':
         specifier: ^1.28.0
         version: 1.28.0(vue@3.5.41(typescript@5.9.3))
-      '@skills-manager/core':
+      '@skillbuddy/core':
         specifier: workspace:*
         version: link:../../packages/core
       class-variance-authority:
@@ -121,7 +121,7 @@ importers:
 
   packages/cli:
     dependencies:
-      '@skills-manager/core':
+      '@skillbuddy/core':
         specifier: workspace:*
         version: link:../core
       commander:

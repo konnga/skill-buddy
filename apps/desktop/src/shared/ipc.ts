@@ -1,4 +1,4 @@
-import type { AgentId, InstallScope } from '@skills-manager/core'
+import type { AgentId, InstallScope } from '@skillbuddy/core'
 
 /** A (platform, scope) pair an install/uninstall operation applies to. */
 export interface InstallTarget {

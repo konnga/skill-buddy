@@ -14,7 +14,7 @@ import {
   TriangleAlert,
   Users,
 } from '@lucide/vue'
-import type { AggregatedSkill } from '@skills-manager/core'
+import type { AggregatedSkill } from '@skillbuddy/core'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -105,17 +105,20 @@ onUnmounted(() => window.removeEventListener('keydown', onSidebarShortcut))
 
 <template>
   <SettingsPage v-if="view === 'settings'" @back="view = prevView" />
-  <div v-else :class="['flex h-screen', sidebarCollapsed && 'sidebar-collapsed']">
-    <!-- sidebar toggle (sits to the right of the macOS traffic lights) -->
-    <button
-      class="app-no-drag fixed left-[78px] top-2 z-40 rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-accent/60 hover:text-foreground"
-      :title="`${t('app.toggleSidebar')} (⌘B)`"
-      :aria-label="t('app.toggleSidebar')"
-      @click="sidebarCollapsed = !sidebarCollapsed"
-    >
-      <PanelLeft class="size-4" />
-    </button>
+  <div v-else class="flex h-screen flex-col">
+    <!-- title bar: drag strip with the sidebar toggle next to the traffic lights -->
+    <div class="app-drag flex h-10 shrink-0 items-center">
+      <button
+        class="app-no-drag ml-[78px] rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-accent/60 hover:text-foreground"
+        :title="`${t('app.toggleSidebar')} (⌘B)`"
+        :aria-label="t('app.toggleSidebar')"
+        @click="sidebarCollapsed = !sidebarCollapsed"
+      >
+        <PanelLeft class="size-4" />
+      </button>
+    </div>
 
+    <div class="flex min-h-0 flex-1">
     <!-- sidebar -->
     <aside
       :class="[
@@ -124,9 +127,9 @@ onUnmounted(() => window.removeEventListener('keydown', onSidebarShortcut))
       ]"
     >
       <div class="flex h-full w-56 shrink-0 flex-col">
-      <div class="app-drag flex items-center gap-2 px-4 pb-4 pt-10">
+      <div class="flex items-center gap-2 px-4 py-3">
         <Blocks class="size-5 text-primary" />
-        <span class="font-semibold tracking-tight">Skills Manager</span>
+        <span class="font-semibold tracking-tight">SkillBuddy</span>
       </div>
 
       <nav class="flex flex-col gap-0.5 px-2">
@@ -360,6 +363,7 @@ onUnmounted(() => window.removeEventListener('keydown', onSidebarShortcut))
 
     <NewSkillSheet :open="newOpen" @close="newOpen = false" />
     <ImportSheet :open="importOpen" @close="importOpen = false" />
+    </div>
   </div>
 </template>
 
@@ -369,10 +373,5 @@ onUnmounted(() => window.removeEventListener('keydown', onSidebarShortcut))
 }
 .app-no-drag {
   -webkit-app-region: no-drag;
-}
-/* with the sidebar hidden, the traffic lights + toggle button overlap the
-   main headers' left edge, so give them clearance */
-.sidebar-collapsed header.app-drag {
-  padding-left: 7rem;
 }
 </style>

@@ -2,7 +2,7 @@
 import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { CloudDownload, Search, Users } from '@lucide/vue'
-import type { RegistrySkillSummary } from '@skills-manager/core'
+import type { RegistrySkillSummary } from '@skillbuddy/core'
 import type { InstallTarget } from '../../../shared/ipc.js'
 import MarkdownIt from 'markdown-it'
 import { Badge } from '@/components/ui/badge'

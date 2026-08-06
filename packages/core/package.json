@@ -1,5 +1,5 @@
 {
-  "name": "@skills-manager/core",
+  "name": "@skillbuddy/core",
   "version": "0.1.0",
   "type": "module",
   "description": "Skill parsing, unified format and per-agent adapters",

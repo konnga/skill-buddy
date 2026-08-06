@@ -9,7 +9,7 @@ import {
   DialogTitle,
 } from 'reka-ui'
 import { FolderOpen, GitBranch, X } from '@lucide/vue'
-import type { FoundSkill } from '@skills-manager/core'
+import type { FoundSkill } from '@skillbuddy/core'
 import type { InstallTarget } from '../../../shared/ipc.js'
 import MarkdownIt from 'markdown-it'
 import { Badge } from '@/components/ui/badge'
