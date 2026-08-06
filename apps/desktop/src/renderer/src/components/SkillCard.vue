@@ -4,6 +4,7 @@ import { TriangleAlert } from '@lucide/vue'
 import type { AggregatedSkill } from '@skills-manager/core'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import PlatformIcon from '@/components/PlatformIcon.vue'
 import { agentLabel } from '@/lib/agents'
 
 const props = defineProps<{ skill: AggregatedSkill }>()
@@ -14,7 +15,7 @@ const agents = computed(() => [...new Set(props.skill.installations.map((i) => i
 
 <template>
   <Card
-    class="cursor-pointer transition-all hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-md"
+    class="cursor-pointer transition-colors hover:border-foreground/25"
     @click="$emit('open')"
   >
     <CardHeader class="pb-3">
@@ -33,10 +34,17 @@ const agents = computed(() => [...new Set(props.skill.installations.map((i) => i
         {{ skill.description || '（无描述）' }}
       </CardDescription>
     </CardHeader>
-    <CardContent class="flex flex-wrap items-center gap-1.5">
-      <Badge v-for="agent in agents" :key="agent" variant="secondary" class="text-[11px]">
+    <CardContent class="flex flex-wrap items-center gap-x-3 gap-y-1.5">
+      <span
+        v-for="agent in agents"
+        :key="agent"
+        class="flex items-center gap-1.5 text-xs text-muted-foreground"
+        :title="agentLabel(agent)"
+      >
+        <PlatformIcon :id="agent" :size="14" />
         {{ agentLabel(agent) }}
-      </Badge>
+      </span>
+      <span v-if="skill.tags.length" class="text-border">·</span>
       <Badge v-for="tag in skill.tags" :key="tag" variant="outline" class="text-[11px]">
         {{ tag }}
       </Badge>

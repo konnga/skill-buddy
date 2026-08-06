@@ -13,6 +13,7 @@ import type { AggregatedSkill } from '@skills-manager/core'
 import type { InstallTarget } from '../../../shared/ipc.js'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import PlatformIcon from '@/components/PlatformIcon.vue'
 import { agentLabel } from '@/lib/agents'
 import { useSkills } from '@/composables/useSkills'
 
@@ -146,7 +147,8 @@ async function runUninstall(): Promise<void> {
                   class="flex items-center justify-between gap-2 rounded-md border px-3 py-2"
                 >
                   <div class="flex min-w-0 items-center gap-2">
-                    <Badge variant="secondary">{{ agentLabel(inst.agent) }}</Badge>
+                    <PlatformIcon :id="inst.agent" :size="15" class="text-foreground/70" />
+                    <span class="shrink-0 text-sm">{{ agentLabel(inst.agent) }}</span>
                     <Badge variant="outline">{{ inst.scope }}</Badge>
                     <code class="truncate text-xs text-muted-foreground/70">{{ inst.path }}</code>
                   </div>
@@ -174,13 +176,14 @@ async function runUninstall(): Promise<void> {
                   :key="p.id"
                   type="button"
                   :class="[
-                    'rounded-md border px-3 py-1.5 text-sm transition-colors',
+                    'flex items-center gap-2 rounded-md border px-3 py-1.5 text-sm transition-colors',
                     selectedTargets.has(p.id)
-                      ? 'border-primary bg-primary/10 text-primary'
-                      : 'hover:border-primary/40',
+                      ? 'border-foreground bg-foreground text-background'
+                      : 'hover:border-foreground/40',
                   ]"
                   @click="toggleTarget(p.id)"
                 >
+                  <PlatformIcon :id="p.id" :size="14" />
                   {{ p.displayName }}
                 </button>
               </div>

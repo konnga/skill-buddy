@@ -5,6 +5,7 @@ import type { AggregatedSkill } from '@skills-manager/core'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import PlatformIcon from '@/components/PlatformIcon.vue'
 import SkillCard from '@/components/SkillCard.vue'
 import SkillDetailSheet from '@/components/SkillDetailSheet.vue'
 import { setPlatformNames } from '@/lib/agents'
@@ -55,7 +56,7 @@ onMounted(refresh)
           @click="platformFilter = null"
         >
           全部
-          <Badge variant="secondary">{{ skills.length }}</Badge>
+          <span class="text-xs tabular-nums text-muted-foreground">{{ skills.length }}</span>
         </button>
         <p class="mb-1 mt-4 px-3 text-xs font-medium uppercase tracking-wide text-muted-foreground">
           平台
@@ -69,8 +70,13 @@ onMounted(refresh)
           ]"
           @click="platformFilter = platformFilter === p.id ? null : p.id"
         >
-          <span class="truncate">{{ p.displayName }}</span>
-          <Badge variant="secondary">{{ countByPlatform.get(p.id) ?? 0 }}</Badge>
+          <span class="flex min-w-0 items-center gap-2">
+            <PlatformIcon :id="p.id" :size="15" class="text-foreground/70" />
+            <span class="truncate">{{ p.displayName }}</span>
+          </span>
+          <span class="text-xs tabular-nums text-muted-foreground">
+            {{ countByPlatform.get(p.id) ?? 0 }}
+          </span>
         </button>
       </nav>
     </aside>
