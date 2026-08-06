@@ -18,7 +18,7 @@ import { hasScriptResources, nextPatch } from '@/lib/resources'
 import { useSettings } from '@/composables/useSettings'
 import { useSkills } from '@/composables/useSkills'
 
-const props = defineProps<{ skill: AggregatedSkill }>()
+const props = defineProps<{ skill: AggregatedSkill; inset?: boolean }>()
 const emit = defineEmits<{ close: [] }>()
 
 const { detectedPlatforms, install, installSkill, refresh } = useSkills()
@@ -275,7 +275,7 @@ async function runUninstall(): Promise<void> {
 <template>
   <div class="flex h-full flex-col">
     <!-- header -->
-    <header class="app-drag flex items-center gap-3 border-b px-6 py-3">
+    <header :class="['app-drag flex items-center gap-3 border-b px-6 py-3', props.inset && 'pl-36']">
       <Button variant="ghost" size="icon" class="app-no-drag" @click="emit('close')">
         <ArrowLeft />
       </Button>

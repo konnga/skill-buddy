@@ -105,9 +105,9 @@ onUnmounted(() => window.removeEventListener('keydown', onSidebarShortcut))
 
 <template>
   <SettingsPage v-if="view === 'settings'" @back="view = prevView" />
-  <div v-else class="flex h-screen flex-col">
-    <!-- title bar: drag strip with the sidebar toggle next to the traffic lights -->
-    <div class="app-drag flex h-10 shrink-0 items-center">
+  <div v-else class="relative flex h-screen flex-col">
+    <!-- floating toggle when the sidebar is hidden (traffic-light row) -->
+    <div v-if="sidebarCollapsed" class="app-drag absolute left-0 top-0 z-30 flex h-10 items-center">
       <button
         class="app-no-drag ml-[78px] rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-accent/60 hover:text-foreground"
         :title="`${t('app.toggleSidebar')} (⌘B)`"
@@ -127,6 +127,16 @@ onUnmounted(() => window.removeEventListener('keydown', onSidebarShortcut))
       ]"
     >
       <div class="flex h-full w-56 shrink-0 flex-col">
+      <div class="app-drag flex h-10 shrink-0 items-center">
+        <button
+          class="app-no-drag ml-[78px] rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-accent/60 hover:text-foreground"
+          :title="`${t('app.toggleSidebar')} (⌘B)`"
+          :aria-label="t('app.toggleSidebar')"
+          @click="sidebarCollapsed = !sidebarCollapsed"
+        >
+          <PanelLeft class="size-4" />
+        </button>
+      </div>
       <div class="flex items-center gap-2 px-4 py-3">
         <Blocks class="size-5 text-primary" />
         <span class="font-semibold tracking-tight">SkillBuddy</span>
@@ -245,12 +255,12 @@ onUnmounted(() => window.removeEventListener('keydown', onSidebarShortcut))
 
     <!-- main -->
     <main v-if="selected" class="content-surface flex min-w-0 flex-1 flex-col">
-      <SkillDetailPage :key="selected.name" :skill="selected" @close="selected = null" />
+      <SkillDetailPage :key="selected.name" :skill="selected" :inset="sidebarCollapsed" @close="selected = null" />
     </main>
     <main v-else class="content-surface flex min-w-0 flex-1 flex-col">
       <header
         v-if="view === 'dashboard'"
-        class="app-drag flex items-center gap-3 px-6 py-3"
+        :class="['app-drag flex items-center gap-3 px-6 py-3', sidebarCollapsed && 'pl-36']"
       >
         <div class="flex-1" />
         <Button
@@ -266,13 +276,13 @@ onUnmounted(() => window.removeEventListener('keydown', onSidebarShortcut))
       </header>
       <header
         v-else-if="view === 'team'"
-        class="app-drag flex items-center gap-3 px-6 py-3"
+        :class="['app-drag flex items-center gap-3 px-6 py-3', sidebarCollapsed && 'pl-36']"
       >
         <h1 class="text-sm font-semibold tracking-tight">{{ t('team.title') }}</h1>
       </header>
       <header
         v-else
-        class="app-drag flex items-center gap-3 px-6 py-3"
+        :class="['app-drag flex items-center gap-3 px-6 py-3', sidebarCollapsed && 'pl-36']"
       >
         <div class="app-no-drag relative w-72">
           <Search
