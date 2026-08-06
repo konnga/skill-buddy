@@ -287,15 +287,18 @@ async function runUninstall(): Promise<void> {
                       inst.path
                     }}</code>
                   </div>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    class="size-7 shrink-0"
-                    :title="t('detail.revealInFinder')"
-                    @click="reveal(inst.path)"
-                  >
-                    <FolderOpen class="size-3.5" />
-                  </Button>
+                  <span class="flex shrink-0 items-center gap-0.5">
+                    <CopyButton :text="inst.path" class="size-7" />
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      class="size-7"
+                      :title="t('detail.revealInFinder')"
+                      @click="reveal(inst.path)"
+                    >
+                      <FolderOpen class="size-3.5" />
+                    </Button>
+                  </span>
                 </li>
               </ul>
             </section>

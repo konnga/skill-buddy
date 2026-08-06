@@ -4,7 +4,7 @@ export default {
     delete: '删除',
     add: '添加',
     edit: '编辑',
-    copy: '复制名称',
+    copy: '复制',
     copied: '已复制',
     settings: '设置',
   },

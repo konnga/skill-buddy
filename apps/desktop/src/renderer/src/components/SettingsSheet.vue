@@ -12,6 +12,7 @@ import type { CustomPlatformInput } from '../../../shared/ipc.js'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import CopyButton from '@/components/CopyButton.vue'
 import PlatformIcon from '@/components/PlatformIcon.vue'
 import { useI18n } from 'vue-i18n'
 import { useSettings, syncCustomPlatforms, type ThemeMode } from '@/composables/useSettings'
@@ -191,15 +192,18 @@ async function removeCustomPlatform(id: string): Promise<void> {
                 :key="root"
                 class="flex items-center justify-between gap-2 rounded-md border px-3 py-1.5"
               >
-                <code class="truncate text-xs">{{ root }}</code>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  class="size-7 shrink-0 text-muted-foreground"
-                  @click="removeProjectRoot(root)"
-                >
-                  <Trash2 class="size-3.5" />
-                </Button>
+                <code class="select-text truncate text-xs">{{ root }}</code>
+                <span class="flex shrink-0 items-center gap-0.5">
+                  <CopyButton :text="root" class="size-7" />
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    class="size-7 text-muted-foreground"
+                    @click="removeProjectRoot(root)"
+                  >
+                    <Trash2 class="size-3.5" />
+                  </Button>
+                </span>
               </li>
             </ul>
           </section>

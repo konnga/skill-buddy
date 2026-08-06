@@ -4,7 +4,7 @@ export default {
     delete: 'Delete',
     add: 'Add',
     edit: 'Edit',
-    copy: 'Copy name',
+    copy: 'Copy',
     copied: 'Copied',
     settings: 'Settings',
   },
