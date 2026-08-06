@@ -70,12 +70,6 @@ function showCat(id: Category): boolean {
   return searching.value ? true : category.value === id
 }
 
-const activeTitle = computed(() => {
-  if (searching.value) return t('settings.searchPh').replace('…', '')
-  const item = groups.flatMap((g) => g.items).find((i) => i.id === category.value)
-  return item ? t(item.labelKey) : ''
-})
-
 /* project roots */
 async function addProjectRoot(): Promise<void> {
   const dir = await window.skillsManager.pickDirectory()
@@ -180,8 +174,6 @@ async function removeCustomPlatform(id: string): Promise<void> {
     <!-- content -->
     <main class="min-w-0 flex-1 overflow-y-auto">
       <div class="mx-auto max-w-3xl px-10 py-10">
-        <h1 class="mb-8 text-2xl font-semibold tracking-tight">{{ activeTitle }}</h1>
-
         <!-- general -->
         <section v-if="showCat('general')" class="mb-10">
           <h2 v-if="searching" class="mb-3 text-sm font-medium">{{ t('settings.catGeneral') }}</h2>
