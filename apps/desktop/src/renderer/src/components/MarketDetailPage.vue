@@ -14,7 +14,7 @@ import {
 } from '@/lib/market'
 import { useSkills } from '@/composables/useSkills'
 
-const props = defineProps<{ item: MarketItem }>()
+const props = defineProps<{ item: MarketItem; inset?: boolean }>()
 const emit = defineEmits<{ close: [] }>()
 
 const { installSkill, refresh } = useSkills()
@@ -75,7 +75,7 @@ async function install(): Promise<void> {
 <template>
   <div class="flex h-full flex-col">
     <!-- header -->
-    <header class="app-drag flex items-center gap-3 border-b px-6 py-3">
+    <header :class="['app-drag flex items-center gap-3 border-b px-6 py-3', props.inset && 'pl-36']">
       <Button variant="ghost" size="icon" class="app-no-drag" @click="emit('close')">
         <ArrowLeft />
       </Button>

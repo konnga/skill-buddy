@@ -1,83 +1,29 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue'
+import { onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import {
-  DialogContent,
-  DialogOverlay,
-  DialogPortal,
-  DialogRoot,
-  DialogTitle,
-} from 'reka-ui'
-import { Download, ExternalLink, Plus, Search, Star, X } from '@lucide/vue'
-import type { InstallTarget } from '../../../shared/ipc.js'
+import { Download, Plus, Search, Star } from '@lucide/vue'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import PlatformTargetPicker from '@/components/PlatformTargetPicker.vue'
-import { agentLabel } from '@/lib/agents'
-import { useSkills } from '@/composables/useSkills'
+import {
+  formatMarketCount,
+  marketIconColor,
+  marketIconGlyph,
+  type MarketItem,
+  type MarketSourceId,
+} from '@/lib/market'
 
-type SourceId = 'skills-sh' | 'skillhub'
+const emit = defineEmits<{ open: [item: MarketItem] }>()
 
-interface MarketItem {
-  key: string
-  kind: SourceId
-  name: string
-  description: string
-  installs: number
-  stars: number | null
-  /** repo (skills.sh) or canonical name (skillhub) — shown under the title */
-  sourceLabel: string
-  /** external page to open */
-  link: string
-  /** skills.sh: repo + skill id */
-  repo?: string
-  skillId?: string
-  /** skillhub: slug + namespace */
-  slug?: string
-  namespace?: string
-}
-
-const { installSkill, refresh } = useSkills()
 const { t } = useI18n()
 
-const source = ref<SourceId>('skills-sh')
+const source = ref<MarketSourceId>('skills-sh')
 const query = ref('')
 const items = ref<MarketItem[]>([])
 const loading = ref(false)
 const error = ref<string | null>(null)
 
-const detail = ref<MarketItem | null>(null)
-const scope = ref('user')
-const agents = ref<string[]>([])
-const busyKey = ref<string | null>(null)
-const installError = ref<string | null>(null)
-
 /** skills.sh search requires >= 2 chars; use a broad default feed */
 const DEFAULT_QUERY = 'ai'
-
-/** deterministic icon color per skill name */
-const ICON_COLORS = [
-  'bg-violet-500',
-  'bg-sky-500',
-  'bg-emerald-500',
-  'bg-amber-500',
-  'bg-rose-500',
-  'bg-indigo-500',
-  'bg-teal-500',
-  'bg-orange-500',
-  'bg-fuchsia-500',
-  'bg-lime-600',
-]
-
-function iconColor(name: string): string {
-  let h = 0
-  for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) >>> 0
-  return ICON_COLORS[h % ICON_COLORS.length]!
-}
-
-function iconGlyph(name: string): string {
-  return (name.trim()[0] ?? '?').toUpperCase()
-}
 
 async function search(): Promise<void> {
   loading.value = true
@@ -130,75 +76,7 @@ async function search(): Promise<void> {
   }
 }
 
-watch(source, () => {
-  detail.value = null
-  void search()
-})
-
-function openDetail(item: MarketItem): void {
-  detail.value = item
-  agents.value = []
-  scope.value = 'user'
-  installError.value = null
-}
-
-/** keep stats in the open sheet fresh when stars land asynchronously */
-const detailItem = computed(
-  () => items.value.find((it) => it.key === detail.value?.key) ?? detail.value,
-)
-
-function openLink(item: MarketItem): void {
-  void window.skillsManager.openExternal(item.link)
-}
-
-function formatInstalls(n: number): string {
-  if (n >= 10000) return `${(n / 1000).toFixed(0)}k`
-  if (n >= 1000) return `${(n / 1000).toFixed(1)}k`
-  return String(n)
-}
-
-async function install(item: MarketItem): Promise<void> {
-  if (agents.value.length === 0) return
-  busyKey.value = item.key
-  installError.value = null
-  let cloneRoot: string | null = null
-  try {
-    const result =
-      item.kind === 'skills-sh'
-        ? await window.skillsManager.importFromGit(`https://github.com/${item.repo}`)
-        : await window.skillsManager.skillhubFetch(item.slug!, item.namespace ?? '')
-    cloneRoot = result.root
-    const wanted = item.kind === 'skills-sh' ? item.skillId! : item.slug!
-    const found =
-      result.items.find((f) => f.skill.name === wanted) ??
-      result.items.find((f) => f.dir.endsWith(`/${wanted}`)) ??
-      (item.kind === 'skillhub' ? result.items[0] : undefined)
-    if (!found) {
-      installError.value = t('market.notFound')
-      return
-    }
-    const targets: InstallTarget[] = agents.value.map((agent) =>
-      scope.value === 'user'
-        ? { agent, scope: 'user' }
-        : { agent, scope: 'project', projectRoot: scope.value },
-    )
-    const results = await installSkill(found.skill, targets)
-    const failed = results.filter((r) => !r.ok)
-    if (failed.length > 0) {
-      installError.value = failed
-        .map((f) => `${agentLabel(f.target.agent)}: ${f.error}`)
-        .join('；')
-      return
-    }
-    detail.value = null
-    await refresh()
-  } catch (e) {
-    installError.value = e instanceof Error ? e.message : String(e)
-  } finally {
-    if (cloneRoot) await window.skillsManager.cleanupImport(cloneRoot)
-    busyKey.value = null
-  }
-}
+watch(source, () => void search())
 
 onMounted(() => void search())
 </script>
@@ -257,17 +135,17 @@ onMounted(() => void search())
           class="group flex h-full cursor-pointer flex-col rounded-2xl border bg-card px-4 py-4 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md"
           role="button"
           tabindex="0"
-          @click="openDetail(item)"
-          @keydown.enter="openDetail(item)"
+          @click="emit('open', item)"
+          @keydown.enter="emit('open', item)"
         >
           <div class="flex items-center gap-3">
             <span
               :class="[
                 'flex size-9 shrink-0 items-center justify-center rounded-full text-sm font-bold text-white',
-                iconColor(item.name),
+                marketIconColor(item.name),
               ]"
             >
-              {{ iconGlyph(item.name) }}
+              {{ marketIconGlyph(item.name) }}
             </span>
             <span class="min-w-0 flex-1 truncate text-sm font-semibold" :title="item.name">
               {{ item.name }}
@@ -277,7 +155,7 @@ onMounted(() => void search())
               size="icon"
               class="size-8 shrink-0 rounded-lg"
               :title="t('market.install')"
-              @click.stop="openDetail(item)"
+              @click.stop="emit('open', item)"
             >
               <Plus class="size-4" />
             </Button>
@@ -291,99 +169,15 @@ onMounted(() => void search())
               :title="t('market.installs', { n: item.installs })"
             >
               <Download class="size-3.5" />
-              {{ formatInstalls(item.installs) }}
+              {{ formatMarketCount(item.installs) }}
             </span>
             <span v-if="item.stars !== null" class="flex items-center gap-1" title="stars">
               <Star class="size-3.5" />
-              {{ formatInstalls(item.stars) }}
+              {{ formatMarketCount(item.stars) }}
             </span>
           </div>
         </div>
       </li>
     </ul>
-
-    <!-- detail sheet -->
-    <DialogRoot :open="detail !== null" @update:open="(v) => !v && (detail = null)">
-      <DialogPortal>
-        <DialogOverlay class="fixed inset-0 z-40 bg-black/30 backdrop-blur-[2px]" />
-        <DialogContent
-          class="fixed inset-y-0 right-0 z-50 flex w-[480px] max-w-[92vw] flex-col border-l bg-background outline-none"
-          @open-auto-focus.prevent
-        >
-          <template v-if="detailItem">
-            <header class="flex items-center gap-3 border-b px-6 py-4">
-              <span
-                :class="[
-                  'flex size-10 shrink-0 items-center justify-center rounded-full text-base font-bold text-white',
-                  iconColor(detailItem.name),
-                ]"
-              >
-                {{ iconGlyph(detailItem.name) }}
-              </span>
-              <div class="min-w-0 flex-1">
-                <DialogTitle
-                  class="truncate text-base font-semibold tracking-tight"
-                  :title="detailItem.name"
-                >
-                  {{ detailItem.name }}
-                </DialogTitle>
-                <button
-                  class="flex max-w-full items-center gap-1 truncate text-xs text-muted-foreground underline-offset-2 hover:underline"
-                  :title="t('market.viewSource')"
-                  @click="openLink(detailItem)"
-                >
-                  <span class="truncate">{{ detailItem.sourceLabel }}</span>
-                  <ExternalLink class="size-3 shrink-0" />
-                </button>
-              </div>
-              <Button variant="ghost" size="icon" class="shrink-0" @click="detail = null">
-                <X />
-              </Button>
-            </header>
-
-            <div class="flex flex-1 flex-col gap-5 overflow-y-auto px-6 py-5">
-              <div class="flex items-center gap-5 text-sm tabular-nums text-muted-foreground">
-                <span
-                  class="flex items-center gap-1.5"
-                  :title="t('market.installs', { n: detailItem.installs })"
-                >
-                  <Download class="size-4" />
-                  {{ formatInstalls(detailItem.installs) }}
-                </span>
-                <span v-if="detailItem.stars !== null" class="flex items-center gap-1.5" title="stars">
-                  <Star class="size-4" />
-                  {{ formatInstalls(detailItem.stars) }}
-                </span>
-              </div>
-
-              <p class="text-sm leading-relaxed text-foreground/85">
-                {{ detailItem.description || t('card.noDescription') }}
-              </p>
-
-              <div class="flex flex-col gap-2 border-t pt-4">
-                <span class="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                  {{ t('team.installTo') }}
-                </span>
-                <PlatformTargetPicker v-model:scope="scope" v-model:agents="agents" />
-                <p v-if="installError" class="break-all text-xs text-destructive">
-                  {{ installError }}
-                </p>
-                <Button
-                  class="mt-1 w-fit"
-                  :disabled="busyKey === detailItem.key || agents.length === 0"
-                  @click="install(detailItem)"
-                >
-                  {{
-                    busyKey === detailItem.key
-                      ? t('market.installing')
-                      : t('detail.installN', { n: agents.length })
-                  }}
-                </Button>
-              </div>
-            </div>
-          </template>
-        </DialogContent>
-      </DialogPortal>
-    </DialogRoot>
   </section>
 </template>

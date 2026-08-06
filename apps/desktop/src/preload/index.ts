@@ -49,6 +49,7 @@ const api = {
       installs: number
       stars: number
       upstreamUrl: string | null
+      iconUrl: string | null
     }[]
   > => ipcRenderer.invoke('market:skillhub-search', q),
   githubStars: (repos: string[]): Promise<Record<string, number>> =>

@@ -25,9 +25,11 @@ import { useSettings } from '@/composables/useSettings'
 import { useSkills } from '@/composables/useSkills'
 import { installRequired, upgradeSkill, useTeam } from '@/composables/useTeam'
 import MarketDiscovery from '@/components/MarketDiscovery.vue'
+import type { MarketItem } from '@/lib/market'
 
 const emit = defineEmits<{
   openSkill: [skill: AggregatedSkill]
+  openMarket: [item: MarketItem]
   newSkill: []
   import: []
 }>()
@@ -271,7 +273,7 @@ function otherAgentCount(s: AggregatedSkill): number {
     </section>
 
     <!-- marketplace discovery -->
-    <MarketDiscovery />
+    <MarketDiscovery @open="emit('openMarket', $event)" />
 
     <!-- recent -->
     <section v-if="recentSkills.length > 0">

@@ -25,9 +25,11 @@ import NewSkillSheet from '@/components/NewSkillSheet.vue'
 import PlatformIcon from '@/components/PlatformIcon.vue'
 import SettingsPage from '@/components/SettingsPage.vue'
 import SkillCard from '@/components/SkillCard.vue'
+import MarketDetailPage from '@/components/MarketDetailPage.vue'
 import SkillDetailPage from '@/components/SkillDetailPage.vue'
 import TeamPage from '@/components/TeamPage.vue'
 import { setPlatformNames } from '@/lib/agents'
+import type { MarketItem } from '@/lib/market'
 import { syncCustomPlatforms, useSettings } from '@/composables/useSettings'
 import { useSkills } from '@/composables/useSkills'
 
@@ -59,6 +61,7 @@ const sortOptions = computed(() => [
 ])
 
 const selected = ref<AggregatedSkill | null>(null)
+const marketSelected = ref<MarketItem | null>(null)
 const newOpen = ref(false)
 const importOpen = ref(false)
 const view = ref<'dashboard' | 'skills' | 'team' | 'settings'>('dashboard')
@@ -257,6 +260,14 @@ onUnmounted(() => window.removeEventListener('keydown', onSidebarShortcut))
     <main v-if="selected" class="content-surface flex min-w-0 flex-1 flex-col">
       <SkillDetailPage :key="selected.name" :skill="selected" :inset="sidebarCollapsed" @close="selected = null" />
     </main>
+    <main v-else-if="marketSelected" class="content-surface flex min-w-0 flex-1 flex-col">
+      <MarketDetailPage
+        :key="marketSelected.key"
+        :item="marketSelected"
+        :inset="sidebarCollapsed"
+        @close="marketSelected = null"
+      />
+    </main>
     <main v-else class="content-surface flex min-w-0 flex-1 flex-col">
       <header
         v-if="view === 'dashboard'"
@@ -326,6 +337,7 @@ onUnmounted(() => window.removeEventListener('keydown', onSidebarShortcut))
       <div v-if="view === 'dashboard'" class="flex-1 overflow-y-auto">
         <DashboardPage
           @open-skill="selected = $event"
+          @open-market="marketSelected = $event"
           @new-skill="newOpen = true"
           @import="importOpen = true"
         />

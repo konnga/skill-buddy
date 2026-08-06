@@ -251,6 +251,7 @@ function registerIpc(): void {
           stars?: number
           namespace?: { handle: string; canonicalName?: string }
           upstream_url?: string | null
+          iconUrl?: string | null
         }[]
       }
     }
@@ -263,6 +264,7 @@ function registerIpc(): void {
       installs: s.downloads ?? s.installs ?? 0,
       stars: s.stars ?? 0,
       upstreamUrl: s.upstream_url ?? null,
+      iconUrl: s.iconUrl ?? null,
     }))
   })
 
