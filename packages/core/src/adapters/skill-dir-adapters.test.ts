@@ -3,6 +3,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { ClaudeCodeAdapter } from './claude-code.js'
+import { CodexAdapter } from './codex.js'
 import { CursorAdapter } from './cursor.js'
 import { OpenCodeAdapter } from './opencode.js'
 import type { SkillDirAdapter } from './skill-dir-adapter.js'
@@ -38,6 +39,13 @@ const cases: Case[] = [
     detectDir: ['.config', 'opencode'],
     userDir: ['.config', 'opencode', 'skills'],
     projectDir: (p) => [p, '.opencode', 'skills'],
+  },
+  {
+    label: 'CodexAdapter',
+    make: (home) => new CodexAdapter(home),
+    detectDir: ['.codex'],
+    userDir: ['.agents', 'skills'],
+    projectDir: (p) => [p, '.agents', 'skills'],
   },
   {
     label: 'CursorAdapter',
