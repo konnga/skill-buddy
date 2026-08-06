@@ -1,98 +1,163 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
-import { Blocks, FolderOpen, RefreshCw } from '@lucide/vue'
-import type { InstalledSkill } from '@skills-manager/core'
+import { onMounted, ref, watch } from 'vue'
+import { Blocks, FolderOpen, RefreshCw, Search, TriangleAlert } from '@lucide/vue'
+import type { AggregatedSkill } from '@skills-manager/core'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Input } from '@/components/ui/input'
+import SkillCard from '@/components/SkillCard.vue'
+import SkillDetailSheet from '@/components/SkillDetailSheet.vue'
+import { setPlatformNames } from '@/lib/agents'
+import { useSkills } from '@/composables/useSkills'
 
-const skills = ref<InstalledSkill[]>([])
-const loading = ref(true)
-const error = ref<string | null>(null)
+const {
+  platforms,
+  detectedPlatforms,
+  countByPlatform,
+  loading,
+  error,
+  search,
+  platformFilter,
+  driftOnly,
+  filtered,
+  skills,
+  refresh,
+} = useSkills()
 
-async function refresh(): Promise<void> {
-  loading.value = true
-  error.value = null
-  try {
-    skills.value = await window.skillsManager.scanSkills()
-  } catch (e) {
-    error.value = e instanceof Error ? e.message : String(e)
-  } finally {
-    loading.value = false
+const selected = ref<AggregatedSkill | null>(null)
+
+watch(platforms, (v) => setPlatformNames(v))
+watch(skills, (v) => {
+  // keep the open sheet in sync after install/uninstall refreshes
+  if (selected.value) {
+    selected.value = v.find((s) => s.name === selected.value!.name) ?? null
   }
-}
-
-const byAgent = computed(() => {
-  const groups = new Map<string, InstalledSkill[]>()
-  for (const item of skills.value) {
-    const list = groups.get(item.agent) ?? []
-    list.push(item)
-    groups.set(item.agent, list)
-  }
-  return groups
 })
 
 onMounted(refresh)
 </script>
 
 <template>
-  <div class="min-h-screen">
-    <header
-      class="sticky top-0 z-10 flex items-center justify-between border-b bg-background/80 px-6 py-3 backdrop-blur"
-    >
-      <div class="flex items-center gap-2.5">
+  <div class="flex h-screen">
+    <!-- sidebar -->
+    <aside class="flex w-56 shrink-0 flex-col border-r bg-muted/30">
+      <div class="flex items-center gap-2 px-4 pb-4 pt-10">
         <Blocks class="size-5 text-primary" />
-        <h1 class="text-base font-semibold tracking-tight">Skills Manager</h1>
+        <span class="font-semibold tracking-tight">Skills Manager</span>
       </div>
-      <Button variant="outline" size="sm" :disabled="loading" @click="refresh">
-        <RefreshCw :class="loading ? 'animate-spin' : ''" />
-        重新扫描
-      </Button>
-    </header>
 
-    <main class="mx-auto max-w-4xl px-6 py-8">
-      <div v-if="loading" class="py-16 text-center text-sm text-muted-foreground">扫描中…</div>
+      <nav class="flex flex-col gap-0.5 px-2">
+        <button
+          :class="[
+            'flex items-center justify-between rounded-md px-3 py-1.5 text-sm transition-colors',
+            platformFilter === null ? 'bg-accent font-medium' : 'hover:bg-accent/60',
+          ]"
+          @click="platformFilter = null"
+        >
+          全部
+          <Badge variant="secondary">{{ skills.length }}</Badge>
+        </button>
+        <p class="mb-1 mt-4 px-3 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+          平台
+        </p>
+        <button
+          v-for="p in detectedPlatforms"
+          :key="p.id"
+          :class="[
+            'flex items-center justify-between rounded-md px-3 py-1.5 text-sm transition-colors',
+            platformFilter === p.id ? 'bg-accent font-medium' : 'hover:bg-accent/60',
+          ]"
+          @click="platformFilter = platformFilter === p.id ? null : p.id"
+        >
+          <span class="truncate">{{ p.displayName }}</span>
+          <Badge variant="secondary">{{ countByPlatform.get(p.id) ?? 0 }}</Badge>
+        </button>
+      </nav>
+    </aside>
 
-      <div v-else-if="error" class="py-16 text-center text-sm text-destructive">{{ error }}</div>
-
-      <div
-        v-else-if="skills.length === 0"
-        class="flex flex-col items-center gap-3 py-16 text-muted-foreground"
+    <!-- main -->
+    <main class="flex min-w-0 flex-1 flex-col">
+      <header
+        class="app-drag flex items-center gap-3 border-b px-6 py-3"
       >
-        <FolderOpen class="size-10" />
-        <p class="text-sm">未发现已安装的 skills</p>
-      </div>
+        <div class="app-no-drag relative w-72">
+          <Search
+            class="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
+          />
+          <Input v-model="search" placeholder="搜索 skills…" class="pl-8" />
+        </div>
+        <button
+          type="button"
+          :class="[
+            'app-no-drag flex items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-xs transition-colors',
+            driftOnly
+              ? 'border-amber-500/50 bg-amber-500/10 text-amber-700 dark:text-amber-400'
+              : 'text-muted-foreground hover:border-primary/40',
+          ]"
+          @click="driftOnly = !driftOnly"
+        >
+          <TriangleAlert class="size-3.5" />
+          仅看漂移
+        </button>
+        <div class="flex-1" />
+        <Button
+          variant="outline"
+          size="sm"
+          class="app-no-drag"
+          :disabled="loading"
+          @click="refresh"
+        >
+          <RefreshCw :class="loading ? 'animate-spin' : ''" />
+          重新扫描
+        </Button>
+      </header>
 
-      <div v-else class="flex flex-col gap-8">
-        <section v-for="[agent, items] in byAgent" :key="agent">
-          <div class="mb-3 flex items-center gap-2">
-            <h2 class="text-sm font-medium text-muted-foreground">{{ agent }}</h2>
-            <Badge variant="secondary">{{ items.length }}</Badge>
-          </div>
-          <div class="grid grid-cols-1 gap-3 md:grid-cols-2">
-            <Card
-              v-for="item in items"
-              :key="item.path"
-              class="transition-colors hover:border-primary/40"
-            >
-              <CardHeader>
-                <div class="flex items-center justify-between gap-2">
-                  <CardTitle class="text-sm">{{ item.skill.name }}</CardTitle>
-                  <Badge :variant="item.scope === 'user' ? 'default' : 'success'">
-                    {{ item.scope }}
-                  </Badge>
-                </div>
-                <CardDescription class="line-clamp-2">
-                  {{ item.skill.description || '（无描述）' }}
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <code class="break-all text-xs text-muted-foreground/70">{{ item.path }}</code>
-              </CardContent>
-            </Card>
-          </div>
-        </section>
+      <div class="flex-1 overflow-y-auto px-6 py-5">
+        <div v-if="loading && skills.length === 0" class="py-24 text-center text-sm text-muted-foreground">
+          扫描中…
+        </div>
+
+        <div v-else-if="error" class="py-24 text-center text-sm text-destructive">{{ error }}</div>
+
+        <div
+          v-else-if="skills.length === 0"
+          class="flex flex-col items-center gap-3 py-24 text-muted-foreground"
+        >
+          <FolderOpen class="size-10" />
+          <p class="text-sm">未发现已安装的 skills</p>
+          <p class="max-w-sm text-center text-xs">
+            已检测到 {{ detectedPlatforms.length }} 个 agent 平台。在任一平台安装 skill
+            后点击「重新扫描」。
+          </p>
+        </div>
+
+        <div
+          v-else-if="filtered.length === 0"
+          class="py-24 text-center text-sm text-muted-foreground"
+        >
+          没有匹配「{{ search }}」的 skill
+        </div>
+
+        <div v-else class="grid grid-cols-1 gap-3 lg:grid-cols-2 2xl:grid-cols-3">
+          <SkillCard
+            v-for="skill in filtered"
+            :key="skill.name"
+            :skill="skill"
+            @open="selected = skill"
+          />
+        </div>
       </div>
     </main>
+
+    <SkillDetailSheet :skill="selected" @close="selected = null" />
   </div>
 </template>
+
+<style>
+.app-drag {
+  -webkit-app-region: drag;
+}
+.app-no-drag {
+  -webkit-app-region: no-drag;
+}
+</style>

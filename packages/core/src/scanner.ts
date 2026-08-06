@@ -1,5 +1,24 @@
 import { allAdapters } from './adapters/index.js'
-import type { InstalledSkill } from './types.js'
+import type { AgentId, InstalledSkill } from './types.js'
+
+export interface PlatformStatus {
+  id: AgentId
+  displayName: string
+  detected: boolean
+  hasProjectScope: boolean
+}
+
+/** Detection status of every registered platform, for pickers and sidebars. */
+export async function listPlatformStatus(): Promise<PlatformStatus[]> {
+  return Promise.all(
+    allAdapters().map(async (adapter) => ({
+      id: adapter.agent,
+      displayName: adapter.displayName,
+      detected: await adapter.detect(),
+      hasProjectScope: adapter.skillsDir('project', '/probe') !== null,
+    })),
+  )
+}
 
 /**
  * Scan every detected agent platform and return all locally installed skills.

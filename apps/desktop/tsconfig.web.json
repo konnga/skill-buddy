@@ -9,5 +9,11 @@
       "@/*": ["src/renderer/src/*"]
     }
   },
-  "include": ["src/renderer/src/**/*", "src/renderer/src/**/*.vue", "src/preload/index.d.ts"]
+  "include": [
+    "src/renderer/src/**/*",
+    "src/renderer/src/**/*.vue",
+    "src/preload/global.d.ts",
+    "src/preload/index.ts",
+    "src/shared/**/*"
+  ]
 }

@@ -15,11 +15,13 @@
     "@skills-manager/core": "workspace:*",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "markdown-it": "^15.0.0",
     "reka-ui": "^2.10.1",
     "tailwind-merge": "^3.6.0"
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.3.3",
+    "@types/markdown-it": "^14.1.2",
     "@types/node": "^22.20.1",
     "@vitejs/plugin-vue": "^5.2.0",
     "electron": "^33.2.0",
