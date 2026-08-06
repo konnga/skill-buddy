@@ -221,7 +221,6 @@ onMounted(async () => {
         v-if="view === 'dashboard'"
         class="app-drag flex items-center gap-3 border-b px-6 py-3"
       >
-        <h1 class="text-sm font-semibold tracking-tight">{{ t('dashboard.title') }}</h1>
         <div class="flex-1" />
         <Button
           variant="outline"
