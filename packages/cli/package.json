@@ -1,0 +1,21 @@
+{
+  "name": "@skills-manager/cli",
+  "version": "0.1.0",
+  "type": "module",
+  "description": "skm — manage AI agent skills across platforms from the terminal / CI",
+  "bin": {
+    "skm": "./dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@skills-manager/core": "workspace:*",
+    "commander": "^13.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "typescript": "^5.7.0"
+  }
+}
