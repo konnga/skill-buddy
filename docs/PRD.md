@@ -1,111 +1,129 @@
 # Skills Manager 产品需求文档（PRD）
 
-> 版本：v0.1 草稿 ｜ 日期：2026-08-06 ｜ 状态：待评审
+> 版本：v0.2 ｜ 日期：2026-08-06 ｜ 状态：待评审
+> v0.2 变更：吸收竞品调研结论，确立「功能对齐 + 可靠性/UI/团队协作三支点差异化」策略
 
 ## 1. 背景与问题
 
 AI 编程助手进入多工具并存时代：开发者和团队同时使用 Claude Code、Codex、
-OpenCode、Trae、CodeBuddy、WorkBuddy 等多个 agent。几乎所有平台都支持
-「skills / rules / prompts / commands」这类**可复用的指令资产**，但：
+OpenCode、Cursor、Trae、CodeBuddy、WorkBuddy 等多个 agent。skills
+（可复用指令资产，SKILL.md 已成事实标准）虽然格式趋同，但：
 
-1. **格式与目录约定各不相同**：同一份 skill 想在多个工具里用，需要手动复制、
-   改格式（SKILL.md / AGENTS.md / rules 目录 / prompts 目录…）
-2. **无统一视图**：装了什么、装在哪、版本是否一致，没有任何工具能一眼看清
-3. **无法团队共享**：好的 skill 靠微信群 / 口口相传 / 复制粘贴传播，
-   无版本、无更新通知、无权限
-4. **企业无法管控**：企业希望统一下发规范类 skill（安全规范、代码风格），
-   并审计各端安装情况，目前完全做不到
+1. **无统一视图**：装了什么、装在哪、多端是否一致，没有工具能一眼看清
+2. **多端分发靠手工**：复制粘贴各工具目录，无同步、易漂移
+3. **创作不闭环**：查看、编辑、分发分散在编辑器 + 文件管理器 + 终端之间
+4. **无法团队共享**：好 skill 靠群聊传播，无版本、无更新通知、无权限
+5. **企业无法管控**：无法统一下发规范类 skill，无法审计各端安装情况
 
-## 2. 产品定位
+已有竞品（[竞品分析](./competitive-analysis.md)）解决了 1/2 的基础形态，
+但可靠性差、UI 概念混乱、无编辑闭环、**团队/企业层完全空白**。
 
-**一句话**：AI agent skills 的可视化管理平台——一处管理，多端分发。
+## 2. 产品定位与差异化
 
-- 对个人：本机所有 agent 的 skills 的**单一管理面板**（查看/安装/编辑/同步/卸载）
-- 对团队：skills 的**共享仓库**，一人沉淀、全队复用、版本可追
-- 对企业：**私有化部署** + 统一下发 + 权限与审计
+**一句话**：AI agent skills 的可视化管理与团队协作平台——一处管理，多端分发，全队共享。
 
-类比：「npm + npmjs.com，但面向 AI agent skills，且以桌面可视化为第一入口」。
+**基本功能对齐竞品，三个差异化支点：**
+
+1. **可靠性**：工具目录即真实来源（single source of truth），不建中央库、
+   不引入链接/复制双模式，杜绝状态漂移这一竞品最大抱怨源
+2. **UI/交互**：按 skill 聚合的单一视图，徽标即多端状态；零内部概念外露；
+   headless 自研设计系统带来的工具产品质感
+3. **团队协作**：registry + 团队空间 + 更新通知 + 权限，架构从第一天为
+   服务端形态设计（竞品的本地架构结构性追不上）
 
 ## 3. 目标用户与画像
 
 | 画像 | 场景 | 关键诉求 |
 |---|---|---|
-| P0 多工具个人开发者 | 同时用 2+ 个 AI agent | 一份 skill 处处可用；一个面板看清全局 |
-| P1 团队 Tech Lead | 想把团队最佳实践沉淀成 skills | 共享、版本管理、成员一键安装 |
+| P0 多工具个人开发者 | 同时用 2+ 个 AI agent | 一个面板看清全局；一份 skill 处处可用；就地编辑 |
+| P1 团队 Tech Lead | 把团队最佳实践沉淀成 skills | 共享、版本、成员一键安装、更新触达 |
 | P2 企业平台工程师 | 管理数百开发者的 AI 工具规范 | 私有部署、统一下发、审计合规 |
 
-MVP 服务 P0；Phase 2 覆盖 P1；Phase 3 覆盖 P2。
+MVP 服务 P0 并为 P1 打地基；Phase 2 交付 P1；Phase 3 覆盖 P2。
 
 ## 4. 核心概念（领域模型）
 
-- **Canonical Skill（统一格式）**：平台中立的 skill 表示
-  （name / description / version / tags / content / resources）。
-  是所有转换的中间格式，也是 registry 的存储格式
-- **Agent 平台**：一个 AI 编程助手（claude-code / codex / opencode /
-  trae / codebuddy / workbuddy…）
-- **Adapter（适配器）**：每个 agent 平台一个，封装该平台的目录约定与格式，
-  负责 canonical ⇄ native 双向转换。**平台差异全部终结在 adapter 层**
-- **Scope（安装范围）**：user（全局，如 `~/.claude/skills`）/
-  project（项目内，如 `<repo>/.claude/skills`）
-- **Source（来源）**：local（本地创建）/ git 仓库 / registry（Phase 2）
+- **Skill**：以文件形态存在、可独立分发的指令资产（name / description /
+  version / tags / content / resources）。SKILL.md 为主要载体
+- **Agent 平台**：一个 AI 编程助手（claude-code / codex / opencode / …）
+- **Adapter（适配器）**：每平台一个，封装目录约定与格式差异，提供
+  detect / list / install / uninstall。**平台差异全部终结在 adapter 层**；
+  支持用户自定义路径覆盖（应对私有工具与约定变更）
+- **Scope**：user（全局）/ project（项目内）
+- **聚合视图**：同名 skill 的多端安装聚合为一个管理单元，
+  内容 hash 检测漂移——这是 UI 与领域模型的连接点
+- **Source（Phase 2）**：local / git / registry
+
+### 设计原则（约束所有功能设计）
+
+1. 用户的心智模型只有一句话：「我的 skills 装在哪、还要装到哪」——
+   任何需要用户先理解内部机制的设计都是错的
+2. 状态只有一处：工具目录。应用无隐藏数据库状态需要「同步」
+3. 概念做减法：每加一个新概念（分组/模式/工作区…）必须先回答
+   「能否用现有概念表达」
+4. 破坏性操作（卸载/覆盖/同步）必须可预览、可撤销或有确认
 
 ## 5. 功能全景与分期
 
-### Phase 1 — MVP：本机可视化管理（当前阶段）
+### Phase 1 — MVP：本机可视化管理
 
 | 模块 | 能力 | 优先级 |
 |---|---|---|
-| 扫描发现 | 自动检测本机已装的 agent 平台；扫描 user/project 两级 skills | P0 |
-| 统一列表 | 按 agent / scope / tag 分组、搜索、筛选 | P0 |
-| Skill 详情 | 查看 frontmatter + Markdown 渲染 + 附属文件 | P0 |
-| 跨端安装 | 把任一 skill 转换安装到其他 agent（核心差异化能力） | P0 |
-| 编辑 | 内置编辑器修改 skill，保存回写 | P1 |
-| 卸载/删除 | 单端卸载或全端移除 | P0 |
-| 一致性视图 | 同名 skill 在多端的版本/内容漂移检测 | P1 |
-| 导入 | 从 Git URL / 本地文件夹导入 skill | P1 |
-| 适配器覆盖 | claude-code（已有）→ codex → opencode → trae/codebuddy/workbuddy | P0 递进 |
+| 扫描发现 | 自动检测本机 agent；user/project 两级扫描；自定义路径覆盖 | P0 |
+| 聚合列表 | 按 skill 聚合 + 多端徽标；搜索、筛选（平台/scope/漂移）、排序 | P0 |
+| Skill 详情 | frontmatter + Markdown 渲染 + 附属文件浏览 | P0 |
+| 跨端安装 | 任一 skill 一键安装到其他 agent / scope，幂等覆盖 | P0 |
+| 编辑闭环 | 内置编辑器（frontmatter 表单 + Markdown），保存回写，多端同步询问 | **P0**（竞品缺失，差异化） |
+| 卸载 | 单端卸载 / 全端移除，带预览确认 | P0 |
+| 漂移与同步 | hash 检测多端不一致，diff 展示，选基准一键同步 | P0 |
+| 导入 | 本地文件夹拖拽；Git URL | P1 |
+| 新建 | 从模板创建新 skill（含 frontmatter 脚手架） | P1 |
+| 适配器 | claude-code → codex → opencode（P0，做到极可靠）；cursor（P1）；trae/codebuddy/workbuddy（P2，调研后排期） | 递进 |
 
-### Phase 2 — 团队共享
+### Phase 2 — 团队协作（核心主攻）
 
-- Registry 服务（可托管可自建）：发布 / 拉取 / 版本 / 搜索
-- 桌面端接入：浏览远端 skills、一键安装、更新提醒
-- 团队空间：组织 / 成员 / 私有 skills
-- CLI：`skm install/publish/sync`，CI 中批量下发
+- **Registry 服务**：发布 / 拉取 / 语义化版本 / 搜索，托管 + 可自建
+- **团队空间**：组织 / 成员 / 私有 skills / 邀请
+- **更新触达**：团队 skill 有新版本时桌面端提醒，一键升级
+- **桌面端集成**：浏览远端、一键安装、发布入口就在详情页
+- **CLI**：`skm install/publish/sync`，CI 批量下发
+- 兼容生态：支持从 skills.sh / Git 导入，降低迁移成本
 
 ### Phase 3 — 企业
 
 - 私有化部署包（Docker Compose / Helm）
-- SSO（OIDC）、RBAC 权限、审批流（skill 上架审核）
+- SSO（OIDC）、RBAC、上架审批流
 - 策略下发（强制安装规范类 skills）与安装审计
-- Web 控制台（管理侧界面）
+- Web 管理控制台
 
 ## 6. 非目标（明确不做）
 
-- 不做 agent 本身、不做模型调用
-- 不做 prompt 优化 / 评测（未来可集成，不是本品核心）
+- 不做 agent 本身、不做模型调用、不做 prompt 评测
 - MVP 不做账号系统（Phase 2 随 registry 引入）
-- 不追求覆盖所有 agent 的**全部**配置（MCP、hooks 等），聚焦 skills 类资产；
-  但架构上给扩展留口（adapter 可声明支持的资产类型）
+- 不追 16 平台的覆盖广度，先做 3-5 个平台的极致可靠 + 自定义路径兜底
+- MVP 聚焦 skills 资产；MCP / plugins / agents 管理是已被验证的用户需求
+  （竞品 #353），架构留扩展口（adapter 声明资产类型），Phase 2 后评估
 
 ## 7. 成功指标
 
 - MVP：安装后 30 秒内看到本机全部 skills；跨端安装成功率 > 95%；
-  周活跃留存（个人工具的硬指标）
-- Phase 2：团队空间数、skill 被安装次数（分发次数是网络效应指标）
+  检测失败率（「识别不到」类反馈）显著低于竞品；周活跃留存
+- Phase 2：团队空间数、skill 分发次数（网络效应指标）、更新升级率
 - Phase 3：私有化部署客户数
 
 ## 8. 风险与开放问题
 
 | # | 风险/问题 | 应对/待定 |
 |---|---|---|
-| R1 | 各 agent 的 skills 规范持续演进，adapter 维护成本 | adapter 层收敛差异；建立兼容性测试样本库 |
-| R2 | 部分平台（trae/codebuddy/workbuddy）约定不公开或多变 | 逐个调研后排期，MVP 先做规范公开的 3 家 |
-| R3 | 「skills」边界模糊（rules/prompts/commands 是否算） | MVP 定义：以文件形态存在、可独立分发的指令资产即算 |
-| Q1 | 开源策略：core/desktop 是否开源？ | **待定（需决策）** |
-| Q2 | 商业模式：团队版收费 or 企业版收费？ | **待定（Phase 2 前决策）** |
+| R1 | 各平台约定演进，adapter 维护成本（竞品已验证此痛） | 收敛平台数 + fixtures 兼容性测试 + 自定义路径兜底 |
+| R2 | 竞品成熟且活跃，个人端功能难拉开差距 | 不硬刚广度；赢在可靠性/编辑闭环/UI，主攻团队层 |
+| R3 | 各 agent 官方 marketplace 可能吸收部分需求 | 持续跟踪；团队/企业管控是官方大概率不做的空间 |
+| Q1 | 开源策略：core/desktop 是否开源？ | **待定**（倾向：客户端开源引流，registry 服务商业化） |
+| Q2 | 商业模式：团队版 or 企业版收费 | **待定（Phase 2 前决策）** |
 | Q3 | 产品名 / 品牌名（skm 只是代号） | **待定** |
 
 ## 9. 相关文档
 
 - [MVP 功能规格](./mvp-spec.md) — 页面结构、交互流程、验收标准
+- [竞品分析](./competitive-analysis.md) — xingkongliang/skills-manager 及生态
 - [README](../README.md) — 技术架构与开发指南
