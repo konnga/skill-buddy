@@ -7,6 +7,8 @@ export interface MarketItem {
   description: string
   installs: number
   stars: number | null
+  /** real icon url (SkillHub iconUrl / skills.sh repo-owner avatar); null -> letter badge */
+  icon: string | null
   /** repo (skills.sh) or canonical name (skillhub) — shown under the title */
   sourceLabel: string
   /** external page to open */

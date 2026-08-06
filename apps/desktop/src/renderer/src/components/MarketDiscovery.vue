@@ -21,6 +21,11 @@ const query = ref('')
 const items = ref<MarketItem[]>([])
 const loading = ref(false)
 const error = ref<string | null>(null)
+const brokenIcons = ref<Set<string>>(new Set())
+
+function iconFailed(key: string): void {
+  brokenIcons.value = new Set(brokenIcons.value).add(key)
+}
 
 /** skills.sh search requires >= 2 chars; use a broad default feed */
 const DEFAULT_QUERY = 'ai'
@@ -39,6 +44,7 @@ async function search(): Promise<void> {
         description: '',
         installs: s.installs,
         stars: null,
+        icon: `https://github.com/${s.source.split('/')[0]}.png?size=96`,
         sourceLabel: s.source,
         link: `https://github.com/${s.source}`,
         repo: s.source,
@@ -63,6 +69,7 @@ async function search(): Promise<void> {
         description: s.description,
         installs: s.installs,
         stars: s.stars,
+        icon: s.iconUrl,
         sourceLabel: s.canonicalName,
         link: s.upstreamUrl ?? 'https://skillhub.cn/',
         slug: s.slug,
@@ -139,7 +146,16 @@ onMounted(() => void search())
           @keydown.enter="emit('open', item)"
         >
           <div class="flex items-center gap-3">
+            <img
+              v-if="item.icon && !brokenIcons.has(item.key)"
+              :src="item.icon"
+              class="size-9 shrink-0 rounded-[10px] border object-cover"
+              loading="lazy"
+              alt=""
+              @error="iconFailed(item.key)"
+            />
             <span
+              v-else
               :class="[
                 'flex size-9 shrink-0 items-center justify-center rounded-full text-sm font-bold text-white',
                 marketIconColor(item.name),

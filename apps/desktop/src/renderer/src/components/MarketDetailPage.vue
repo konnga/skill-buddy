@@ -21,6 +21,7 @@ const { installSkill, refresh } = useSkills()
 const { t } = useI18n()
 
 const scope = ref('user')
+const iconBroken = ref(false)
 const agents = ref<string[]>([])
 const busy = ref(false)
 const error = ref<string | null>(null)
@@ -79,7 +80,15 @@ async function install(): Promise<void> {
       <Button variant="ghost" size="icon" class="app-no-drag" @click="emit('close')">
         <ArrowLeft />
       </Button>
+      <img
+        v-if="item.icon && !iconBroken"
+        :src="item.icon"
+        class="size-7 shrink-0 rounded-lg border object-cover"
+        alt=""
+        @error="iconBroken = true"
+      />
       <span
+        v-else
         :class="[
           'flex size-7 shrink-0 items-center justify-center rounded-full text-xs font-bold text-white',
           marketIconColor(item.name),
