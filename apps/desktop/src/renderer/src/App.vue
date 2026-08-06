@@ -106,7 +106,7 @@ onMounted(async () => {
         <button
           :class="[
             'flex items-center gap-2 rounded-md px-3 py-1.5 text-sm transition-colors',
-            view === 'dashboard' ? 'bg-accent font-medium' : 'hover:bg-accent/60',
+            view === 'dashboard' ? 'nav-active' : 'hover:bg-accent/60',
           ]"
           @click="view = 'dashboard'"
         >
@@ -117,7 +117,7 @@ onMounted(async () => {
           :class="[
             'flex items-center justify-between rounded-md px-3 py-1.5 text-sm transition-colors',
             view === 'skills' && platformFilter === null && projectFilter === null
-              ? 'bg-accent font-medium'
+              ? 'nav-active'
               : 'hover:bg-accent/60',
           ]"
           @click="((platformFilter = null), (projectFilter = null), (view = 'skills'))"
@@ -131,7 +131,7 @@ onMounted(async () => {
         <button
           :class="[
             'flex items-center gap-2 rounded-md px-3 py-1.5 text-sm transition-colors',
-            view === 'team' ? 'bg-accent font-medium' : 'hover:bg-accent/60',
+            view === 'team' ? 'nav-active' : 'hover:bg-accent/60',
           ]"
           @click="view = 'team'"
         >
@@ -147,7 +147,7 @@ onMounted(async () => {
           :class="[
             'flex items-center justify-between rounded-md px-3 py-1.5 text-sm transition-colors',
             view === 'skills' && platformFilter === p.id
-              ? 'bg-accent font-medium'
+              ? 'nav-active'
               : 'hover:bg-accent/60',
           ]"
           @click="filterPlatform(p.id)"
@@ -171,7 +171,7 @@ onMounted(async () => {
             :class="[
               'flex items-center justify-between rounded-md px-3 py-1.5 text-sm transition-colors',
               view === 'skills' && projectFilter === 'user'
-                ? 'bg-accent font-medium'
+                ? 'nav-active'
                 : 'hover:bg-accent/60',
             ]"
             @click="filterProject('user')"
@@ -184,7 +184,7 @@ onMounted(async () => {
             :class="[
               'flex items-center justify-between rounded-md px-3 py-1.5 text-sm transition-colors',
               view === 'skills' && projectFilter === root
-                ? 'bg-accent font-medium'
+                ? 'nav-active'
                 : 'hover:bg-accent/60',
             ]"
             :title="root"

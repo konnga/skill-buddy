@@ -166,7 +166,7 @@ async function removeCustomPlatform(id: string): Promise<void> {
             :key="item.id"
             :class="[
               'flex items-center gap-2.5 rounded-md px-2.5 py-1.5 text-sm transition-colors',
-              !searching && category === item.id ? 'bg-accent font-medium' : 'hover:bg-accent/60',
+              !searching && category === item.id ? 'nav-active' : 'hover:bg-accent/60',
             ]"
             @click="((category = item.id), (query = ''))"
           >

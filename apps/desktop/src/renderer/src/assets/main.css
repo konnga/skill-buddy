@@ -76,6 +76,16 @@
   --radius-xl: calc(var(--radius) + 4px);
 }
 
+@layer components {
+  /* Codex-style frosted selection chip for sidebar nav items */
+  .nav-active {
+    @apply bg-background/70 font-medium shadow-sm ring-1 ring-border/70 backdrop-blur-md;
+  }
+  .dark .nav-active {
+    @apply bg-white/[0.08] ring-white/10;
+  }
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;
