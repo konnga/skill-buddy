@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { Download, Plus, Search, Star } from '@lucide/vue'
+import { Download, KeyRound, Plus, Search, Star } from '@lucide/vue'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
@@ -74,6 +74,11 @@ async function search(): Promise<void> {
         link: s.upstreamUrl ?? 'https://skillhub.cn/',
         slug: s.slug,
         namespace: s.namespace,
+        version: s.version,
+        updatedAt: s.updatedAt,
+        verified: s.verified,
+        requiresApiKey: s.requiresApiKey,
+        tags: s.tags,
       }))
     }
   } catch (e) {
@@ -166,6 +171,11 @@ onMounted(() => void search())
             <span class="min-w-0 flex-1 truncate text-sm font-semibold" :title="item.name">
               {{ item.name }}
             </span>
+            <KeyRound
+              v-if="item.requiresApiKey"
+              class="size-4 shrink-0 text-muted-foreground"
+              :title="t('market.requiresApiKey')"
+            />
             <Button
               variant="outline"
               size="icon"

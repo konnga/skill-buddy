@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
+import SidebarToggle from '@/components/SidebarToggle.vue'
 import MarkdownIt from 'markdown-it'
 import { ArrowLeft, FolderOpen, Pencil, TriangleAlert, Trash2 } from '@lucide/vue'
 import type { AggregatedSkill } from '@skillbuddy/core'
@@ -275,7 +276,8 @@ async function runUninstall(): Promise<void> {
 <template>
   <div class="flex h-full flex-col">
     <!-- header -->
-    <header :class="['app-drag flex items-center gap-3 border-b px-6 py-3', props.inset && 'pl-36']">
+    <header :class="['app-drag flex items-center gap-3 border-b px-6 py-3', props.inset && 'pl-[78px]']">
+      <SidebarToggle />
       <Button variant="ghost" size="icon" class="app-no-drag" @click="emit('close')">
         <ArrowLeft />
       </Button>

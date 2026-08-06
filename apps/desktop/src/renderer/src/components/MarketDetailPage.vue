@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { useI18n } from 'vue-i18n'
+import SidebarToggle from '@/components/SidebarToggle.vue'
 import { ArrowLeft, Download, ExternalLink, Star } from '@lucide/vue'
 import type { InstallTarget } from '../../../shared/ipc.js'
 import { Button } from '@/components/ui/button'
@@ -76,7 +77,8 @@ async function install(): Promise<void> {
 <template>
   <div class="flex h-full flex-col">
     <!-- header -->
-    <header :class="['app-drag flex items-center gap-3 border-b px-6 py-3', props.inset && 'pl-36']">
+    <header :class="['app-drag flex items-center gap-3 border-b px-6 py-3', props.inset && 'pl-[78px]']">
+      <SidebarToggle />
       <Button variant="ghost" size="icon" class="app-no-drag" @click="emit('close')">
         <ArrowLeft />
       </Button>

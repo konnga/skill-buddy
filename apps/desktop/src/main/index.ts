@@ -252,6 +252,11 @@ function registerIpc(): void {
           namespace?: { handle: string; canonicalName?: string }
           upstream_url?: string | null
           iconUrl?: string | null
+          version?: string | null
+          updated_at?: number | null
+          verified?: boolean
+          labels?: { requires_api_key?: string } | null
+          subCategories?: { key: string; name: string }[] | null
         }[]
       }
     }
@@ -265,6 +270,11 @@ function registerIpc(): void {
       stars: s.stars ?? 0,
       upstreamUrl: s.upstream_url ?? null,
       iconUrl: s.iconUrl ?? null,
+      version: s.version ?? null,
+      updatedAt: s.updated_at ?? null,
+      verified: s.verified ?? false,
+      requiresApiKey: s.labels?.requires_api_key === 'true',
+      tags: (s.subCategories ?? []).map((c) => c.name),
     }))
   })
 

@@ -9,6 +9,12 @@ export interface MarketItem {
   stars: number | null
   /** real icon url (SkillHub iconUrl / skills.sh repo-owner avatar); null -> letter badge */
   icon: string | null
+  version?: string | null
+  updatedAt?: number | null
+  verified?: boolean
+  requiresApiKey?: boolean
+  /** sub-category names (SkillHub, localized) */
+  tags?: string[]
   /** repo (skills.sh) or canonical name (skillhub) — shown under the title */
   sourceLabel: string
   /** external page to open */

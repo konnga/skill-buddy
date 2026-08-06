@@ -24,6 +24,7 @@ import ImportSheet from '@/components/ImportSheet.vue'
 import NewSkillSheet from '@/components/NewSkillSheet.vue'
 import PlatformIcon from '@/components/PlatformIcon.vue'
 import SettingsPage from '@/components/SettingsPage.vue'
+import SidebarToggle from '@/components/SidebarToggle.vue'
 import SkillCard from '@/components/SkillCard.vue'
 import MarketDetailPage from '@/components/MarketDetailPage.vue'
 import SkillDetailPage from '@/components/SkillDetailPage.vue'
@@ -109,18 +110,6 @@ onUnmounted(() => window.removeEventListener('keydown', onSidebarShortcut))
 <template>
   <SettingsPage v-if="view === 'settings'" @back="view = prevView" />
   <div v-else class="relative flex h-screen flex-col">
-    <!-- floating toggle when the sidebar is hidden (traffic-light row) -->
-    <div v-if="sidebarCollapsed" class="app-drag absolute left-0 top-0 z-30 flex h-10 items-center">
-      <button
-        class="app-no-drag ml-[78px] rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-accent/60 hover:text-foreground"
-        :title="`${t('app.toggleSidebar')} (⌘B)`"
-        :aria-label="t('app.toggleSidebar')"
-        @click="sidebarCollapsed = !sidebarCollapsed"
-      >
-        <PanelLeft class="size-4" />
-      </button>
-    </div>
-
     <div class="flex min-h-0 flex-1">
     <!-- sidebar -->
     <aside
@@ -271,8 +260,9 @@ onUnmounted(() => window.removeEventListener('keydown', onSidebarShortcut))
     <main v-else class="content-surface flex min-w-0 flex-1 flex-col">
       <header
         v-if="view === 'dashboard'"
-        :class="['app-drag flex items-center gap-3 px-6 py-3', sidebarCollapsed && 'pl-36']"
+        :class="['app-drag flex items-center gap-3 px-6 py-3', sidebarCollapsed && 'pl-[78px]']"
       >
+        <SidebarToggle />
         <div class="flex-1" />
         <Button
           variant="outline"
@@ -287,14 +277,16 @@ onUnmounted(() => window.removeEventListener('keydown', onSidebarShortcut))
       </header>
       <header
         v-else-if="view === 'team'"
-        :class="['app-drag flex items-center gap-3 px-6 py-3', sidebarCollapsed && 'pl-36']"
+        :class="['app-drag flex items-center gap-3 px-6 py-3', sidebarCollapsed && 'pl-[78px]']"
       >
+        <SidebarToggle />
         <h1 class="text-sm font-semibold tracking-tight">{{ t('team.title') }}</h1>
       </header>
       <header
         v-else
-        :class="['app-drag flex items-center gap-3 px-6 py-3', sidebarCollapsed && 'pl-36']"
+        :class="['app-drag flex items-center gap-3 px-6 py-3', sidebarCollapsed && 'pl-[78px]']"
       >
+        <SidebarToggle />
         <div class="app-no-drag relative w-72">
           <Search
             class="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
