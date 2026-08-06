@@ -1,12 +1,18 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
+import { Blocks, FolderOpen, RefreshCw } from '@lucide/vue'
 import type { InstalledSkill } from '@skills-manager/core'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 
 const skills = ref<InstalledSkill[]>([])
 const loading = ref(true)
 const error = ref<string | null>(null)
 
-onMounted(async () => {
+async function refresh(): Promise<void> {
+  loading.value = true
+  error.value = null
   try {
     skills.value = await window.skillsManager.scanSkills()
   } catch (e) {
@@ -14,80 +20,79 @@ onMounted(async () => {
   } finally {
     loading.value = false
   }
+}
+
+const byAgent = computed(() => {
+  const groups = new Map<string, InstalledSkill[]>()
+  for (const item of skills.value) {
+    const list = groups.get(item.agent) ?? []
+    list.push(item)
+    groups.set(item.agent, list)
+  }
+  return groups
 })
+
+onMounted(refresh)
 </script>
 
 <template>
-  <main class="page">
-    <h1>Skills Manager</h1>
-    <p class="subtitle">本机已安装的 AI agent skills</p>
+  <div class="min-h-screen">
+    <header
+      class="sticky top-0 z-10 flex items-center justify-between border-b bg-background/80 px-6 py-3 backdrop-blur"
+    >
+      <div class="flex items-center gap-2.5">
+        <Blocks class="size-5 text-primary" />
+        <h1 class="text-base font-semibold tracking-tight">Skills Manager</h1>
+      </div>
+      <Button variant="outline" size="sm" :disabled="loading" @click="refresh">
+        <RefreshCw :class="loading ? 'animate-spin' : ''" />
+        重新扫描
+      </Button>
+    </header>
 
-    <p v-if="loading">扫描中…</p>
-    <p v-else-if="error" class="error">{{ error }}</p>
-    <p v-else-if="skills.length === 0">未发现已安装的 skills。</p>
+    <main class="mx-auto max-w-4xl px-6 py-8">
+      <div v-if="loading" class="py-16 text-center text-sm text-muted-foreground">扫描中…</div>
 
-    <ul v-else class="skill-list">
-      <li v-for="item in skills" :key="item.path" class="skill-card">
-        <div class="skill-head">
-          <strong>{{ item.skill.name }}</strong>
-          <span class="badge">{{ item.agent }}</span>
-          <span class="badge scope">{{ item.scope }}</span>
-        </div>
-        <p class="desc">{{ item.skill.description }}</p>
-        <code class="path">{{ item.path }}</code>
-      </li>
-    </ul>
-  </main>
+      <div v-else-if="error" class="py-16 text-center text-sm text-destructive">{{ error }}</div>
+
+      <div
+        v-else-if="skills.length === 0"
+        class="flex flex-col items-center gap-3 py-16 text-muted-foreground"
+      >
+        <FolderOpen class="size-10" />
+        <p class="text-sm">未发现已安装的 skills</p>
+      </div>
+
+      <div v-else class="flex flex-col gap-8">
+        <section v-for="[agent, items] in byAgent" :key="agent">
+          <div class="mb-3 flex items-center gap-2">
+            <h2 class="text-sm font-medium text-muted-foreground">{{ agent }}</h2>
+            <Badge variant="secondary">{{ items.length }}</Badge>
+          </div>
+          <div class="grid grid-cols-1 gap-3 md:grid-cols-2">
+            <Card
+              v-for="item in items"
+              :key="item.path"
+              class="transition-colors hover:border-primary/40"
+            >
+              <CardHeader>
+                <div class="flex items-center justify-between gap-2">
+                  <CardTitle class="text-sm">{{ item.skill.name }}</CardTitle>
+                  <Badge :variant="item.scope === 'user' ? 'default' : 'success'">
+                    {{ item.scope }}
+                  </Badge>
+                </div>
+                <CardDescription class="line-clamp-2">
+                  {{ item.skill.description || '（无描述）' }}
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <code class="break-all text-xs text-muted-foreground/70">{{ item.path }}</code>
+              </CardContent>
+            </Card>
+          </div>
+        </section>
+      </div>
+    </main>
+  </div>
 </template>
-
-<style scoped>
-.page {
-  max-width: 860px;
-  margin: 0 auto;
-  padding: 32px 24px;
-  font-family: system-ui, -apple-system, sans-serif;
-}
-.subtitle {
-  color: #666;
-}
-.error {
-  color: #c0392b;
-}
-.skill-list {
-  list-style: none;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-.skill-card {
-  border: 1px solid #e0e0e0;
-  border-radius: 8px;
-  padding: 14px 16px;
-}
-.skill-head {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-.badge {
-  font-size: 12px;
-  padding: 2px 8px;
-  border-radius: 999px;
-  background: #eef2ff;
-  color: #4338ca;
-}
-.badge.scope {
-  background: #f0fdf4;
-  color: #15803d;
-}
-.desc {
-  margin: 8px 0 6px;
-  color: #444;
-}
-.path {
-  font-size: 12px;
-  color: #999;
-  word-break: break-all;
-}
-</style>

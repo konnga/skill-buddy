@@ -19,7 +19,8 @@
   "pnpm": {
     "onlyBuiltDependencies": [
       "electron",
-      "esbuild"
+      "esbuild",
+      "vue-demi"
     ]
   }
 }

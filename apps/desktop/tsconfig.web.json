@@ -3,7 +3,11 @@
   "compilerOptions": {
     "composite": true,
     "lib": ["ES2023", "DOM", "DOM.Iterable"],
-    "noEmit": true
+    "noEmit": true,
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["src/renderer/src/*"]
+    }
   },
   "include": ["src/renderer/src/**/*", "src/renderer/src/**/*.vue", "src/preload/index.d.ts"]
 }

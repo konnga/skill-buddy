@@ -13,6 +13,11 @@ packages/core     # 内核：统一 skill 格式、解析、各 agent 适配器�
 apps/desktop      # 桌面端（Electron + Vue 3 + TypeScript）——可视化管理主入口
 ```
 
+UI 走 headless 路线：**Reka UI + Tailwind CSS v4 + shadcn-vue 约定**（组件源码在
+`apps/desktop/src/renderer/src/components/ui/`，归本仓库所有），图标用
+`@lucide/vue`，数据表格规划用 TanStack Table。设计 token（含暗色模式）定义在
+`src/renderer/src/assets/main.css`，暗色跟随系统。
+
 规划中（后续阶段）：
 
 - `apps/registry` — skills 存储与分发服务（可私有化部署，团队/企业共享）
