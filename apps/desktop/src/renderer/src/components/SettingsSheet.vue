@@ -7,16 +7,25 @@ import {
   DialogRoot,
   DialogTitle,
 } from 'reka-ui'
-import { FolderPlus, Monitor, Moon, Plus, Sun, Trash2, X } from '@lucide/vue'
+import {
+  Blocks,
+  FolderGit2,
+  FolderPlus,
+  Plus,
+  Settings2,
+  Trash2,
+  Users,
+  X,
+} from '@lucide/vue'
 import type { CustomPlatformInput } from '../../../shared/ipc.js'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Select } from '@/components/ui/select'
 import CopyButton from '@/components/CopyButton.vue'
 import PlatformIcon from '@/components/PlatformIcon.vue'
 import { useI18n } from 'vue-i18n'
-import { useSettings, syncCustomPlatforms, type ThemeMode } from '@/composables/useSettings'
-import type { Locale } from '@/i18n'
+import { useSettings, syncCustomPlatforms } from '@/composables/useSettings'
 import { useSkills } from '@/composables/useSkills'
 
 defineProps<{ open: boolean }>()
@@ -27,15 +36,14 @@ const { projectRoots, customPlatforms, theme, language, registryUrl, registryTok
 const { t } = useI18n()
 const { platforms, refresh } = useSkills()
 
-const themeOptions: { value: ThemeMode; labelKey: string; icon: unknown }[] = [
-  { value: 'system', labelKey: 'settings.themeSystem', icon: Monitor },
-  { value: 'light', labelKey: 'settings.themeLight', icon: Sun },
-  { value: 'dark', labelKey: 'settings.themeDark', icon: Moon },
-]
+type Category = 'general' | 'registry' | 'projects' | 'platforms'
+const category = ref<Category>('general')
 
-const languageOptions: { value: Locale; label: string }[] = [
-  { value: 'zh-CN', label: '中文' },
-  { value: 'en', label: 'English' },
+const categories: { id: Category; labelKey: string; icon: unknown }[] = [
+  { id: 'general', labelKey: 'settings.catGeneral', icon: Settings2 },
+  { id: 'registry', labelKey: 'settings.catRegistry', icon: Users },
+  { id: 'projects', labelKey: 'settings.catProjects', icon: FolderGit2 },
+  { id: 'platforms', labelKey: 'settings.catPlatforms', icon: Blocks },
 ]
 
 /* project roots */
@@ -98,181 +106,199 @@ async function removeCustomPlatform(id: string): Promise<void> {
 <template>
   <DialogRoot :open="open" @update:open="(o) => !o && emit('close')">
     <DialogPortal>
-      <DialogOverlay class="fixed inset-0 z-40 bg-black/30 backdrop-blur-[2px]" />
+      <DialogOverlay class="fixed inset-0 z-40 bg-black/40 backdrop-blur-[2px]" />
       <DialogContent
-        class="fixed inset-y-0 right-0 z-50 flex w-[520px] max-w-[92vw] flex-col border-l bg-background shadow-xl outline-none"
+        class="fixed left-1/2 top-1/2 z-50 flex h-[640px] max-h-[85vh] w-[880px] max-w-[94vw] -translate-x-1/2 -translate-y-1/2 overflow-hidden rounded-xl border bg-background shadow-2xl outline-none"
         @open-auto-focus.prevent
       >
-        <header class="flex items-center justify-between border-b px-6 py-4">
-          <DialogTitle class="text-base font-semibold tracking-tight">{{ t('settings.title') }}</DialogTitle>
-          <Button variant="ghost" size="icon" @click="emit('close')"><X /></Button>
-        </header>
+        <!-- left nav -->
+        <aside class="flex w-52 shrink-0 flex-col gap-0.5 border-r bg-muted/40 p-3">
+          <button
+            v-for="c in categories"
+            :key="c.id"
+            :class="[
+              'flex items-center gap-2.5 rounded-md px-3 py-2 text-sm transition-colors',
+              category === c.id ? 'bg-accent font-medium' : 'hover:bg-accent/60',
+            ]"
+            @click="category = c.id"
+          >
+            <component :is="c.icon" class="size-4 text-foreground/70" />
+            {{ t(c.labelKey) }}
+          </button>
+        </aside>
 
-        <div class="flex-1 overflow-y-auto">
-          <!-- theme -->
-          <section class="border-b px-6 py-4">
-            <h3 class="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-              {{ t('settings.appearance') }}
-            </h3>
-            <div class="flex gap-2">
-              <button
-                v-for="opt in themeOptions"
-                :key="opt.value"
-                type="button"
-                :class="[
-                  'flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-sm transition-colors',
-                  theme === opt.value
-                    ? 'border-foreground bg-foreground text-background'
-                    : 'hover:border-foreground/40',
-                ]"
-                @click="theme = opt.value"
-              >
-                <component :is="opt.icon" class="size-3.5" />
-                {{ t(opt.labelKey) }}
-              </button>
-            </div>
-            <h3 class="mb-2 mt-4 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-              {{ t('settings.language') }}
-            </h3>
-            <div class="flex gap-2">
-              <button
-                v-for="opt in languageOptions"
-                :key="opt.value"
-                type="button"
-                :class="[
-                  'rounded-md border px-3 py-1.5 text-sm transition-colors',
-                  language === opt.value
-                    ? 'border-foreground bg-foreground text-background'
-                    : 'hover:border-foreground/40',
-                ]"
-                @click="language = opt.value"
-              >
-                {{ opt.label }}
-              </button>
-            </div>
-          </section>
+        <!-- right panel -->
+        <div class="flex min-w-0 flex-1 flex-col">
+          <header class="flex items-center justify-between px-7 py-5">
+            <DialogTitle class="text-lg font-semibold tracking-tight">
+              {{ t('settings.title') }}
+            </DialogTitle>
+            <Button variant="ghost" size="icon" @click="emit('close')"><X /></Button>
+          </header>
 
-          <!-- registry -->
-          <section class="border-b px-6 py-4">
-            <h3 class="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-              {{ t('settings.registry') }}
-            </h3>
-            <div class="flex flex-col gap-2">
-              <Input
-                v-model="registryUrl"
-                class="text-sm"
-                :placeholder="t('settings.registryUrlPh')"
-              />
-              <Input
-                v-model="registryToken"
-                type="password"
-                class="text-sm"
-                :placeholder="t('settings.registryTokenPh')"
-              />
-            </div>
-          </section>
+          <div class="flex-1 overflow-y-auto px-7 pb-7">
+            <!-- general -->
+            <div v-if="category === 'general'" class="flex flex-col gap-3">
+              <div class="flex items-center justify-between gap-6 rounded-lg border px-5 py-4">
+                <div class="min-w-0">
+                  <p class="text-sm font-medium">{{ t('settings.languageTitle') }}</p>
+                  <p class="mt-0.5 text-xs text-muted-foreground">
+                    {{ t('settings.languageDesc') }}
+                  </p>
+                </div>
+                <Select v-model="language" class="w-36 shrink-0">
+                  <option value="zh-CN">中文</option>
+                  <option value="en">English</option>
+                </Select>
+              </div>
 
-          <!-- project roots -->
-          <section class="border-b px-6 py-4">
-            <div class="mb-2 flex items-center justify-between">
-              <h3 class="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                {{ t('settings.projectDirs') }}
-              </h3>
-              <Button variant="outline" size="sm" @click="addProjectRoot">
-                <FolderPlus />
-                {{ t('common.add') }}
-              </Button>
+              <div class="flex items-center justify-between gap-6 rounded-lg border px-5 py-4">
+                <div class="min-w-0">
+                  <p class="text-sm font-medium">{{ t('settings.themeTitle') }}</p>
+                  <p class="mt-0.5 text-xs text-muted-foreground">{{ t('settings.themeDesc') }}</p>
+                </div>
+                <Select v-model="theme" class="w-36 shrink-0">
+                  <option value="system">{{ t('settings.themeSystem') }}</option>
+                  <option value="light">{{ t('settings.themeLight') }}</option>
+                  <option value="dark">{{ t('settings.themeDark') }}</option>
+                </Select>
+              </div>
             </div>
-            <p v-if="projectRoots.length === 0" class="text-xs text-muted-foreground">
-              {{ t('settings.noDirs') }}
-            </p>
-            <ul v-else class="flex flex-col gap-1.5">
-              <li
-                v-for="root in projectRoots"
-                :key="root"
-                class="flex items-center justify-between gap-2 rounded-md border px-3 py-1.5"
+
+            <!-- registry -->
+            <div v-else-if="category === 'registry'" class="flex flex-col gap-3">
+              <p class="text-xs text-muted-foreground">{{ t('settings.registryDesc') }}</p>
+              <div class="flex flex-col gap-2 rounded-lg border px-5 py-4">
+                <p class="text-sm font-medium">{{ t('settings.registryUrlTitle') }}</p>
+                <Input
+                  v-model="registryUrl"
+                  class="text-sm"
+                  :placeholder="t('settings.registryUrlPh')"
+                />
+              </div>
+              <div class="flex flex-col gap-2 rounded-lg border px-5 py-4">
+                <p class="text-sm font-medium">{{ t('settings.registryTokenTitle') }}</p>
+                <Input
+                  v-model="registryToken"
+                  type="password"
+                  class="text-sm"
+                  :placeholder="t('settings.registryTokenPh')"
+                />
+              </div>
+            </div>
+
+            <!-- projects -->
+            <div v-else-if="category === 'projects'" class="flex flex-col gap-3">
+              <div class="flex items-center justify-between gap-6">
+                <p class="text-xs text-muted-foreground">{{ t('settings.projectDirsDesc') }}</p>
+                <Button variant="outline" size="sm" class="shrink-0" @click="addProjectRoot">
+                  <FolderPlus />
+                  {{ t('common.add') }}
+                </Button>
+              </div>
+              <p
+                v-if="projectRoots.length === 0"
+                class="rounded-lg border border-dashed px-5 py-8 text-center text-sm text-muted-foreground"
               >
-                <code class="select-text truncate text-xs">{{ root }}</code>
-                <span class="flex shrink-0 items-center gap-0.5">
-                  <CopyButton :text="root" class="size-7" />
+                {{ t('settings.noDirs') }}
+              </p>
+              <ul v-else class="flex flex-col gap-2">
+                <li
+                  v-for="root in projectRoots"
+                  :key="root"
+                  class="flex items-center justify-between gap-2 rounded-lg border px-5 py-3"
+                >
+                  <code class="select-text truncate text-xs">{{ root }}</code>
+                  <span class="flex shrink-0 items-center gap-0.5">
+                    <CopyButton :text="root" class="size-7" />
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      class="size-7 text-muted-foreground"
+                      @click="removeProjectRoot(root)"
+                    >
+                      <Trash2 class="size-3.5" />
+                    </Button>
+                  </span>
+                </li>
+              </ul>
+            </div>
+
+            <!-- platforms -->
+            <div v-else class="flex flex-col gap-3">
+              <div class="flex items-center justify-between gap-6">
+                <p class="text-xs text-muted-foreground">{{ t('settings.platformsDesc') }}</p>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  class="shrink-0"
+                  @click="showForm = !showForm"
+                >
+                  <Plus />
+                  {{ t('settings.customPlatform') }}
+                </Button>
+              </div>
+
+              <div v-if="showForm" class="flex flex-col gap-2 rounded-lg border px-5 py-4">
+                <div class="grid grid-cols-2 gap-2">
+                  <Input v-model="form.id" :placeholder="t('settings.formIdPh')" class="text-sm" />
+                  <Input
+                    v-model="form.displayName"
+                    :placeholder="t('settings.formNamePh')"
+                    class="text-sm"
+                  />
+                </div>
+                <Input
+                  v-model="form.detectPath"
+                  :placeholder="t('settings.formDetectPh')"
+                  class="text-sm"
+                />
+                <Input
+                  v-model="form.userSkillsDir"
+                  :placeholder="t('settings.formUserDirPh')"
+                  class="text-sm"
+                />
+                <Input
+                  v-model="form.projectSkillsDir"
+                  :placeholder="t('settings.formProjectDirPh')"
+                  class="text-sm"
+                />
+                <p v-if="formError" class="text-xs text-destructive">{{ formError }}</p>
+                <div class="flex justify-end gap-2">
+                  <Button variant="ghost" size="sm" @click="showForm = false">
+                    {{ t('common.cancel') }}
+                  </Button>
+                  <Button size="sm" @click="addCustomPlatform">{{ t('common.add') }}</Button>
+                </div>
+              </div>
+
+              <ul class="flex flex-col gap-2">
+                <li
+                  v-for="p in platforms"
+                  :key="p.id"
+                  class="flex items-center justify-between gap-2 rounded-lg border px-5 py-3"
+                >
+                  <div class="flex min-w-0 items-center gap-2.5">
+                    <PlatformIcon :id="p.id" :size="16" />
+                    <span class="text-sm">{{ p.displayName }}</span>
+                    <Badge :variant="p.detected ? 'success' : 'secondary'">
+                      {{ p.detected ? t('settings.detected') : t('settings.notDetected') }}
+                    </Badge>
+                  </div>
                   <Button
+                    v-if="customPlatforms.some((c) => c.id === p.id)"
                     variant="ghost"
                     size="icon"
-                    class="size-7 text-muted-foreground"
-                    @click="removeProjectRoot(root)"
+                    class="size-7 shrink-0 text-muted-foreground"
+                    :title="t('settings.removeNote')"
+                    @click="removeCustomPlatform(p.id)"
                   >
                     <Trash2 class="size-3.5" />
                   </Button>
-                </span>
-              </li>
-            </ul>
-          </section>
-
-          <!-- platforms -->
-          <section class="px-6 py-4">
-            <div class="mb-2 flex items-center justify-between">
-              <h3 class="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                {{ t('settings.platforms') }}
-              </h3>
-              <Button variant="outline" size="sm" @click="showForm = !showForm">
-                <Plus />
-                {{ t('settings.customPlatform') }}
-              </Button>
+                </li>
+              </ul>
             </div>
-
-            <div v-if="showForm" class="mb-3 flex flex-col gap-2 rounded-md border px-3 py-3">
-              <div class="grid grid-cols-2 gap-2">
-                <Input v-model="form.id" :placeholder="t('settings.formIdPh')" class="text-sm" />
-                <Input v-model="form.displayName" :placeholder="t('settings.formNamePh')" class="text-sm" />
-              </div>
-              <Input
-                v-model="form.detectPath"
-                :placeholder="t('settings.formDetectPh')"
-                class="text-sm"
-              />
-              <Input
-                v-model="form.userSkillsDir"
-                :placeholder="t('settings.formUserDirPh')"
-                class="text-sm"
-              />
-              <Input
-                v-model="form.projectSkillsDir"
-                :placeholder="t('settings.formProjectDirPh')"
-                class="text-sm"
-              />
-              <p v-if="formError" class="text-xs text-destructive">{{ formError }}</p>
-              <div class="flex justify-end gap-2">
-                <Button variant="ghost" size="sm" @click="showForm = false">{{ t('common.cancel') }}</Button>
-                <Button size="sm" @click="addCustomPlatform">{{ t('common.add') }}</Button>
-              </div>
-            </div>
-
-            <ul class="flex flex-col gap-1.5">
-              <li
-                v-for="p in platforms"
-                :key="p.id"
-                class="flex items-center justify-between gap-2 rounded-md border px-3 py-2"
-              >
-                <div class="flex min-w-0 items-center gap-2">
-                  <PlatformIcon :id="p.id" :size="15" />
-                  <span class="text-sm">{{ p.displayName }}</span>
-                  <Badge :variant="p.detected ? 'success' : 'secondary'">
-                    {{ p.detected ? t('settings.detected') : t('settings.notDetected') }}
-                  </Badge>
-                </div>
-                <Button
-                  v-if="customPlatforms.some((c) => c.id === p.id)"
-                  variant="ghost"
-                  size="icon"
-                  class="size-7 shrink-0 text-muted-foreground"
-                  :title="t('settings.removeNote')"
-                  @click="removeCustomPlatform(p.id)"
-                >
-                  <Trash2 class="size-3.5" />
-                </Button>
-              </li>
-            </ul>
-          </section>
+          </div>
         </div>
       </DialogContent>
     </DialogPortal>
