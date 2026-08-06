@@ -10,12 +10,14 @@ import {
   getAdapter,
   listPlatformStatus,
   registerPlatform,
+  RegistryClient,
   scanInstalledSkills,
+  toSkill,
   type Skill,
 } from '@skills-manager/core'
 
 const execFileAsync = promisify(execFile)
-import type { CustomPlatformInput, InstallTarget } from '../shared/ipc.js'
+import type { CustomPlatformInput, InstallTarget, RegistryConfig } from '../shared/ipc.js'
 
 function createWindow(): void {
   const mainWindow = new BrowserWindow({
@@ -106,6 +108,35 @@ function registerIpc(): void {
     }
     return { root: tmp, items: await findSkills(tmp) }
   })
+
+  /* ---------- registry ---------- */
+
+  const clientOf = (cfg: RegistryConfig): RegistryClient =>
+    new RegistryClient(cfg.url, cfg.token)
+
+  ipcMain.handle('registry:search', (_event, cfg: RegistryConfig, q?: string) =>
+    clientOf(cfg).search(q),
+  )
+
+  ipcMain.handle('registry:orgs', (_event, cfg: RegistryConfig) => clientOf(cfg).listOrgs())
+
+  ipcMain.handle(
+    'registry:install',
+    async (_event, cfg: RegistryConfig, org: string, name: string, targets: InstallTarget[]) => {
+      const remote = await clientOf(cfg).getSkill(org, name)
+      const skill = await toSkill(remote)
+      return runTargets(targets, (t) =>
+        getAdapter(t.agent).install(skill, t.scope, t.projectRoot),
+      )
+    },
+  )
+
+  ipcMain.handle(
+    'registry:publish',
+    async (_event, cfg: RegistryConfig, org: string, skill: Skill, version: string) => {
+      await clientOf(cfg).publish(org, skill, version)
+    },
+  )
 
   ipcMain.handle('skills:cleanup-import', async (_event, root: string) => {
     // Only remove dirs we created ourselves.

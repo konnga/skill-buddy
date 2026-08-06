@@ -25,8 +25,51 @@ const props = defineProps<{ skill: AggregatedSkill | null }>()
 const emit = defineEmits<{ close: [] }>()
 
 const { detectedPlatforms, install, installSkill, uninstall } = useSkills()
-const { projectRoots } = useSettings()
+const { projectRoots, registryUrl, registryToken } = useSettings()
 const { t } = useI18n()
+
+/* ---------- publish to registry ---------- */
+
+const registryConfigured = computed(() => Boolean(registryUrl.value && registryToken.value))
+const registryCfg = computed(() => ({ url: registryUrl.value, token: registryToken.value }))
+const orgs = ref<{ name: string }[]>([])
+const publishOrg = ref('')
+const publishVersion = ref('')
+const publishBusy = ref(false)
+const publishMessage = ref<string | null>(null)
+const publishError = ref<string | null>(null)
+
+async function loadOrgs(): Promise<void> {
+  if (!registryConfigured.value) return
+  try {
+    orgs.value = await window.skillsManager.registryOrgs(registryCfg.value)
+    if (!publishOrg.value && orgs.value[0]) publishOrg.value = orgs.value[0].name
+  } catch {
+    orgs.value = []
+  }
+}
+
+async function publish(): Promise<void> {
+  if (!props.skill || !publishOrg.value || !/^\d+\.\d+\.\d+$/.test(publishVersion.value)) return
+  publishBusy.value = true
+  publishError.value = null
+  publishMessage.value = null
+  try {
+    await window.skillsManager.registryPublish(
+      registryCfg.value,
+      publishOrg.value,
+      props.skill.installations[0]!.skill,
+      publishVersion.value,
+    )
+    publishMessage.value = t('team.publishOk', {
+      ref: `${publishOrg.value}/${props.skill.name}@${publishVersion.value}`,
+    })
+  } catch (e) {
+    publishError.value = e instanceof Error ? e.message : String(e)
+  } finally {
+    publishBusy.value = false
+  }
+}
 
 const mode = ref<'view' | 'edit'>('view')
 
@@ -91,6 +134,10 @@ watch(
     confirmUninstall.value = false
     installScope.value = 'user'
     basePath.value = null
+    publishMessage.value = null
+    publishError.value = null
+    publishVersion.value = props.skill?.version ?? '1.0.0'
+    void loadOrgs()
   },
 )
 
@@ -341,6 +388,37 @@ async function runUninstall(): Promise<void> {
                 {{ busy ? t('detail.installing') : t('detail.installN', { n: selectedTargets.size }) }}
               </Button>
               <p v-if="actionError" class="mt-2 text-xs text-destructive">{{ actionError }}</p>
+            </section>
+
+            <!-- publish -->
+            <section v-if="registryConfigured" class="border-b px-6 py-4">
+              <h3 class="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                {{ t('team.publish') }}
+              </h3>
+              <div class="flex flex-wrap items-center gap-2">
+                <select
+                  v-model="publishOrg"
+                  class="h-8 rounded-md border bg-background px-2 text-sm"
+                >
+                  <option v-for="o in orgs" :key="o.name" :value="o.name">{{ o.name }}</option>
+                </select>
+                <input
+                  v-model="publishVersion"
+                  :placeholder="t('team.publishVersion')"
+                  class="h-8 w-28 rounded-md border bg-background px-2 text-sm"
+                />
+                <Button
+                  size="sm"
+                  :disabled="publishBusy || !publishOrg || !/^\d+\.\d+\.\d+$/.test(publishVersion)"
+                  @click="publish"
+                >
+                  {{ t('team.publish') }}
+                </Button>
+              </div>
+              <p v-if="publishMessage" class="mt-2 text-xs text-emerald-600 dark:text-emerald-400">
+                {{ publishMessage }}
+              </p>
+              <p v-if="publishError" class="mt-2 text-xs text-destructive">{{ publishError }}</p>
             </section>
 
             <!-- content -->

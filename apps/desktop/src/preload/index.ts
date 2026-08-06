@@ -1,6 +1,17 @@
 import { contextBridge, ipcRenderer } from 'electron'
-import type { AggregatedSkill, FoundSkill, PlatformStatus, Skill } from '@skills-manager/core'
-import type { CustomPlatformInput, InstallTarget, TargetResult } from '../shared/ipc.js'
+import type {
+  AggregatedSkill,
+  FoundSkill,
+  PlatformStatus,
+  RegistrySkillSummary,
+  Skill,
+} from '@skills-manager/core'
+import type {
+  CustomPlatformInput,
+  InstallTarget,
+  RegistryConfig,
+  TargetResult,
+} from '../shared/ipc.js'
 
 const api = {
   scanSkills: (projectRoots: string[] = []): Promise<AggregatedSkill[]> =>
@@ -20,6 +31,22 @@ const api = {
     ipcRenderer.invoke('skills:import-git', url),
   cleanupImport: (root: string): Promise<void> =>
     ipcRenderer.invoke('skills:cleanup-import', root),
+  registrySearch: (cfg: RegistryConfig, q?: string): Promise<RegistrySkillSummary[]> =>
+    ipcRenderer.invoke('registry:search', cfg, q),
+  registryOrgs: (cfg: RegistryConfig): Promise<{ name: string; displayName: string }[]> =>
+    ipcRenderer.invoke('registry:orgs', cfg),
+  registryInstall: (
+    cfg: RegistryConfig,
+    org: string,
+    name: string,
+    targets: InstallTarget[],
+  ): Promise<TargetResult[]> => ipcRenderer.invoke('registry:install', cfg, org, name, targets),
+  registryPublish: (
+    cfg: RegistryConfig,
+    org: string,
+    skill: Skill,
+    version: string,
+  ): Promise<void> => ipcRenderer.invoke('registry:publish', cfg, org, skill, version),
 }
 
 export type SkillsManagerApi = typeof api

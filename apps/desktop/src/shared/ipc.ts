@@ -8,6 +8,12 @@ export interface InstallTarget {
   projectRoot?: string
 }
 
+/** Registry connection settings passed with each registry IPC call. */
+export interface RegistryConfig {
+  url: string
+  token: string
+}
+
 /** A user-defined platform definition persisted in settings. */
 export interface CustomPlatformInput {
   id: string

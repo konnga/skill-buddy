@@ -17,6 +17,11 @@ const projectRoots = ref<string[]>(load('skm.projectRoots', []))
 const customPlatforms = ref<CustomPlatformInput[]>(load('skm.customPlatforms', []))
 const theme = ref<ThemeMode>(load('skm.theme', 'system'))
 const language = ref<Locale>(load('skm.language', detectLocale()))
+const registryUrl = ref<string>(load('skm.registryUrl', ''))
+const registryToken = ref<string>(load('skm.registryToken', ''))
+
+watch(registryUrl, (v) => localStorage.setItem('skm.registryUrl', JSON.stringify(v)))
+watch(registryToken, (v) => localStorage.setItem('skm.registryToken', JSON.stringify(v)))
 
 i18n.global.locale.value = language.value
 watch(language, (v) => {
@@ -53,5 +58,5 @@ export async function syncCustomPlatforms(): Promise<void> {
 }
 
 export function useSettings() {
-  return { projectRoots, customPlatforms, theme, language }
+  return { projectRoots, customPlatforms, theme, language, registryUrl, registryToken }
 }

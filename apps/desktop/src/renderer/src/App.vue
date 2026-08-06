@@ -11,6 +11,7 @@ import {
   Search,
   Settings,
   TriangleAlert,
+  Users,
 } from '@lucide/vue'
 import type { AggregatedSkill } from '@skills-manager/core'
 import { Badge } from '@/components/ui/badge'
@@ -23,6 +24,7 @@ import PlatformIcon from '@/components/PlatformIcon.vue'
 import SettingsSheet from '@/components/SettingsSheet.vue'
 import SkillCard from '@/components/SkillCard.vue'
 import SkillDetailSheet from '@/components/SkillDetailSheet.vue'
+import TeamPage from '@/components/TeamPage.vue'
 import { setPlatformNames } from '@/lib/agents'
 import { syncCustomPlatforms, useSettings } from '@/composables/useSettings'
 import { useSkills } from '@/composables/useSkills'
@@ -53,7 +55,7 @@ const selected = ref<AggregatedSkill | null>(null)
 const settingsOpen = ref(false)
 const newOpen = ref(false)
 const importOpen = ref(false)
-const view = ref<'dashboard' | 'skills'>('dashboard')
+const view = ref<'dashboard' | 'skills' | 'team'>('dashboard')
 
 function filterPlatform(id: string | null): void {
   platformFilter.value = platformFilter.value === id && id !== null ? null : id
@@ -113,6 +115,16 @@ onMounted(async () => {
             {{ t('dashboard.skillsNav') }}
           </span>
           <span class="text-xs tabular-nums text-muted-foreground">{{ skills.length }}</span>
+        </button>
+        <button
+          :class="[
+            'flex items-center gap-2 rounded-md px-3 py-1.5 text-sm transition-colors',
+            view === 'team' ? 'bg-accent font-medium' : 'hover:bg-accent/60',
+          ]"
+          @click="view = 'team'"
+        >
+          <Users class="size-4 text-foreground/70" />
+          {{ t('team.title') }}
         </button>
         <p class="mb-1 mt-4 px-3 text-xs font-medium uppercase tracking-wide text-muted-foreground">
           {{ t('app.platforms') }}
@@ -208,6 +220,12 @@ onMounted(async () => {
         </Button>
       </header>
       <header
+        v-else-if="view === 'team'"
+        class="app-drag flex items-center gap-3 border-b px-6 py-3"
+      >
+        <h1 class="text-sm font-semibold tracking-tight">{{ t('team.title') }}</h1>
+      </header>
+      <header
         v-else
         class="app-drag flex items-center gap-3 border-b px-6 py-3"
       >
@@ -262,6 +280,10 @@ onMounted(async () => {
           @new-skill="newOpen = true"
           @import="importOpen = true"
         />
+      </div>
+
+      <div v-else-if="view === 'team'" class="flex-1 overflow-y-auto">
+        <TeamPage @open-settings="settingsOpen = true" />
       </div>
 
       <div v-else class="flex-1 overflow-y-auto px-6 py-5">

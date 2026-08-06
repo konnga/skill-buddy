@@ -21,7 +21,8 @@ import { useSkills } from '@/composables/useSkills'
 defineProps<{ open: boolean }>()
 const emit = defineEmits<{ close: [] }>()
 
-const { projectRoots, customPlatforms, theme, language } = useSettings()
+const { projectRoots, customPlatforms, theme, language, registryUrl, registryToken } =
+  useSettings()
 const { t } = useI18n()
 const { platforms, refresh } = useSkills()
 
@@ -147,6 +148,26 @@ async function removeCustomPlatform(id: string): Promise<void> {
               >
                 {{ opt.label }}
               </button>
+            </div>
+          </section>
+
+          <!-- registry -->
+          <section class="border-b px-6 py-4">
+            <h3 class="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+              {{ t('settings.registry') }}
+            </h3>
+            <div class="flex flex-col gap-2">
+              <Input
+                v-model="registryUrl"
+                class="text-sm"
+                :placeholder="t('settings.registryUrlPh')"
+              />
+              <Input
+                v-model="registryToken"
+                type="password"
+                class="text-sm"
+                :placeholder="t('settings.registryTokenPh')"
+              />
             </div>
           </section>
 
