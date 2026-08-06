@@ -85,6 +85,10 @@ function registerIpc(): void {
     shell.showItemInFolder(path)
   })
 
+  ipcMain.handle('shell:open-external', (_event, url: string) => {
+    if (/^https?:\/\//.test(url)) return shell.openExternal(url)
+  })
+
   /* ---------- filesystem watching ---------- */
 
   let watchers: FSWatcher[] = []
@@ -174,6 +178,18 @@ function registerIpc(): void {
       throw new Error(`git clone failed: ${e instanceof Error ? e.message : String(e)}`)
     }
     return { root: tmp, items: await findSkills(tmp) }
+  })
+
+  /* ---------- marketplace (skills.sh) ---------- */
+
+  ipcMain.handle('market:search', async (_event, q: string) => {
+    const url = `https://skills.sh/api/search?q=${encodeURIComponent(q)}`
+    const res = await fetch(url, { signal: AbortSignal.timeout(10_000) })
+    if (!res.ok) throw new Error(`skills.sh ${res.status}`)
+    const data = (await res.json()) as {
+      skills?: { id: string; skillId: string; name: string; installs: number; source: string }[]
+    }
+    return (data.skills ?? []).sort((a, b) => b.installs - a.installs)
   })
 
   /* ---------- registry ---------- */

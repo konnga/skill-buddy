@@ -4,6 +4,8 @@ import { useI18n } from 'vue-i18n'
 import {
   ArrowRight,
   ArrowUpCircle,
+  ChevronDown,
+  ChevronRight,
   Blocks,
   FolderGit2,
   Import,
@@ -14,6 +16,7 @@ import {
   TriangleAlert,
 } from '@lucide/vue'
 import type { AggregatedSkill } from '@skills-manager/core'
+import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import PlatformIcon from '@/components/PlatformIcon.vue'
@@ -21,6 +24,7 @@ import { agentLabel } from '@/lib/agents'
 import { useSettings } from '@/composables/useSettings'
 import { useSkills } from '@/composables/useSkills'
 import { installRequired, upgradeSkill, useTeam } from '@/composables/useTeam'
+import MarketDiscovery from '@/components/MarketDiscovery.vue'
 
 const emit = defineEmits<{
   openSkill: [skill: AggregatedSkill]
@@ -34,6 +38,15 @@ const { updates, missingRequired } = useTeam()
 const { t } = useI18n()
 
 const teamBusy = ref<string | null>(null)
+const todoOpen = ref(false)
+
+const todoCount = computed(
+  () =>
+    driftSkills.value.length +
+    singleEndSkills.value.length +
+    updates.value.length +
+    missingRequired.value.length,
+)
 
 async function runUpgrade(item: (typeof updates.value)[number]): Promise<void> {
   teamBusy.value = `${item.org}/${item.name}`
@@ -152,23 +165,23 @@ function otherAgentCount(s: AggregatedSkill): number {
       </div>
     </section>
 
-    <!-- needs attention -->
+    <!-- needs attention (collapsed by default) -->
     <section>
-      <h3 class="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+      <button
+        class="mb-2 flex w-full items-center gap-2 text-xs font-medium uppercase tracking-wide text-muted-foreground transition-colors hover:text-foreground"
+        @click="todoOpen = !todoOpen"
+      >
+        <component :is="todoOpen ? ChevronDown : ChevronRight" class="size-3.5" />
         {{ t('dashboard.todo') }}
-      </h3>
+        <Badge v-if="todoCount > 0" variant="secondary" class="text-[10px]">{{ todoCount }}</Badge>
+      </button>
       <p
-        v-if="
-          driftSkills.length === 0 &&
-          singleEndSkills.length === 0 &&
-          updates.length === 0 &&
-          missingRequired.length === 0
-        "
+        v-if="todoOpen && todoCount === 0"
         class="rounded-md border border-dashed px-4 py-6 text-center text-sm text-muted-foreground"
       >
         {{ t('dashboard.todoEmpty') }}
       </p>
-      <ul v-else class="flex flex-col gap-2">
+      <ul v-else-if="todoOpen" class="flex flex-col gap-2">
         <li
           v-for="item in missingRequired"
           :key="`required-${item.org}/${item.name}`"
@@ -256,6 +269,9 @@ function otherAgentCount(s: AggregatedSkill): number {
         </li>
       </ul>
     </section>
+
+    <!-- marketplace discovery -->
+    <MarketDiscovery />
 
     <!-- recent -->
     <section v-if="recentSkills.length > 0">

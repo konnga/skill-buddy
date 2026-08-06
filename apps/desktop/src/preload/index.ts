@@ -32,6 +32,11 @@ const api = {
     ipcRenderer.invoke('skills:import-git', url),
   cleanupImport: (root: string): Promise<void> =>
     ipcRenderer.invoke('skills:cleanup-import', root),
+  marketSearch: (
+    q: string,
+  ): Promise<{ id: string; skillId: string; name: string; installs: number; source: string }[]> =>
+    ipcRenderer.invoke('market:search', q),
+  openExternal: (url: string): Promise<void> => ipcRenderer.invoke('shell:open-external', url),
   registrySearch: (cfg: RegistryConfig, q?: string): Promise<RegistrySkillSummary[]> =>
     ipcRenderer.invoke('registry:search', cfg, q),
   registryOrgs: (cfg: RegistryConfig): Promise<{ name: string; displayName: string }[]> =>
