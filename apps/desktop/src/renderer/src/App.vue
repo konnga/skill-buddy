@@ -17,6 +17,7 @@ import type { AggregatedSkill } from '@skills-manager/core'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Select } from '@/components/ui/select'
 import DashboardPage from '@/components/DashboardPage.vue'
 import ImportSheet from '@/components/ImportSheet.vue'
 import NewSkillSheet from '@/components/NewSkillSheet.vue'
@@ -248,13 +249,10 @@ onMounted(async () => {
           <TriangleAlert class="size-3.5" />
           {{ t('app.driftOnly') }}
         </button>
-        <select
-          v-model="sortBy"
-          class="app-no-drag h-8 rounded-md border bg-background px-2 text-xs text-muted-foreground"
-        >
+        <Select v-model="sortBy" class="app-no-drag">
           <option value="name">{{ t('sort.name') }}</option>
           <option value="recent">{{ t('sort.recent') }}</option>
-        </select>
+        </Select>
         <div class="flex-1" />
         <Button variant="outline" size="sm" class="app-no-drag" @click="newOpen = true">
           <Plus />

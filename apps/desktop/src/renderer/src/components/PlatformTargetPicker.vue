@@ -2,6 +2,7 @@
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import PlatformIcon from '@/components/PlatformIcon.vue'
+import { Select } from '@/components/ui/select'
 import { useSettings } from '@/composables/useSettings'
 import { useSkills } from '@/composables/useSkills'
 
@@ -25,16 +26,12 @@ function toggle(id: string): void {
 
 <template>
   <div class="flex flex-col gap-2">
-    <select
-      v-if="projectRoots.length > 0"
-      v-model="scope"
-      class="h-8 w-fit rounded-md border bg-background px-2 text-sm"
-    >
+    <Select v-if="projectRoots.length > 0" v-model="scope" class="w-fit max-w-full">
       <option value="user">{{ t('detail.userScope') }}</option>
       <option v-for="root in projectRoots" :key="root" :value="root">
         {{ t('detail.projectScope', { root }) }}
       </option>
-    </select>
+    </Select>
     <div class="flex flex-wrap gap-2">
       <button
         v-for="p in available"

@@ -83,4 +83,21 @@
   body {
     @apply bg-background text-foreground antialiased;
   }
+  /* Tailwind v4 preflight resets button cursor to default — restore
+     pointer affordance for all interactive elements. */
+  button:not(:disabled),
+  select:not(:disabled),
+  [role='button']:not([aria-disabled='true']),
+  input[type='checkbox']:not(:disabled),
+  input[type='radio']:not(:disabled),
+  label:has(> input[type='checkbox']:not(:disabled)),
+  a[href],
+  summary {
+    cursor: pointer;
+  }
+  button:disabled,
+  select:disabled,
+  input:disabled {
+    cursor: not-allowed;
+  }
 }

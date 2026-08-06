@@ -14,6 +14,8 @@ import type { AggregatedSkill } from '@skills-manager/core'
 import type { InstallTarget } from '../../../shared/ipc.js'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Select } from '@/components/ui/select'
 import DiffView from '@/components/DiffView.vue'
 import PlatformIcon from '@/components/PlatformIcon.vue'
 import SkillEditor from '@/components/SkillEditor.vue'
@@ -350,15 +352,12 @@ async function runUninstall(): Promise<void> {
                 {{ t('detail.installTo') }}
               </h3>
               <div v-if="projectRoots.length > 0" class="mb-2">
-                <select
-                  v-model="installScope"
-                  class="h-8 rounded-md border bg-background px-2 text-sm"
-                >
+                <Select v-model="installScope" class="max-w-full">
                   <option value="user">{{ t('detail.userScope') }}</option>
                   <option v-for="root in projectRoots" :key="root" :value="root">
                     {{ t('detail.projectScope', { root }) }}
                   </option>
-                </select>
+                </Select>
               </div>
               <div v-if="installableTargets.length > 0" class="flex flex-wrap gap-2">
                 <button
@@ -396,16 +395,13 @@ async function runUninstall(): Promise<void> {
                 {{ t('team.publish') }}
               </h3>
               <div class="flex flex-wrap items-center gap-2">
-                <select
-                  v-model="publishOrg"
-                  class="h-8 rounded-md border bg-background px-2 text-sm"
-                >
+                <Select v-model="publishOrg">
                   <option v-for="o in orgs" :key="o.name" :value="o.name">{{ o.name }}</option>
-                </select>
-                <input
+                </Select>
+                <Input
                   v-model="publishVersion"
                   :placeholder="t('team.publishVersion')"
-                  class="h-8 w-28 rounded-md border bg-background px-2 text-sm"
+                  class="h-8 w-28 text-sm"
                 />
                 <Button
                   size="sm"
