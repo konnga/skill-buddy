@@ -77,12 +77,13 @@
 }
 
 @layer components {
-  /* Codex-style frosted selection chip for sidebar nav items */
+  /* Codex-style sidebar selection: a quiet flat gray pill, one step
+     darker than the sidebar background — no border, shadow or blur. */
   .nav-active {
-    @apply bg-background/70 font-medium shadow-sm ring-1 ring-border/70 backdrop-blur-md;
+    @apply rounded-lg bg-black/[0.055] font-medium;
   }
   .dark .nav-active {
-    @apply bg-white/[0.08] ring-white/10;
+    @apply bg-white/[0.07];
   }
 }
 
