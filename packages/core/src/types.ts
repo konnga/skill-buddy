@@ -42,6 +42,8 @@ export interface InstalledSkill {
   scope: InstallScope
   /** Absolute path of the installed skill (file or directory). */
   path: string
+  /** Project root this installation belongs to (project scope only). */
+  projectRoot?: string
 }
 
 /**

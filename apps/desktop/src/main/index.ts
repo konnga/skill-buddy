@@ -1,13 +1,14 @@
-import { app, BrowserWindow, ipcMain, shell } from 'electron'
+import { app, BrowserWindow, dialog, ipcMain, shell } from 'electron'
 import { join } from 'node:path'
 import {
   aggregateSkills,
   getAdapter,
   listPlatformStatus,
+  registerPlatform,
   scanInstalledSkills,
   type Skill,
 } from '@skills-manager/core'
-import type { InstallTarget } from '../shared/ipc.js'
+import type { CustomPlatformInput, InstallTarget } from '../shared/ipc.js'
 
 function createWindow(): void {
   const mainWindow = new BrowserWindow({
@@ -38,41 +39,46 @@ function createWindow(): void {
   }
 }
 
+async function runTargets(
+  targets: InstallTarget[],
+  run: (t: InstallTarget) => Promise<unknown>,
+): Promise<{ target: InstallTarget; ok: boolean; error?: string }[]> {
+  const results = await Promise.allSettled(targets.map(run))
+  return results.map((r, i) => ({
+    target: targets[i]!,
+    ok: r.status === 'fulfilled',
+    error: r.status === 'rejected' ? String(r.reason?.message ?? r.reason) : undefined,
+  }))
+}
+
 function registerIpc(): void {
-  ipcMain.handle('skills:scan', async () => aggregateSkills(await scanInstalledSkills()))
+  ipcMain.handle('skills:scan', async (_event, projectRoots: string[] = []) =>
+    aggregateSkills(await scanInstalledSkills(projectRoots)),
+  )
 
   ipcMain.handle('platforms:list', () => listPlatformStatus())
 
-  ipcMain.handle(
-    'skills:install',
-    async (_event, skill: Skill, targets: InstallTarget[]) => {
-      const results = await Promise.allSettled(
-        targets.map((t) => getAdapter(t.agent).install(skill, t.scope)),
-      )
-      return results.map((r, i) => ({
-        target: targets[i]!,
-        ok: r.status === 'fulfilled',
-        error: r.status === 'rejected' ? String(r.reason?.message ?? r.reason) : undefined,
-      }))
-    },
+  ipcMain.handle('platforms:register', (_event, defs: CustomPlatformInput[]) => {
+    for (const def of defs) registerPlatform(def)
+  })
+
+  ipcMain.handle('skills:install', (_event, skill: Skill, targets: InstallTarget[]) =>
+    runTargets(targets, (t) => getAdapter(t.agent).install(skill, t.scope, t.projectRoot)),
   )
 
-  ipcMain.handle(
-    'skills:uninstall',
-    async (_event, name: string, targets: InstallTarget[]) => {
-      const results = await Promise.allSettled(
-        targets.map((t) => getAdapter(t.agent).uninstall(name, t.scope)),
-      )
-      return results.map((r, i) => ({
-        target: targets[i]!,
-        ok: r.status === 'fulfilled',
-        error: r.status === 'rejected' ? String(r.reason?.message ?? r.reason) : undefined,
-      }))
-    },
+  ipcMain.handle('skills:uninstall', (_event, name: string, targets: InstallTarget[]) =>
+    runTargets(targets, (t) => getAdapter(t.agent).uninstall(name, t.scope, t.projectRoot)),
   )
 
   ipcMain.handle('skills:reveal', (_event, path: string) => {
     shell.showItemInFolder(path)
+  })
+
+  ipcMain.handle('dialog:pick-directory', async () => {
+    const result = await dialog.showOpenDialog({
+      properties: ['openDirectory', 'createDirectory'],
+    })
+    return result.canceled ? null : (result.filePaths[0] ?? null)
   })
 }
 

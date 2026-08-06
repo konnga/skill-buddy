@@ -1,14 +1,16 @@
 <script setup lang="ts">
 import { onMounted, ref, watch } from 'vue'
-import { Blocks, FolderOpen, RefreshCw, Search, TriangleAlert } from '@lucide/vue'
+import { Blocks, FolderOpen, RefreshCw, Search, Settings, TriangleAlert } from '@lucide/vue'
 import type { AggregatedSkill } from '@skills-manager/core'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import PlatformIcon from '@/components/PlatformIcon.vue'
+import SettingsSheet from '@/components/SettingsSheet.vue'
 import SkillCard from '@/components/SkillCard.vue'
 import SkillDetailSheet from '@/components/SkillDetailSheet.vue'
 import { setPlatformNames } from '@/lib/agents'
+import { syncCustomPlatforms } from '@/composables/useSettings'
 import { useSkills } from '@/composables/useSkills'
 
 const {
@@ -26,6 +28,7 @@ const {
 } = useSkills()
 
 const selected = ref<AggregatedSkill | null>(null)
+const settingsOpen = ref(false)
 
 watch(platforms, (v) => setPlatformNames(v))
 watch(skills, (v) => {
@@ -35,7 +38,10 @@ watch(skills, (v) => {
   }
 })
 
-onMounted(refresh)
+onMounted(async () => {
+  await syncCustomPlatforms()
+  await refresh()
+})
 </script>
 
 <template>
@@ -79,6 +85,16 @@ onMounted(refresh)
           </span>
         </button>
       </nav>
+
+      <div class="mt-auto px-2 pb-3">
+        <button
+          class="flex w-full items-center gap-2 rounded-md px-3 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-accent/60 hover:text-foreground"
+          @click="settingsOpen = true"
+        >
+          <Settings class="size-4" />
+          设置
+        </button>
+      </div>
     </aside>
 
     <!-- main -->
@@ -156,6 +172,7 @@ onMounted(refresh)
     </main>
 
     <SkillDetailSheet :skill="selected" @close="selected = null" />
+    <SettingsSheet :open="settingsOpen" @close="settingsOpen = false" />
   </div>
 </template>
 

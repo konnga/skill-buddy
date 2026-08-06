@@ -4,6 +4,17 @@ import type { AgentId, InstallScope } from '@skills-manager/core'
 export interface InstallTarget {
   agent: AgentId
   scope: InstallScope
+  /** Required when scope is "project". */
+  projectRoot?: string
+}
+
+/** A user-defined platform definition persisted in settings. */
+export interface CustomPlatformInput {
+  id: string
+  displayName: string
+  userSkillsDir: string | null
+  projectSkillsDir: string | null
+  detectPath: string
 }
 
 /** Per-target outcome of an install/uninstall operation. */

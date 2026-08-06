@@ -1,6 +1,7 @@
 import { computed, ref } from 'vue'
-import type { AggregatedSkill, PlatformStatus } from '@skills-manager/core'
+import type { AggregatedSkill, PlatformStatus, Skill } from '@skills-manager/core'
 import type { InstallTarget, TargetResult } from '../../../shared/ipc.js'
+import { useSettings } from './useSettings.js'
 
 const skills = ref<AggregatedSkill[]>([])
 const platforms = ref<PlatformStatus[]>([])
@@ -41,11 +42,12 @@ const countByPlatform = computed(() => {
 })
 
 async function refresh(): Promise<void> {
+  const { projectRoots } = useSettings()
   loading.value = true
   error.value = null
   try {
     const [scanned, platformList] = await Promise.all([
-      window.skillsManager.scanSkills(),
+      window.skillsManager.scanSkills([...projectRoots.value]),
       window.skillsManager.listPlatforms(),
     ])
     skills.value = scanned
@@ -57,14 +59,18 @@ async function refresh(): Promise<void> {
   }
 }
 
+/** Install/write a concrete skill payload to the given targets. */
+async function installSkill(skill: Skill, targets: InstallTarget[]): Promise<TargetResult[]> {
+  const results = await window.skillsManager.installSkill(skill, targets)
+  await refresh()
+  return results
+}
+
 async function install(
   skill: AggregatedSkill,
   targets: InstallTarget[],
 ): Promise<TargetResult[]> {
-  const source = skill.installations[0]!
-  const results = await window.skillsManager.installSkill(source.skill, targets)
-  await refresh()
-  return results
+  return installSkill(skill.installations[0]!.skill, targets)
 }
 
 async function uninstall(name: string, targets: InstallTarget[]): Promise<TargetResult[]> {
@@ -87,6 +93,7 @@ export function useSkills() {
     filtered,
     refresh,
     install,
+    installSkill,
     uninstall,
   }
 }

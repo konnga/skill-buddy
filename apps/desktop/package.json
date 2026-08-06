@@ -11,16 +11,22 @@
     "start": "electron-vite preview"
   },
   "dependencies": {
+    "@codemirror/lang-markdown": "^6.5.2",
+    "@codemirror/state": "^6.7.1",
+    "@codemirror/view": "^6.43.8",
     "@lucide/vue": "^1.28.0",
     "@skills-manager/core": "workspace:*",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "codemirror": "^6.0.2",
+    "diff": "^9.0.0",
     "markdown-it": "^15.0.0",
     "reka-ui": "^2.10.1",
     "tailwind-merge": "^3.6.0"
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.3.3",
+    "@types/diff": "^8.0.0",
     "@types/markdown-it": "^14.1.2",
     "@types/node": "^22.20.1",
     "@vitejs/plugin-vue": "^5.2.0",

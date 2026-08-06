@@ -21,15 +21,20 @@ export async function listPlatformStatus(): Promise<PlatformStatus[]> {
 }
 
 /**
- * Scan every detected agent platform and return all locally installed skills.
- * Pass a projectRoot to also include project-scoped skills.
+ * Scan every detected agent platform and return all locally installed
+ * skills: user scope plus project scope for each given project root.
  */
-export async function scanInstalledSkills(projectRoot?: string): Promise<InstalledSkill[]> {
+export async function scanInstalledSkills(
+  projectRoots: string[] = [],
+): Promise<InstalledSkill[]> {
   const results: InstalledSkill[] = []
   for (const adapter of allAdapters()) {
     if (!(await adapter.detect())) continue
     results.push(...(await adapter.list('user')))
-    if (projectRoot) results.push(...(await adapter.list('project', projectRoot)))
+    for (const root of projectRoots) {
+      const items = await adapter.list('project', root)
+      results.push(...items.map((item) => ({ ...item, projectRoot: root })))
+    }
   }
   return results
 }
