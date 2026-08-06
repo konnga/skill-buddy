@@ -219,7 +219,7 @@ onMounted(async () => {
     <main v-else class="flex min-w-0 flex-1 flex-col">
       <header
         v-if="view === 'dashboard'"
-        class="app-drag flex items-center gap-3 border-b px-6 py-3"
+        class="app-drag flex items-center gap-3 px-6 py-3"
       >
         <div class="flex-1" />
         <Button
@@ -235,13 +235,13 @@ onMounted(async () => {
       </header>
       <header
         v-else-if="view === 'team'"
-        class="app-drag flex items-center gap-3 border-b px-6 py-3"
+        class="app-drag flex items-center gap-3 px-6 py-3"
       >
         <h1 class="text-sm font-semibold tracking-tight">{{ t('team.title') }}</h1>
       </header>
       <header
         v-else
-        class="app-drag flex items-center gap-3 border-b px-6 py-3"
+        class="app-drag flex items-center gap-3 px-6 py-3"
       >
         <div class="app-no-drag relative w-72">
           <Search
