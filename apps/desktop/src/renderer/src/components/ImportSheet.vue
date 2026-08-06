@@ -11,7 +11,7 @@ import {
 import { FolderOpen, GitBranch, X } from '@lucide/vue'
 import type { FoundSkill } from '@skillbuddy/core'
 import type { InstallTarget } from '../../../shared/ipc.js'
-import MarkdownIt from 'markdown-it'
+import MarkdownView from '@/components/MarkdownView.vue'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -36,7 +36,6 @@ const cloneRoot = ref<string | null>(null)
 
 const selected = ref<Set<string>>(new Set())
 const previewDir = ref<string | null>(null)
-const md = new MarkdownIt({ linkify: true })
 const scope = ref('user')
 const agents = ref<string[]>([])
 const busy = ref(false)
@@ -268,10 +267,11 @@ async function runImport(): Promise<void> {
                   </button>
                   <div
                     v-if="previewDir === f.dir"
-                    class="markdown-body max-h-56 overflow-auto rounded-md border bg-muted/40 px-3 py-2 text-xs"
+                    class="max-h-56 overflow-auto rounded-md border bg-muted/40 px-3 py-2"
                     @click.prevent.stop
-                    v-html="md.render(f.skill.content)"
-                  />
+                  >
+                    <MarkdownView :content="f.skill.content" :preview-id="`import-${f.dir}`" />
+                  </div>
                   <ul v-if="previewDir === f.dir && f.skill.resources" class="flex flex-col gap-0.5">
                     <li
                       v-for="rel in Object.keys(f.skill.resources)"

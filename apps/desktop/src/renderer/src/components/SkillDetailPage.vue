@@ -2,7 +2,7 @@
 import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import SidebarToggle from '@/components/SidebarToggle.vue'
-import MarkdownIt from 'markdown-it'
+import MarkdownView from '@/components/MarkdownView.vue'
 import { ArrowLeft, FolderOpen, Pencil, TriangleAlert, Trash2 } from '@lucide/vue'
 import type { AggregatedSkill } from '@skillbuddy/core'
 import type { InstallTarget } from '../../../shared/ipc.js'
@@ -28,8 +28,7 @@ const { t } = useI18n()
 
 const mode = ref<'view' | 'edit'>('view')
 
-const md = new MarkdownIt({ linkify: true })
-const rendered = computed(() => md.render(props.skill.installations[0]!.skill.content))
+const skillContent = computed(() => props.skill.installations[0]!.skill.content)
 
 /* ---------- publish to registry ---------- */
 
@@ -513,7 +512,7 @@ async function runUninstall(): Promise<void> {
           <h3 class="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
             SKILL.md
           </h3>
-          <article class="markdown-body text-sm leading-relaxed" v-html="rendered" />
+          <MarkdownView :content="skillContent" preview-id="skill-detail" class="select-text" />
         </section>
 
         <!-- danger zone -->
@@ -550,39 +549,3 @@ async function runUninstall(): Promise<void> {
   </div>
 </template>
 
-<style>
-.markdown-body h1,
-.markdown-body h2,
-.markdown-body h3 {
-  font-weight: 600;
-  margin: 1.25em 0 0.5em;
-}
-.markdown-body h1 { font-size: 1.25rem; }
-.markdown-body h2 { font-size: 1.1rem; }
-.markdown-body h3 { font-size: 1rem; }
-.markdown-body p { margin: 0.5em 0; }
-.markdown-body ul, .markdown-body ol { margin: 0.5em 0; padding-left: 1.5em; }
-.markdown-body ul { list-style: disc; }
-.markdown-body ol { list-style: decimal; }
-.markdown-body code {
-  background: var(--muted);
-  border-radius: 4px;
-  padding: 0.15em 0.4em;
-  font-size: 0.85em;
-}
-.markdown-body pre {
-  background: var(--muted);
-  border-radius: 8px;
-  padding: 0.75rem 1rem;
-  overflow-x: auto;
-  margin: 0.75em 0;
-}
-.markdown-body pre code { background: transparent; padding: 0; }
-.markdown-body blockquote {
-  border-left: 3px solid var(--border);
-  padding-left: 1em;
-  color: var(--muted-foreground);
-  margin: 0.75em 0;
-}
-.markdown-body a { color: var(--primary); text-decoration: underline; }
-</style>

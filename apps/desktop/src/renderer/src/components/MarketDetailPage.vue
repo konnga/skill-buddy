@@ -12,7 +12,7 @@ import {
 } from '@lucide/vue'
 import type { FoundSkill } from '@skillbuddy/core'
 import type { InstallTarget } from '../../../shared/ipc.js'
-import MarkdownIt from 'markdown-it'
+import MarkdownView from '@/components/MarkdownView.vue'
 import { Button } from '@/components/ui/button'
 import PlatformTargetPicker from '@/components/PlatformTargetPicker.vue'
 import { agentLabel } from '@/lib/agents'
@@ -38,15 +38,12 @@ const error = ref<string | null>(null)
 
 /* ---------- overview (SKILL.md, best-effort) ---------- */
 
-const md = new MarkdownIt({ linkify: true })
 const overviewLoading = ref(true)
 const matched = ref<FoundSkill | null>(null)
 /** downloaded source root, kept alive so install() can reuse it */
 const sourceRoot = ref<string | null>(null)
 
-const overviewHtml = computed(() =>
-  matched.value?.skill.content ? md.render(matched.value.skill.content) : null,
-)
+const overviewContent = computed(() => matched.value?.skill.content ?? null)
 
 async function fetchSource(): Promise<{ root: string; items: FoundSkill[] }> {
   const item = props.item
@@ -270,10 +267,11 @@ async function install(): Promise<void> {
           <p v-if="overviewLoading" class="py-8 text-center text-sm text-muted-foreground">
             {{ t('market.overviewLoading') }}
           </p>
-          <article
-            v-else-if="overviewHtml"
-            class="markdown-body select-text text-sm leading-relaxed"
-            v-html="overviewHtml"
+          <MarkdownView
+            v-else-if="overviewContent"
+            :content="overviewContent"
+            preview-id="market-overview"
+            class="select-text"
           />
           <p v-else class="py-8 text-center text-sm text-muted-foreground">
             {{ t('market.overviewUnavailable') }}
@@ -284,77 +282,3 @@ async function install(): Promise<void> {
   </div>
 </template>
 
-<style scoped>
-.markdown-body :deep(h1),
-.markdown-body :deep(h2),
-.markdown-body :deep(h3) {
-  font-weight: 600;
-  margin: 1.25em 0 0.5em;
-}
-.markdown-body :deep(h1) {
-  font-size: 1.25rem;
-}
-.markdown-body :deep(h2) {
-  font-size: 1.1rem;
-}
-.markdown-body :deep(h3) {
-  font-size: 1rem;
-}
-.markdown-body :deep(p),
-.markdown-body :deep(ul),
-.markdown-body :deep(ol) {
-  margin: 0.5em 0;
-}
-.markdown-body :deep(ul),
-.markdown-body :deep(ol) {
-  padding-left: 1.4em;
-}
-.markdown-body :deep(ul) {
-  list-style: disc;
-}
-.markdown-body :deep(ol) {
-  list-style: decimal;
-}
-.markdown-body :deep(code) {
-  background: hsl(var(--muted) / 0.6);
-  border-radius: 4px;
-  padding: 0.1em 0.35em;
-  font-size: 0.85em;
-}
-.markdown-body :deep(pre) {
-  background: hsl(var(--muted) / 0.5);
-  border-radius: 8px;
-  padding: 0.75rem 1rem;
-  overflow-x: auto;
-  margin: 0.75em 0;
-}
-.markdown-body :deep(pre code) {
-  background: transparent;
-  padding: 0;
-}
-.markdown-body :deep(table) {
-  border-collapse: collapse;
-  margin: 0.75em 0;
-  width: 100%;
-}
-.markdown-body :deep(th),
-.markdown-body :deep(td) {
-  border: 1px solid hsl(var(--border));
-  padding: 0.4em 0.7em;
-  text-align: left;
-}
-.markdown-body :deep(th) {
-  background: hsl(var(--muted) / 0.4);
-  font-weight: 600;
-}
-.markdown-body :deep(blockquote) {
-  border-left: 3px solid hsl(var(--border));
-  padding-left: 1em;
-  color: hsl(var(--muted-foreground));
-  margin: 0.75em 0;
-}
-.markdown-body :deep(a) {
-  text-decoration: underline;
-  text-underline-offset: 2px;
-}
-</style>

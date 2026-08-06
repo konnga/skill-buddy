@@ -71,7 +71,9 @@ async function search(): Promise<void> {
         stars: s.stars,
         icon: s.iconUrl,
         sourceLabel: s.canonicalName,
-        link: s.upstreamUrl ?? 'https://skillhub.cn/',
+        link:
+          s.upstreamUrl ??
+          `https://skillhub.cn/skills/${encodeURIComponent(s.namespace)}/${encodeURIComponent(s.slug)}`,
         slug: s.slug,
         namespace: s.namespace,
         version: s.version,
