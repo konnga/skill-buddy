@@ -73,6 +73,8 @@ export default {
     install: '导入所选（{n}）',
     importing: '导入中…',
     errTargets: '至少选择一个 skill 和一个目标平台',
+    viewContent: '查看内容',
+    hasScripts: '含脚本',
   },
   team: {
     title: '团队库',
@@ -88,6 +90,8 @@ export default {
     publishOk: '已发布 {ref}',
     org: '组织',
     error: '请求失败：{msg}',
+    viewDetail: '查看',
+    suggestedVersion: '建议版本（当前最新 {v}）',
   },
   sort: {
     name: '按名称',
@@ -112,8 +116,12 @@ export default {
     installing: '安装中…',
     installN: '安装（{n}）',
     installedCount: '装于 {n} 处',
-    deleteConfirm: '将删除全部 {n} 处安装，确定？',
+    deleteConfirm: '将把全部 {n} 处安装移入废纸篓，确定？',
     confirmDelete: '确认删除',
+    removeOne: '移除此端安装（移入废纸篓）',
+    resources: '附属文件',
+    scriptWarning: '包含脚本文件，安装前请审阅内容',
+    truncated: '（预览已截断）',
   },
   editor: {
     description: '描述',

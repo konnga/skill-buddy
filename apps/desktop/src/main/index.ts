@@ -1,11 +1,13 @@
 import { app, BrowserWindow, dialog, ipcMain, shell } from 'electron'
 import { execFile } from 'node:child_process'
+import { existsSync, watch, type FSWatcher } from 'node:fs'
 import { promises as fs } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { promisify } from 'node:util'
 import {
   aggregateSkills,
+  allAdapters,
   findSkills,
   getAdapter,
   listPlatformStatus,
@@ -83,6 +85,71 @@ function registerIpc(): void {
     shell.showItemInFolder(path)
   })
 
+  /* ---------- filesystem watching ---------- */
+
+  let watchers: FSWatcher[] = []
+  let notifyTimer: ReturnType<typeof setTimeout> | undefined
+
+  ipcMain.handle('watch:start', async (_event, projectRoots: string[]) => {
+    for (const w of watchers) w.close()
+    watchers = []
+    const dirs = new Set<string>()
+    for (const adapter of allAdapters()) {
+      if (!(await adapter.detect())) continue
+      const userDir = adapter.skillsDir('user')
+      if (userDir) dirs.add(userDir)
+      for (const root of projectRoots) {
+        const projectDir = adapter.skillsDir('project', root)
+        if (projectDir) dirs.add(projectDir)
+      }
+    }
+    for (const dir of dirs) {
+      if (!existsSync(dir)) continue
+      try {
+        const watcher = watch(dir, { recursive: true }, () => {
+          clearTimeout(notifyTimer)
+          notifyTimer = setTimeout(() => {
+            for (const win of BrowserWindow.getAllWindows()) {
+              win.webContents.send('skills:changed')
+            }
+          }, 500)
+        })
+        watchers.push(watcher)
+      } catch {
+        // unwatchable dir (permissions etc.) — skip
+      }
+    }
+    return watchers.length
+  })
+
+  /* ---------- trash / file preview ---------- */
+
+  ipcMain.handle('skills:trash', async (_event, paths: string[]) => {
+    const results = await Promise.allSettled(paths.map((p) => shell.trashItem(p)))
+    return results.map((r, i) => ({
+      path: paths[i]!,
+      ok: r.status === 'fulfilled',
+      error: r.status === 'rejected' ? String(r.reason?.message ?? r.reason) : undefined,
+    }))
+  })
+
+  const MAX_PREVIEW = 256 * 1024
+
+  ipcMain.handle('file:read', async (_event, path: string) => {
+    const stat = await fs.stat(path)
+    if (stat.size > MAX_PREVIEW) {
+      const handle = await fs.open(path, 'r')
+      try {
+        const buf = Buffer.alloc(MAX_PREVIEW)
+        await handle.read(buf, 0, MAX_PREVIEW, 0)
+        return { content: buf.toString('utf8'), truncated: true }
+      } finally {
+        await handle.close()
+      }
+    }
+    return { content: await fs.readFile(path, 'utf8'), truncated: false }
+  })
+
   ipcMain.handle('dialog:pick-directory', async () => {
     const result = await dialog.showOpenDialog({
       properties: ['openDirectory', 'createDirectory'],
@@ -133,6 +200,14 @@ function registerIpc(): void {
 
   ipcMain.handle('registry:required', (_event, cfg: RegistryConfig, org: string) =>
     clientOf(cfg).requiredSkills(org),
+  )
+
+  ipcMain.handle('registry:get', (_event, cfg: RegistryConfig, org: string, name: string) =>
+    clientOf(cfg).getSkill(org, name),
+  )
+
+  ipcMain.handle('registry:versions', (_event, cfg: RegistryConfig, org: string, name: string) =>
+    clientOf(cfg).listVersions(org, name),
   )
 
   ipcMain.handle(

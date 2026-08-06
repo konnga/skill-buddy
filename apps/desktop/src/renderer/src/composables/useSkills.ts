@@ -71,9 +71,9 @@ const countByProject = computed(() => {
   return counts
 })
 
-async function refresh(): Promise<void> {
+async function refresh(options: { silent?: boolean } = {}): Promise<void> {
   const { projectRoots } = useSettings()
-  loading.value = true
+  if (!options.silent) loading.value = true
   error.value = null
   try {
     const [scanned, platformList] = await Promise.all([
@@ -82,11 +82,23 @@ async function refresh(): Promise<void> {
     ])
     skills.value = scanned
     platforms.value = platformList
+    void window.skillsManager.watchStart([...projectRoots.value])
   } catch (e) {
     error.value = e instanceof Error ? e.message : String(e)
   } finally {
-    loading.value = false
+    if (!options.silent) loading.value = false
   }
+}
+
+/* auto-refresh (silently) when skills dirs change on disk */
+let watcherWired = false
+if (!watcherWired) {
+  watcherWired = true
+  let timer: ReturnType<typeof setTimeout> | undefined
+  window.skillsManager.onSkillsChanged(() => {
+    clearTimeout(timer)
+    timer = setTimeout(() => void refresh({ silent: true }), 300)
+  })
 }
 
 /** Install/write a concrete skill payload to the given targets. */

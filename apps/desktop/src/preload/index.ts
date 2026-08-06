@@ -3,6 +3,7 @@ import type {
   AggregatedSkill,
   FoundSkill,
   PlatformStatus,
+  RegistrySkill,
   RegistrySkillSummary,
   Skill,
 } from '@skills-manager/core'
@@ -43,6 +44,23 @@ const api = {
   ): Promise<TargetResult[]> => ipcRenderer.invoke('registry:install', cfg, org, name, targets),
   registryRequired: (cfg: RegistryConfig, org: string): Promise<string[]> =>
     ipcRenderer.invoke('registry:required', cfg, org),
+  registryGet: (cfg: RegistryConfig, org: string, name: string): Promise<RegistrySkill> =>
+    ipcRenderer.invoke('registry:get', cfg, org, name),
+  registryVersions: (
+    cfg: RegistryConfig,
+    org: string,
+    name: string,
+  ): Promise<{ version: string; publishedBy: string; createdAt: number }[]> =>
+    ipcRenderer.invoke('registry:versions', cfg, org, name),
+  watchStart: (projectRoots: string[]): Promise<number> =>
+    ipcRenderer.invoke('watch:start', projectRoots),
+  trashPaths: (paths: string[]): Promise<{ path: string; ok: boolean; error?: string }[]> =>
+    ipcRenderer.invoke('skills:trash', paths),
+  readFile: (path: string): Promise<{ content: string; truncated: boolean }> =>
+    ipcRenderer.invoke('file:read', path),
+  onSkillsChanged: (callback: () => void): void => {
+    ipcRenderer.on('skills:changed', () => callback())
+  },
   registryPublish: (
     cfg: RegistryConfig,
     org: string,

@@ -4,12 +4,14 @@ import { useI18n } from 'vue-i18n'
 import { CloudDownload, Search, Users } from '@lucide/vue'
 import type { RegistrySkillSummary } from '@skills-manager/core'
 import type { InstallTarget } from '../../../shared/ipc.js'
+import MarkdownIt from 'markdown-it'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import CopyButton from '@/components/CopyButton.vue'
 import PlatformTargetPicker from '@/components/PlatformTargetPicker.vue'
 import { agentLabel } from '@/lib/agents'
+import { hasScriptResources } from '@/lib/resources'
 import { useSettings } from '@/composables/useSettings'
 import { useSkills } from '@/composables/useSkills'
 
@@ -35,6 +37,10 @@ const busy = ref(false)
 
 const localNames = computed(() => new Set(skills.value.map((s) => s.name)))
 
+const md = new MarkdownIt({ linkify: true })
+const detail = ref<{ content: string; resources?: Record<string, string> } | null>(null)
+const detailLoading = ref(false)
+
 async function search(): Promise<void> {
   if (!configured.value) return
   loading.value = true
@@ -48,11 +54,22 @@ async function search(): Promise<void> {
   }
 }
 
-function toggleExpand(key: string): void {
+async function toggleExpand(key: string, item?: RegistrySkillSummary): Promise<void> {
   expanded.value = expanded.value === key ? null : key
   agents.value = []
   scope.value = 'user'
   error.value = null
+  detail.value = null
+  if (expanded.value && item) {
+    detailLoading.value = true
+    try {
+      detail.value = await window.skillsManager.registryGet(cfg.value, item.org, item.name)
+    } catch (e) {
+      error.value = e instanceof Error ? e.message : String(e)
+    } finally {
+      detailLoading.value = false
+    }
+  }
 }
 
 async function install(item: RegistrySkillSummary): Promise<void> {
@@ -157,7 +174,7 @@ onMounted(search)
               <Button
                 variant="outline"
                 size="sm"
-                @click="toggleExpand(`${item.org}/${item.name}`)"
+                @click="toggleExpand(`${item.org}/${item.name}`, item)"
               >
                 <CloudDownload />
                 {{ t('team.install') }}
@@ -168,6 +185,28 @@ onMounted(search)
             v-if="expanded === `${item.org}/${item.name}`"
             class="mt-3 flex flex-col gap-2 border-t pt-3"
           >
+            <div v-if="detailLoading" class="py-4 text-center text-xs text-muted-foreground">…</div>
+            <template v-else-if="detail">
+              <div
+                v-if="hasScriptResources(detail.resources)"
+                class="flex items-center gap-2 rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-700 dark:text-amber-400"
+              >
+                {{ t('detail.scriptWarning') }}
+              </div>
+              <div
+                class="markdown-body max-h-64 overflow-auto rounded-md border bg-muted/40 px-4 py-3 text-xs"
+                v-html="md.render(detail.content)"
+              />
+              <ul v-if="detail.resources" class="flex flex-col gap-0.5">
+                <li
+                  v-for="rel in Object.keys(detail.resources)"
+                  :key="rel"
+                  class="text-xs text-muted-foreground"
+                >
+                  <code>{{ rel }}</code>
+                </li>
+              </ul>
+            </template>
             <span class="text-xs text-muted-foreground">{{ t('team.installTo') }}</span>
             <PlatformTargetPicker v-model:scope="scope" v-model:agents="agents" />
             <Button

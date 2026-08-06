@@ -21,13 +21,14 @@ import DiffView from '@/components/DiffView.vue'
 import PlatformIcon from '@/components/PlatformIcon.vue'
 import SkillEditor from '@/components/SkillEditor.vue'
 import { agentLabel } from '@/lib/agents'
+import { hasScriptResources, nextPatch } from '@/lib/resources'
 import { useSettings } from '@/composables/useSettings'
 import { useSkills } from '@/composables/useSkills'
 
 const props = defineProps<{ skill: AggregatedSkill | null }>()
 const emit = defineEmits<{ close: [] }>()
 
-const { detectedPlatforms, install, installSkill, uninstall } = useSkills()
+const { detectedPlatforms, install, installSkill, refresh } = useSkills()
 const { projectRoots, registryUrl, registryToken } = useSettings()
 const { t } = useI18n()
 
@@ -42,13 +43,63 @@ const publishBusy = ref(false)
 const publishMessage = ref<string | null>(null)
 const publishError = ref<string | null>(null)
 
+const latestPublished = ref<string | null>(null)
+
 async function loadOrgs(): Promise<void> {
   if (!registryConfigured.value) return
   try {
     orgs.value = await window.skillsManager.registryOrgs(registryCfg.value)
     if (!publishOrg.value && orgs.value[0]) publishOrg.value = orgs.value[0].name
+    await suggestVersion()
   } catch {
     orgs.value = []
+  }
+}
+
+/** Suggest next patch after the latest published version of this skill. */
+async function suggestVersion(): Promise<void> {
+  latestPublished.value = null
+  if (!props.skill || !publishOrg.value) return
+  try {
+    const versions = await window.skillsManager.registryVersions(
+      registryCfg.value,
+      publishOrg.value,
+      props.skill.name,
+    )
+    if (versions[0]) {
+      latestPublished.value = versions[0].version
+      publishVersion.value = nextPatch(versions[0].version)
+    }
+  } catch {
+    /* not published yet — keep local default */
+  }
+}
+
+watch(publishOrg, () => void suggestVersion())
+
+/* ---------- resources ---------- */
+
+const resources = computed(() => props.skill?.installations[0]?.skill.resources ?? {})
+const resourceList = computed(() => Object.entries(resources.value))
+const containsScripts = computed(() => hasScriptResources(resources.value))
+const openResource = ref<string | null>(null)
+const resourcePreview = ref('')
+const resourceTruncated = ref(false)
+
+async function toggleResource(rel: string, abs: string): Promise<void> {
+  if (openResource.value === rel) {
+    openResource.value = null
+    return
+  }
+  try {
+    const result = await window.skillsManager.readFile(abs)
+    resourcePreview.value = result.content
+    resourceTruncated.value = result.truncated
+    openResource.value = rel
+  } catch (e) {
+    resourcePreview.value = e instanceof Error ? e.message : String(e)
+    resourceTruncated.value = false
+    openResource.value = rel
   }
 }
 
@@ -208,17 +259,39 @@ async function syncFromBase(): Promise<void> {
   }
 }
 
+async function removeInstallation(path: string): Promise<void> {
+  if (!props.skill) return
+  busy.value = true
+  actionError.value = null
+  try {
+    const wasLast = props.skill.installations.length <= 1
+    const results = await window.skillsManager.trashPaths([path])
+    const failed = results.filter((r) => !r.ok)
+    if (failed.length > 0) {
+      actionError.value = failed.map((f) => f.error).join('；')
+      return
+    }
+    await refresh()
+    if (wasLast) emit('close')
+  } finally {
+    busy.value = false
+  }
+}
+
 async function runUninstall(): Promise<void> {
   if (!props.skill) return
   busy.value = true
   actionError.value = null
   try {
-    const targets: InstallTarget[] = props.skill.installations.map((i) => ({
-      agent: i.agent,
-      scope: i.scope,
-      projectRoot: i.projectRoot,
-    }))
-    await uninstall(props.skill.name, targets)
+    const results = await window.skillsManager.trashPaths(
+      props.skill.installations.map((i) => i.path),
+    )
+    const failed = results.filter((r) => !r.ok)
+    if (failed.length > 0) {
+      actionError.value = failed.map((f) => f.error).join('；')
+      return
+    }
+    await refresh()
     emit('close')
   } finally {
     busy.value = false
@@ -305,6 +378,16 @@ async function runUninstall(): Promise<void> {
                       @click="reveal(inst.path)"
                     >
                       <FolderOpen class="size-3.5" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      class="size-7 text-muted-foreground hover:text-destructive"
+                      :disabled="busy"
+                      :title="t('detail.removeOne')"
+                      @click="removeInstallation(inst.path)"
+                    >
+                      <Trash2 class="size-3.5" />
                     </Button>
                   </span>
                 </li>
@@ -414,8 +497,12 @@ async function runUninstall(): Promise<void> {
                 <Input
                   v-model="publishVersion"
                   :placeholder="t('team.publishVersion')"
+                  :title="latestPublished ? t('team.suggestedVersion', { v: latestPublished }) : ''"
                   class="h-8 w-28 text-sm"
                 />
+                <span v-if="latestPublished" class="text-xs text-muted-foreground">
+                  {{ t('team.suggestedVersion', { v: latestPublished }) }}
+                </span>
                 <Button
                   size="sm"
                   :disabled="publishBusy || !publishOrg || !/^\d+\.\d+\.\d+$/.test(publishVersion)"
@@ -428,6 +515,38 @@ async function runUninstall(): Promise<void> {
                 {{ publishMessage }}
               </p>
               <p v-if="publishError" class="mt-2 text-xs text-destructive">{{ publishError }}</p>
+            </section>
+
+            <!-- resources -->
+            <section v-if="resourceList.length > 0" class="border-b px-6 py-4">
+              <h3 class="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                {{ t('detail.resources') }}
+              </h3>
+              <div
+                v-if="containsScripts"
+                class="mb-2 flex items-center gap-2 rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-700 dark:text-amber-400"
+              >
+                <TriangleAlert class="size-3.5 shrink-0" />
+                {{ t('detail.scriptWarning') }}
+              </div>
+              <ul class="flex flex-col gap-1.5">
+                <li v-for="[rel, abs] in resourceList" :key="rel">
+                  <button
+                    class="flex w-full items-center justify-between gap-2 rounded-md border px-3 py-1.5 text-left transition-colors hover:border-foreground/30"
+                    @click="toggleResource(rel, abs)"
+                  >
+                    <code class="select-text truncate text-xs">{{ rel }}</code>
+                    <span class="text-xs text-muted-foreground">{{
+                      openResource === rel ? '−' : '+'
+                    }}</span>
+                  </button>
+                  <pre
+                    v-if="openResource === rel"
+                    class="mt-1 max-h-56 overflow-auto rounded-md border bg-muted px-3 py-2 text-xs"
+                  ><code class="select-text">{{ resourcePreview }}</code><span v-if="resourceTruncated" class="text-muted-foreground">
+{{ t('detail.truncated') }}</span></pre>
+                </li>
+              </ul>
             </section>
 
             <!-- content -->

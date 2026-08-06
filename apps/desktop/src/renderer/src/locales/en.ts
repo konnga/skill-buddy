@@ -73,6 +73,8 @@ export default {
     install: 'Import selected ({n})',
     importing: 'Importing…',
     errTargets: 'Select at least one skill and one target platform',
+    viewContent: 'View content',
+    hasScripts: 'scripts',
   },
   team: {
     title: 'Team Library',
@@ -88,6 +90,8 @@ export default {
     publishOk: 'Published {ref}',
     org: 'Organization',
     error: 'Request failed: {msg}',
+    viewDetail: 'View',
+    suggestedVersion: 'Suggested (latest is {v})',
   },
   sort: {
     name: 'By name',
@@ -112,8 +116,12 @@ export default {
     installing: 'Installing…',
     installN: 'Install ({n})',
     installedCount: 'Installed in {n} place(s)',
-    deleteConfirm: 'This removes all {n} installation(s). Continue?',
+    deleteConfirm: 'Move all {n} installation(s) to trash. Continue?',
     confirmDelete: 'Confirm delete',
+    removeOne: 'Remove this installation (to trash)',
+    resources: 'Bundled files',
+    scriptWarning: 'Contains script files — review before installing',
+    truncated: '(preview truncated)',
   },
   editor: {
     description: 'Description',

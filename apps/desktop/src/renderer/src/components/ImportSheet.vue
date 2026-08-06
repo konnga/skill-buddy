@@ -11,11 +11,13 @@ import {
 import { FolderOpen, GitBranch, X } from '@lucide/vue'
 import type { FoundSkill } from '@skills-manager/core'
 import type { InstallTarget } from '../../../shared/ipc.js'
+import MarkdownIt from 'markdown-it'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import PlatformTargetPicker from '@/components/PlatformTargetPicker.vue'
 import { agentLabel } from '@/lib/agents'
+import { hasScriptResources } from '@/lib/resources'
 import { useSkills } from '@/composables/useSkills'
 
 const props = defineProps<{ open: boolean }>()
@@ -33,6 +35,8 @@ const searched = ref(false)
 const cloneRoot = ref<string | null>(null)
 
 const selected = ref<Set<string>>(new Set())
+const previewDir = ref<string | null>(null)
+const md = new MarkdownIt({ linkify: true })
 const scope = ref('user')
 const agents = ref<string[]>([])
 const busy = ref(false)
@@ -239,14 +243,44 @@ async function runImport(): Promise<void> {
                   :checked="selected.has(f.dir)"
                   @change="toggleItem(f.dir)"
                 />
-                <span class="flex min-w-0 flex-col gap-0.5">
+                <span class="flex min-w-0 flex-1 flex-col gap-0.5">
                   <span class="flex items-center gap-2 text-sm font-medium">
                     {{ f.skill.name }}
                     <Badge v-if="f.skill.version" variant="outline">v{{ f.skill.version }}</Badge>
+                    <Badge
+                      v-if="hasScriptResources(f.skill.resources)"
+                      variant="outline"
+                      class="border-amber-500/40 text-amber-600 dark:text-amber-400"
+                      :title="t('detail.scriptWarning')"
+                    >
+                      {{ t('import.hasScripts') }}
+                    </Badge>
                   </span>
                   <span class="line-clamp-1 text-xs text-muted-foreground">
                     {{ f.skill.description || t('card.noDescription') }}
                   </span>
+                  <button
+                    type="button"
+                    class="w-fit text-xs text-muted-foreground underline-offset-2 hover:underline"
+                    @click.prevent.stop="previewDir = previewDir === f.dir ? null : f.dir"
+                  >
+                    {{ t('import.viewContent') }} {{ previewDir === f.dir ? '−' : '+' }}
+                  </button>
+                  <div
+                    v-if="previewDir === f.dir"
+                    class="markdown-body max-h-56 overflow-auto rounded-md border bg-muted/40 px-3 py-2 text-xs"
+                    @click.prevent.stop
+                    v-html="md.render(f.skill.content)"
+                  />
+                  <ul v-if="previewDir === f.dir && f.skill.resources" class="flex flex-col gap-0.5">
+                    <li
+                      v-for="rel in Object.keys(f.skill.resources)"
+                      :key="rel"
+                      class="text-xs text-muted-foreground"
+                    >
+                      <code>{{ rel }}</code>
+                    </li>
+                  </ul>
                 </span>
               </label>
 
