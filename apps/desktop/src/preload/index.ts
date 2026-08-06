@@ -41,6 +41,8 @@ const api = {
     name: string,
     targets: InstallTarget[],
   ): Promise<TargetResult[]> => ipcRenderer.invoke('registry:install', cfg, org, name, targets),
+  registryRequired: (cfg: RegistryConfig, org: string): Promise<string[]> =>
+    ipcRenderer.invoke('registry:required', cfg, org),
   registryPublish: (
     cfg: RegistryConfig,
     org: string,

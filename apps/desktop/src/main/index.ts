@@ -131,6 +131,10 @@ function registerIpc(): void {
     },
   )
 
+  ipcMain.handle('registry:required', (_event, cfg: RegistryConfig, org: string) =>
+    clientOf(cfg).requiredSkills(org),
+  )
+
   ipcMain.handle(
     'registry:publish',
     async (_event, cfg: RegistryConfig, org: string, skill: Skill, version: string) => {

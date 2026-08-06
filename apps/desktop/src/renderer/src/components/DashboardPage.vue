@@ -1,14 +1,16 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import {
   ArrowRight,
+  ArrowUpCircle,
   Blocks,
   FolderGit2,
   Import,
   MonitorCheck,
   Plus,
   RefreshCw,
+  ShieldAlert,
   TriangleAlert,
 } from '@lucide/vue'
 import type { AggregatedSkill } from '@skills-manager/core'
@@ -18,6 +20,7 @@ import PlatformIcon from '@/components/PlatformIcon.vue'
 import { agentLabel } from '@/lib/agents'
 import { useSettings } from '@/composables/useSettings'
 import { useSkills } from '@/composables/useSkills'
+import { installRequired, upgradeSkill, useTeam } from '@/composables/useTeam'
 
 const emit = defineEmits<{
   openSkill: [skill: AggregatedSkill]
@@ -27,7 +30,28 @@ const emit = defineEmits<{
 
 const { skills, detectedPlatforms, loading, refresh } = useSkills()
 const { projectRoots } = useSettings()
+const { updates, missingRequired } = useTeam()
 const { t } = useI18n()
+
+const teamBusy = ref<string | null>(null)
+
+async function runUpgrade(item: (typeof updates.value)[number]): Promise<void> {
+  teamBusy.value = `${item.org}/${item.name}`
+  try {
+    await upgradeSkill(item)
+  } finally {
+    teamBusy.value = null
+  }
+}
+
+async function runInstallRequired(item: (typeof missingRequired.value)[number]): Promise<void> {
+  teamBusy.value = `${item.org}/${item.name}`
+  try {
+    await installRequired(item)
+  } finally {
+    teamBusy.value = null
+  }
+}
 
 const driftSkills = computed(() => skills.value.filter((s) => s.hasDrift))
 
@@ -134,12 +158,66 @@ function otherAgentCount(s: AggregatedSkill): number {
         {{ t('dashboard.todo') }}
       </h3>
       <p
-        v-if="driftSkills.length === 0 && singleEndSkills.length === 0"
+        v-if="
+          driftSkills.length === 0 &&
+          singleEndSkills.length === 0 &&
+          updates.length === 0 &&
+          missingRequired.length === 0
+        "
         class="rounded-md border border-dashed px-4 py-6 text-center text-sm text-muted-foreground"
       >
         {{ t('dashboard.todoEmpty') }}
       </p>
       <ul v-else class="flex flex-col gap-2">
+        <li
+          v-for="item in missingRequired"
+          :key="`required-${item.org}/${item.name}`"
+          class="flex items-center justify-between gap-3 rounded-md border border-red-500/30 bg-red-500/5 px-4 py-2.5"
+        >
+          <span class="flex min-w-0 items-center gap-2 text-sm">
+            <ShieldAlert class="size-4 shrink-0 text-red-500" />
+            <span class="truncate">
+              {{ t('dashboard.todoRequired', { org: item.org, name: item.name }) }}
+            </span>
+          </span>
+          <Button
+            variant="outline"
+            size="sm"
+            class="shrink-0"
+            :disabled="teamBusy === `${item.org}/${item.name}`"
+            @click="runInstallRequired(item)"
+          >
+            {{ t('dashboard.todoRequiredAction') }}
+          </Button>
+        </li>
+        <li
+          v-for="item in updates"
+          :key="`update-${item.org}/${item.name}`"
+          class="flex items-center justify-between gap-3 rounded-md border px-4 py-2.5"
+        >
+          <span class="flex min-w-0 items-center gap-2 text-sm">
+            <ArrowUpCircle class="size-4 shrink-0 text-sky-500" />
+            <span class="truncate">
+              {{
+                t('dashboard.todoUpdate', {
+                  org: item.org,
+                  name: item.name,
+                  remote: item.remoteVersion,
+                  local: item.localVersion,
+                })
+              }}
+            </span>
+          </span>
+          <Button
+            variant="outline"
+            size="sm"
+            class="shrink-0"
+            :disabled="teamBusy === `${item.org}/${item.name}`"
+            @click="runUpgrade(item)"
+          >
+            {{ t('dashboard.todoUpdateAction') }}
+          </Button>
+        </li>
         <li
           v-for="s in driftSkills"
           :key="`drift-${s.name}`"
