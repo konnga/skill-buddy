@@ -23,7 +23,22 @@ const props = defineProps<{ skill: AggregatedSkill; inset?: boolean }>()
 const emit = defineEmits<{ close: [] }>()
 
 const { detectedPlatforms, install, installSkill, refresh } = useSkills()
-const { projectRoots, registryUrl, registryToken } = useSettings()
+const { projectRoots, registryUrl, registryToken, groups } = useSettings()
+
+/* ---------- groups membership ---------- */
+
+function inGroup(name: string): boolean {
+  return groups.value.find((g) => g.name === name)?.skills.includes(props.skill.name) ?? false
+}
+
+function toggleGroup(name: string): void {
+  groups.value = groups.value.map((g) => {
+    if (g.name !== name) return g
+    return g.skills.includes(props.skill.name)
+      ? { ...g, skills: g.skills.filter((n) => n !== props.skill.name) }
+      : { ...g, skills: [...g.skills, props.skill.name] }
+  })
+}
 const { t } = useI18n()
 
 const mode = ref<'view' | 'edit'>('view')
@@ -311,9 +326,27 @@ async function runUninstall(): Promise<void> {
     <!-- view mode -->
     <div v-else class="flex-1 overflow-y-auto">
       <div class="mx-auto max-w-3xl px-6 py-6">
-        <p class="mb-6 text-sm text-muted-foreground">
+        <p class="mb-4 text-sm text-muted-foreground">
           {{ skill.description || t('card.noDescription') }}
         </p>
+
+        <div v-if="groups.length > 0" class="mb-6 flex flex-wrap items-center gap-2">
+          <span class="text-xs text-muted-foreground">{{ t('groups.membership') }}</span>
+          <button
+            v-for="g in groups"
+            :key="g.name"
+            type="button"
+            :class="[
+              'rounded-full border px-2.5 py-0.5 text-xs transition-colors',
+              inGroup(g.name)
+                ? 'border-foreground bg-foreground text-background'
+                : 'text-muted-foreground hover:border-foreground/40',
+            ]"
+            @click="toggleGroup(g.name)"
+          >
+            {{ g.name }}
+          </button>
+        </div>
 
         <!-- installations -->
         <section class="mb-8">

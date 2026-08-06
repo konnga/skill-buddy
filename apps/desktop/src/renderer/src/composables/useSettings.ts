@@ -21,6 +21,14 @@ const registryUrl = ref<string>(load('skm.registryUrl', ''))
 const registryToken = ref<string>(load('skm.registryToken', ''))
 const sidebarCollapsed = ref<boolean>(load('skm.sidebarCollapsed', false))
 
+export interface SkillGroup {
+  name: string
+  skills: string[]
+}
+
+const groups = ref<SkillGroup[]>(load('skm.groups', []))
+watch(groups, (v) => localStorage.setItem('skm.groups', JSON.stringify(v)), { deep: true })
+
 watch(registryUrl, (v) => localStorage.setItem('skm.registryUrl', JSON.stringify(v)))
 watch(registryToken, (v) => localStorage.setItem('skm.registryToken', JSON.stringify(v)))
 watch(sidebarCollapsed, (v) => localStorage.setItem('skm.sidebarCollapsed', JSON.stringify(v)))
@@ -60,5 +68,5 @@ export async function syncCustomPlatforms(): Promise<void> {
 }
 
 export function useSettings() {
-  return { projectRoots, customPlatforms, theme, language, registryUrl, registryToken, sidebarCollapsed }
+  return { projectRoots, customPlatforms, theme, language, registryUrl, registryToken, sidebarCollapsed, groups }
 }

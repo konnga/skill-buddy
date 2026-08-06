@@ -14,6 +14,8 @@ const platformFilter = ref<string | null>(null)
 /** null = all; 'user' = user scope only; other = a project root path */
 const projectFilter = ref<string | null>(null)
 const driftOnly = ref(false)
+/** active group name filter (sidebar) */
+const groupFilter = ref<string | null>(null)
 const sortBy = ref<'name' | 'recent'>('name')
 
 const lastModified = (s: AggregatedSkill): number =>
@@ -32,6 +34,11 @@ const filtered = computed(() => {
       !s.installations.some((i) => i.projectRoot === projectFilter.value)
     )
       return false
+    if (groupFilter.value) {
+      const { groups } = useSettings()
+      const group = groups.value.find((g) => g.name === groupFilter.value)
+      if (!group || !group.skills.includes(s.name)) return false
+    }
     if (driftOnly.value && !s.hasDrift) return false
     if (!q) return true
     return (
@@ -134,6 +141,7 @@ export function useSkills() {
     projectFilter,
     countByProject,
     driftOnly,
+    groupFilter,
     sortBy,
     filtered,
     refresh,

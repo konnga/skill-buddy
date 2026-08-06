@@ -3,6 +3,8 @@ import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import {
   Blocks,
+  CloudDownload,
+  Trash2,
   FolderOpen,
   Import,
   LayoutDashboard,
@@ -23,6 +25,7 @@ import DashboardPage from '@/components/DashboardPage.vue'
 import ImportSheet from '@/components/ImportSheet.vue'
 import NewSkillSheet from '@/components/NewSkillSheet.vue'
 import PlatformIcon from '@/components/PlatformIcon.vue'
+import PlatformTargetPicker from '@/components/PlatformTargetPicker.vue'
 import SettingsPage from '@/components/SettingsPage.vue'
 import SidebarToggle from '@/components/SidebarToggle.vue'
 import SkillCard from '@/components/SkillCard.vue'
@@ -45,13 +48,15 @@ const {
   platformFilter,
   projectFilter,
   driftOnly,
+  groupFilter,
   sortBy,
   filtered,
   skills,
+  installSkill,
   refresh,
 } = useSkills()
 
-const { projectRoots, sidebarCollapsed } = useSettings()
+const { projectRoots, sidebarCollapsed, groups } = useSettings()
 const { t } = useI18n()
 
 const basename = (p: string): string => p.split('/').filter(Boolean).pop() ?? p
@@ -81,6 +86,67 @@ function filterPlatform(id: string | null): void {
 function filterProject(v: string | null): void {
   projectFilter.value = projectFilter.value === v && v !== null ? null : v
   view.value = 'skills'
+}
+
+/* ---------- skill groups ---------- */
+
+const newGroupName = ref('')
+const groupApplyOpen = ref(false)
+const groupApplyScope = ref('user')
+const groupApplyAgents = ref<string[]>([])
+const groupApplyBusy = ref(false)
+const groupApplyNote = ref<string | null>(null)
+
+function filterGroup(name: string | null): void {
+  groupFilter.value = groupFilter.value === name && name !== null ? null : name
+  groupApplyOpen.value = false
+  groupApplyNote.value = null
+  view.value = 'skills'
+}
+
+function createGroup(): void {
+  const name = newGroupName.value.trim()
+  if (!name || groups.value.some((g) => g.name === name)) return
+  groups.value = [...groups.value, { name, skills: [] }]
+  newGroupName.value = ''
+}
+
+function deleteGroup(name: string): void {
+  groups.value = groups.value.filter((g) => g.name !== name)
+  if (groupFilter.value === name) groupFilter.value = null
+}
+
+const groupCount = (name: string): number =>
+  groups.value.find((g) => g.name === name)?.skills.length ?? 0
+
+async function applyGroup(): Promise<void> {
+  const group = groups.value.find((g) => g.name === groupFilter.value)
+  if (!group || groupApplyAgents.value.length === 0) return
+  groupApplyBusy.value = true
+  groupApplyNote.value = null
+  try {
+    const targets = groupApplyAgents.value.map((agent) =>
+      groupApplyScope.value === 'user'
+        ? { agent, scope: 'user' as const }
+        : { agent, scope: 'project' as const, projectRoot: groupApplyScope.value },
+    )
+    const missing: string[] = []
+    for (const name of group.skills) {
+      const local = skills.value.find((sk) => sk.name === name)
+      if (!local) {
+        missing.push(name)
+        continue
+      }
+      await installSkill(local.installations[0]!.skill, targets)
+    }
+    if (missing.length > 0) {
+      groupApplyNote.value = t('groups.skipped', { names: missing.join(', ') })
+    } else {
+      groupApplyOpen.value = false
+    }
+  } finally {
+    groupApplyBusy.value = false
+  }
 }
 
 watch(platforms, (v) => setPlatformNames(v))
@@ -231,6 +297,37 @@ onUnmounted(() => window.removeEventListener('keydown', onSidebarShortcut))
             </span>
           </button>
         </template>
+
+        <p class="mb-1 mt-4 px-3 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+          {{ t('groups.title') }}
+        </p>
+        <button
+          v-for="g in groups"
+          :key="g.name"
+          :class="[
+            'group/g flex items-center justify-between rounded-md px-3 py-1.5 text-sm transition-colors',
+            view === 'skills' && groupFilter === g.name ? 'nav-active' : 'hover:bg-accent/60',
+          ]"
+          @click="filterGroup(g.name)"
+        >
+          <span class="truncate">{{ g.name }}</span>
+          <span class="flex shrink-0 items-center gap-1">
+            <span class="text-xs tabular-nums text-muted-foreground">{{ g.skills.length }}</span>
+            <Trash2
+              class="hidden size-3 cursor-pointer text-muted-foreground hover:text-destructive group-hover/g:block"
+              :title="t('groups.deleteGroup')"
+              @click.stop="deleteGroup(g.name)"
+            />
+          </span>
+        </button>
+        <div class="px-3 py-1">
+          <input
+            v-model="newGroupName"
+            :placeholder="t('groups.createPh')"
+            class="h-7 w-full rounded-md border border-transparent bg-transparent px-1.5 text-xs text-foreground placeholder:text-muted-foreground/60 hover:border-input focus:border-input focus:outline-none"
+            @keydown.enter="createGroup"
+          />
+        </div>
       </nav>
 
       <div class="mt-auto px-2 pb-3">
@@ -307,6 +404,16 @@ onUnmounted(() => window.removeEventListener('keydown', onSidebarShortcut))
           {{ t('app.driftOnly') }}
         </button>
         <Select v-model="sortBy" class="app-no-drag" :options="sortOptions" />
+        <Button
+          v-if="groupFilter"
+          variant="outline"
+          size="sm"
+          class="app-no-drag"
+          @click="groupApplyOpen = !groupApplyOpen"
+        >
+          <CloudDownload class="size-3.5" />
+          {{ t('groups.applyTitle') }}
+        </Button>
         <div class="flex-1" />
         <Button variant="outline" size="sm" class="app-no-drag" @click="newOpen = true">
           <Plus />
@@ -340,6 +447,33 @@ onUnmounted(() => window.removeEventListener('keydown', onSidebarShortcut))
       </div>
 
       <div v-else class="flex-1 overflow-y-auto px-6 py-5">
+        <div
+          v-if="groupFilter && groupApplyOpen"
+          class="mb-4 flex flex-col gap-2 rounded-lg border px-4 py-3"
+        >
+          <span class="text-xs text-muted-foreground">{{ t('groups.applyTitle') }}</span>
+          <PlatformTargetPicker
+            v-model:scope="groupApplyScope"
+            v-model:agents="groupApplyAgents"
+          />
+          <Button
+            size="sm"
+            class="w-fit"
+            :disabled="
+              groupApplyBusy || groupApplyAgents.length === 0 || groupCount(groupFilter) === 0
+            "
+            @click="applyGroup"
+          >
+            {{
+              groupApplyBusy
+                ? t('detail.installing')
+                : t('groups.apply', { n: groupCount(groupFilter) })
+            }}
+          </Button>
+          <p v-if="groupApplyNote" class="text-xs text-amber-600 dark:text-amber-400">
+            {{ groupApplyNote }}
+          </p>
+        </div>
         <div v-if="loading && skills.length === 0" class="py-24 text-center text-sm text-muted-foreground">
           {{ t('app.scanning') }}
         </div>
