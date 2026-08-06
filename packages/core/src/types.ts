@@ -44,6 +44,8 @@ export interface InstalledSkill {
   path: string
   /** Project root this installation belongs to (project scope only). */
   projectRoot?: string
+  /** SKILL.md mtime, ms since epoch. */
+  modifiedAt?: number
 }
 
 /**

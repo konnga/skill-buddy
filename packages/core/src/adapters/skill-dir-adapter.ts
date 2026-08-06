@@ -27,8 +27,10 @@ export abstract class SkillDirAdapter implements AgentAdapter {
       const skillFile = join(skillPath, 'SKILL.md')
       if (!(await exists(skillFile))) continue
       let raw: string
+      let modifiedAt: number | undefined
       try {
         raw = await fs.readFile(skillFile, 'utf8')
+        modifiedAt = (await fs.stat(skillFile)).mtimeMs
       } catch {
         continue
       }
@@ -38,6 +40,7 @@ export abstract class SkillDirAdapter implements AgentAdapter {
         agent: this.agent,
         scope,
         path: skillPath,
+        modifiedAt,
         skill: {
           name: typeof data.name === 'string' ? data.name : entry.name,
           description: typeof data.description === 'string' ? data.description : '',

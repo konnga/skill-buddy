@@ -1,11 +1,20 @@
 <script setup lang="ts">
 import { onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { Blocks, FolderOpen, RefreshCw, Search, Settings, TriangleAlert } from '@lucide/vue'
+import {
+  Blocks,
+  FolderOpen,
+  LayoutDashboard,
+  RefreshCw,
+  Search,
+  Settings,
+  TriangleAlert,
+} from '@lucide/vue'
 import type { AggregatedSkill } from '@skills-manager/core'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import DashboardPage from '@/components/DashboardPage.vue'
 import PlatformIcon from '@/components/PlatformIcon.vue'
 import SettingsSheet from '@/components/SettingsSheet.vue'
 import SkillCard from '@/components/SkillCard.vue'
@@ -37,6 +46,17 @@ const basename = (p: string): string => p.split('/').filter(Boolean).pop() ?? p
 
 const selected = ref<AggregatedSkill | null>(null)
 const settingsOpen = ref(false)
+const view = ref<'dashboard' | 'skills'>('dashboard')
+
+function filterPlatform(id: string | null): void {
+  platformFilter.value = platformFilter.value === id && id !== null ? null : id
+  view.value = 'skills'
+}
+
+function filterProject(v: string | null): void {
+  projectFilter.value = projectFilter.value === v && v !== null ? null : v
+  view.value = 'skills'
+}
 
 watch(platforms, (v) => setPlatformNames(v))
 watch(skills, (v) => {
@@ -64,12 +84,27 @@ onMounted(async () => {
       <nav class="flex flex-col gap-0.5 px-2">
         <button
           :class="[
-            'flex items-center justify-between rounded-md px-3 py-1.5 text-sm transition-colors',
-            platformFilter === null ? 'bg-accent font-medium' : 'hover:bg-accent/60',
+            'flex items-center gap-2 rounded-md px-3 py-1.5 text-sm transition-colors',
+            view === 'dashboard' ? 'bg-accent font-medium' : 'hover:bg-accent/60',
           ]"
-          @click="platformFilter = null"
+          @click="view = 'dashboard'"
         >
-          {{ t('app.all') }}
+          <LayoutDashboard class="size-4 text-foreground/70" />
+          {{ t('dashboard.title') }}
+        </button>
+        <button
+          :class="[
+            'flex items-center justify-between rounded-md px-3 py-1.5 text-sm transition-colors',
+            view === 'skills' && platformFilter === null && projectFilter === null
+              ? 'bg-accent font-medium'
+              : 'hover:bg-accent/60',
+          ]"
+          @click="((platformFilter = null), (projectFilter = null), (view = 'skills'))"
+        >
+          <span class="flex items-center gap-2">
+            <Blocks class="size-4 text-foreground/70" />
+            {{ t('dashboard.skillsNav') }}
+          </span>
           <span class="text-xs tabular-nums text-muted-foreground">{{ skills.length }}</span>
         </button>
         <p class="mb-1 mt-4 px-3 text-xs font-medium uppercase tracking-wide text-muted-foreground">
@@ -80,9 +115,11 @@ onMounted(async () => {
           :key="p.id"
           :class="[
             'flex items-center justify-between rounded-md px-3 py-1.5 text-sm transition-colors',
-            platformFilter === p.id ? 'bg-accent font-medium' : 'hover:bg-accent/60',
+            view === 'skills' && platformFilter === p.id
+              ? 'bg-accent font-medium'
+              : 'hover:bg-accent/60',
           ]"
-          @click="platformFilter = platformFilter === p.id ? null : p.id"
+          @click="filterPlatform(p.id)"
         >
           <span class="flex min-w-0 items-center gap-2">
             <PlatformIcon :id="p.id" :size="15" class="text-foreground/70" />
@@ -102,9 +139,11 @@ onMounted(async () => {
           <button
             :class="[
               'flex items-center justify-between rounded-md px-3 py-1.5 text-sm transition-colors',
-              projectFilter === 'user' ? 'bg-accent font-medium' : 'hover:bg-accent/60',
+              view === 'skills' && projectFilter === 'user'
+                ? 'bg-accent font-medium'
+                : 'hover:bg-accent/60',
             ]"
-            @click="projectFilter = projectFilter === 'user' ? null : 'user'"
+            @click="filterProject('user')"
           >
             {{ t('app.userGlobal') }}
           </button>
@@ -113,10 +152,12 @@ onMounted(async () => {
             :key="root"
             :class="[
               'flex items-center justify-between rounded-md px-3 py-1.5 text-sm transition-colors',
-              projectFilter === root ? 'bg-accent font-medium' : 'hover:bg-accent/60',
+              view === 'skills' && projectFilter === root
+                ? 'bg-accent font-medium'
+                : 'hover:bg-accent/60',
             ]"
             :title="root"
-            @click="projectFilter = projectFilter === root ? null : root"
+            @click="filterProject(root)"
           >
             <span class="flex min-w-0 items-center gap-2">
               <FolderOpen class="size-3.5 shrink-0 text-foreground/60" />
@@ -143,6 +184,24 @@ onMounted(async () => {
     <!-- main -->
     <main class="flex min-w-0 flex-1 flex-col">
       <header
+        v-if="view === 'dashboard'"
+        class="app-drag flex items-center gap-3 border-b px-6 py-3"
+      >
+        <h1 class="text-sm font-semibold tracking-tight">{{ t('dashboard.title') }}</h1>
+        <div class="flex-1" />
+        <Button
+          variant="outline"
+          size="sm"
+          class="app-no-drag"
+          :disabled="loading"
+          @click="refresh"
+        >
+          <RefreshCw :class="loading ? 'animate-spin' : ''" />
+          {{ t('app.rescan') }}
+        </Button>
+      </header>
+      <header
+        v-else
         class="app-drag flex items-center gap-3 border-b px-6 py-3"
       >
         <div class="app-no-drag relative w-72">
@@ -177,7 +236,11 @@ onMounted(async () => {
         </Button>
       </header>
 
-      <div class="flex-1 overflow-y-auto px-6 py-5">
+      <div v-if="view === 'dashboard'" class="flex-1 overflow-y-auto">
+        <DashboardPage @open-skill="selected = $event" />
+      </div>
+
+      <div v-else class="flex-1 overflow-y-auto px-6 py-5">
         <div v-if="loading && skills.length === 0" class="py-24 text-center text-sm text-muted-foreground">
           {{ t('app.scanning') }}
         </div>
