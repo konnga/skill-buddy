@@ -13,6 +13,7 @@ import {
   CloudDownload,
   Trash2,
   FolderOpen,
+  Globe,
   Import,
   LayoutDashboard,
   PanelLeft,
@@ -29,6 +30,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Select } from '@/components/ui/select'
 import AttentionPage from '@/components/AttentionPage.vue'
+import BundlesPage from '@/components/BundlesPage.vue'
 import DashboardPage from '@/components/DashboardPage.vue'
 import ImportAppsModal from '@/components/ImportAppsModal.vue'
 import ImportSheet from '@/components/ImportSheet.vue'
@@ -80,6 +82,7 @@ const sortOptions = computed(() => [
 const selected = ref<AggregatedSkill | null>(null)
 const marketSelected = ref<MarketItem | null>(null)
 const attentionOpen = ref(false)
+const bundlesOpen = ref(false)
 
 /* needs-attention badge count (mirrors AttentionPage's list) */
 const { updates, missingRequired } = useTeam()
@@ -100,6 +103,7 @@ const prevView = ref<'dashboard' | 'skills' | 'team'>('dashboard')
 // sidebar navigation leaves any full-page detail (market / attention / new-skill)
 watch(view, () => {
   attentionOpen.value = false
+  bundlesOpen.value = false
   marketSelected.value = null
   newOpen.value = false
 })
@@ -378,7 +382,10 @@ onUnmounted(() => window.removeEventListener('keydown', onSidebarShortcut))
             ]"
             @click="filterProject('user')"
           >
-            {{ t('app.userGlobal') }}
+            <span class="flex min-w-0 items-center gap-2">
+              <Globe class="size-3.5 shrink-0 text-foreground/60" />
+              <span class="truncate">{{ t('app.userGlobal') }}</span>
+            </span>
           </button>
           <button
             v-for="root in projectRoots"
@@ -458,6 +465,9 @@ onUnmounted(() => window.removeEventListener('keydown', onSidebarShortcut))
         @close="attentionOpen = false"
         @open-skill="selected = $event"
       />
+    </main>
+    <main v-else-if="bundlesOpen" class="content-surface flex min-w-0 flex-1 flex-col">
+      <BundlesPage :inset="sidebarCollapsed" @close="bundlesOpen = false" />
     </main>
     <main v-else-if="newOpen" class="content-surface flex min-w-0 flex-1 flex-col">
       <NewSkillPage :inset="sidebarCollapsed" @close="newOpen = false" />
@@ -570,7 +580,10 @@ onUnmounted(() => window.removeEventListener('keydown', onSidebarShortcut))
       </header>
 
       <div v-if="view === 'dashboard'" class="flex-1 overflow-y-auto">
-        <DashboardPage @open-market="marketSelected = $event" />
+        <DashboardPage
+          @open-market="marketSelected = $event"
+          @open-bundles="bundlesOpen = true"
+        />
       </div>
 
       <div v-else-if="view === 'team'" class="flex-1 overflow-y-auto">
