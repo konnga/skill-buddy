@@ -3,7 +3,7 @@ import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import SidebarToggle from '@/components/SidebarToggle.vue'
 import MarkdownView from '@/components/MarkdownView.vue'
-import { ArrowLeft, FolderOpen, Pencil, TriangleAlert, Trash2 } from '@lucide/vue'
+import { ArrowLeft, FolderOpen, Pencil, Plus, TriangleAlert, Trash2 } from '@lucide/vue'
 import type { AggregatedSkill } from '@skillbuddy/core'
 import type { InstallTarget } from '../../../shared/ipc.js'
 import { Badge } from '@/components/ui/badge'
@@ -29,6 +29,17 @@ const { projectRoots, registryUrl, registryToken, groups } = useSettings()
 
 function inGroup(name: string): boolean {
   return groups.value.find((g) => g.name === name)?.skills.includes(props.skill.name) ?? false
+}
+
+const newGroupOpen = ref(false)
+const newGroupName = ref('')
+
+function createGroupWithSkill(): void {
+  const name = newGroupName.value.trim()
+  if (!name || groups.value.some((g) => g.name === name)) return
+  groups.value = [...groups.value, { name, skills: [props.skill.name] }]
+  newGroupName.value = ''
+  newGroupOpen.value = false
 }
 
 function toggleGroup(name: string): void {
@@ -330,7 +341,7 @@ async function runUninstall(): Promise<void> {
           {{ skill.description || t('card.noDescription') }}
         </p>
 
-        <div v-if="groups.length > 0" class="mb-6 flex flex-wrap items-center gap-2">
+        <div class="mb-6 flex flex-wrap items-center gap-2">
           <span class="text-xs text-muted-foreground">{{ t('groups.membership') }}</span>
           <button
             v-for="g in groups"
@@ -346,7 +357,50 @@ async function runUninstall(): Promise<void> {
           >
             {{ g.name }}
           </button>
+          <button
+            type="button"
+            class="flex items-center gap-1 rounded-full border border-dashed px-2.5 py-0.5 text-xs text-muted-foreground transition-colors hover:border-foreground/40 hover:text-foreground"
+            @click="((newGroupName = ''), (newGroupOpen = true))"
+          >
+            <Plus class="size-3" />
+            {{ t('groups.createTitle') }}
+          </button>
         </div>
+
+        <DialogRoot :open="newGroupOpen" @update:open="(o) => !o && (newGroupOpen = false)">
+          <DialogPortal>
+            <DialogOverlay class="fixed inset-0 z-40 bg-black/40 backdrop-blur-[2px]" />
+            <DialogContent
+              class="fixed left-1/2 top-1/2 z-50 w-80 -translate-x-1/2 -translate-y-1/2 rounded-2xl border bg-background p-6 outline-none"
+              @open-auto-focus.prevent
+            >
+              <DialogTitle class="mb-4 text-base font-semibold tracking-tight">
+                {{ t('groups.createTitle') }}
+              </DialogTitle>
+              <Input
+                v-model="newGroupName"
+                :placeholder="t('groups.createPh')"
+                class="text-sm"
+                autofocus
+                @keydown.enter="createGroupWithSkill"
+              />
+              <div class="mt-4 flex justify-end gap-2">
+                <Button variant="ghost" size="sm" @click="newGroupOpen = false">
+                  {{ t('common.cancel') }}
+                </Button>
+                <Button
+                  size="sm"
+                  :disabled="
+                    !newGroupName.trim() || groups.some((g) => g.name === newGroupName.trim())
+                  "
+                  @click="createGroupWithSkill"
+                >
+                  {{ t('common.add') }}
+                </Button>
+              </div>
+            </DialogContent>
+          </DialogPortal>
+        </DialogRoot>
 
         <!-- installations -->
         <section class="mb-8">
