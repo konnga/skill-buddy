@@ -367,7 +367,7 @@ async function runUninstall(): Promise<void> {
           </button>
         </div>
 
-        <DialogRoot :open="newGroupOpen" @update:open="(o) => !o && (newGroupOpen = false)">
+        <DialogRoot :open="newGroupOpen" @update:open="(o: boolean) => !o && (newGroupOpen = false)">
           <DialogPortal>
             <DialogOverlay class="fixed inset-0 z-40 bg-black/40 backdrop-blur-[2px]" />
             <DialogContent
