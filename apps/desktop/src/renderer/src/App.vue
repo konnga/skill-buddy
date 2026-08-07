@@ -2,6 +2,13 @@
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import {
+  DialogContent,
+  DialogOverlay,
+  DialogPortal,
+  DialogRoot,
+  DialogTitle,
+} from 'reka-ui'
+import {
   Blocks,
   CloudDownload,
   Trash2,
@@ -115,6 +122,7 @@ function filterProject(v: string | null): void {
 /* ---------- skill groups ---------- */
 
 const newGroupName = ref('')
+const newGroupOpen = ref(false)
 const groupApplyOpen = ref(false)
 const groupApplyScope = ref('user')
 const groupApplyAgents = ref<string[]>([])
@@ -133,6 +141,7 @@ function createGroup(): void {
   if (!name || groups.value.some((g) => g.name === name)) return
   groups.value = [...groups.value, { name, skills: [] }]
   newGroupName.value = ''
+  newGroupOpen.value = false
 }
 
 function deleteGroup(name: string): void {
@@ -403,9 +412,18 @@ onUnmounted(() => window.removeEventListener('keydown', onSidebarShortcut))
           </button>
         </template>
 
-        <p class="mb-1 mt-4 px-3 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-          {{ t('groups.title') }}
-        </p>
+        <div class="mb-1 mt-4 flex items-center justify-between px-3">
+          <p class="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+            {{ t('groups.title') }}
+          </p>
+          <button
+            class="rounded p-0.5 text-muted-foreground transition-colors hover:bg-accent/60 hover:text-foreground"
+            :title="t('groups.createTitle')"
+            @click="((newGroupName = ''), (newGroupOpen = true))"
+          >
+            <Plus class="size-3.5" />
+          </button>
+        </div>
         <button
           v-for="g in groups"
           :key="g.name"
@@ -425,14 +443,6 @@ onUnmounted(() => window.removeEventListener('keydown', onSidebarShortcut))
             />
           </span>
         </button>
-        <div class="px-3 py-1">
-          <input
-            v-model="newGroupName"
-            :placeholder="t('groups.createPh')"
-            class="h-7 w-full rounded-md border border-transparent bg-transparent px-1.5 text-xs text-foreground placeholder:text-muted-foreground/60 hover:border-input focus:border-input focus:outline-none"
-            @keydown.enter="createGroup"
-          />
-        </div>
       </nav>
 
       <div class="mt-auto px-2 pb-3">
@@ -676,6 +686,38 @@ onUnmounted(() => window.removeEventListener('keydown', onSidebarShortcut))
       </div>
     </main>
 
+    <DialogRoot :open="newGroupOpen" @update:open="(o) => !o && (newGroupOpen = false)">
+      <DialogPortal>
+        <DialogOverlay class="fixed inset-0 z-40 bg-black/40 backdrop-blur-[2px]" />
+        <DialogContent
+          class="fixed left-1/2 top-1/2 z-50 w-80 -translate-x-1/2 -translate-y-1/2 rounded-2xl border bg-background p-6 outline-none"
+          @open-auto-focus.prevent
+        >
+          <DialogTitle class="mb-4 text-base font-semibold tracking-tight">
+            {{ t('groups.createTitle') }}
+          </DialogTitle>
+          <Input
+            v-model="newGroupName"
+            :placeholder="t('groups.createPh')"
+            class="text-sm"
+            autofocus
+            @keydown.enter="createGroup"
+          />
+          <div class="mt-4 flex justify-end gap-2">
+            <Button variant="ghost" size="sm" @click="newGroupOpen = false">
+              {{ t('common.cancel') }}
+            </Button>
+            <Button
+              size="sm"
+              :disabled="!newGroupName.trim() || groups.some((g) => g.name === newGroupName.trim())"
+              @click="createGroup"
+            >
+              {{ t('common.add') }}
+            </Button>
+          </div>
+        </DialogContent>
+      </DialogPortal>
+    </DialogRoot>
     <ImportAppsModal
       :open="importOpen"
       @close="importOpen = false"

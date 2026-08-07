@@ -108,6 +108,7 @@ export default {
   groups: {
     title: '分组',
     createPh: '新分组名称…',
+    createTitle: '新建分组',
     empty: '暂无分组，输入名称创建',
     applyTitle: '安装分组到平台',
     apply: '安装 {n} 个 skill',

@@ -108,6 +108,7 @@ export default {
   groups: {
     title: 'Groups',
     createPh: 'New group name…',
+    createTitle: 'New group',
     empty: 'No groups yet — type a name to create one',
     applyTitle: 'Install group to platforms',
     apply: 'Install {n} skill(s)',
