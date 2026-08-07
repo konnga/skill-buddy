@@ -10,8 +10,7 @@
   "scripts": {
     "dev": "pnpm --filter @skillbuddy/desktop dev",
     "build": "pnpm -r build",
-    "typecheck": "pnpm -r typecheck",
-    "lint": "eslint ."
+    "typecheck": "pnpm -r typecheck"
   },
   "devDependencies": {
     "typescript": "^5.7.0"
