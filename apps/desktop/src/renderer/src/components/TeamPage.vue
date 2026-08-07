@@ -4,7 +4,7 @@ import { useI18n } from 'vue-i18n'
 import { CloudDownload, Search, Users } from '@lucide/vue'
 import type { RegistrySkillSummary } from '@skillbuddy/core'
 import type { InstallTarget } from '../../../shared/ipc.js'
-import MarkdownIt from 'markdown-it'
+import MarkdownView from '@/components/MarkdownView.vue'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -37,7 +37,6 @@ const busy = ref(false)
 
 const localNames = computed(() => new Set(skills.value.map((s) => s.name)))
 
-const md = new MarkdownIt({ linkify: true })
 const detail = ref<{ content: string; resources?: Record<string, string> } | null>(null)
 const detailLoading = ref(false)
 
@@ -193,10 +192,9 @@ onMounted(search)
               >
                 {{ t('detail.scriptWarning') }}
               </div>
-              <div
-                class="markdown-body max-h-64 overflow-auto rounded-md border bg-muted/40 px-4 py-3 text-xs"
-                v-html="md.render(detail.content)"
-              />
+              <div class="max-h-64 overflow-auto rounded-md border bg-muted/40 px-4 py-3">
+                <MarkdownView :content="detail.content" preview-id="team-detail" />
+              </div>
               <ul v-if="detail.resources" class="flex flex-col gap-0.5">
                 <li
                   v-for="rel in Object.keys(detail.resources)"

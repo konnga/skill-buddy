@@ -39,8 +39,9 @@ const api = {
   openExternal: (url: string): Promise<void> => ipcRenderer.invoke('shell:open-external', url),
   skillhubSearch: (
     q: string,
-  ): Promise<
-    {
+    page = 1,
+  ): Promise<{
+    items: {
       slug: string
       namespace: string
       canonicalName: string
@@ -56,9 +57,21 @@ const api = {
       requiresApiKey: boolean
       tags: string[]
     }[]
-  > => ipcRenderer.invoke('market:skillhub-search', q),
+    total: number
+  }> => ipcRenderer.invoke('market:skillhub-search', q, page),
   githubStars: (repos: string[]): Promise<Record<string, number>> =>
     ipcRenderer.invoke('market:github-stars', repos),
+  skillhubVersions: (
+    slug: string,
+    namespace: string,
+  ): Promise<
+    {
+      version: string
+      changelog: string
+      createdAt: number | null
+      security: { name: string; status: string; statusText: string; reportUrl: string }[]
+    }[]
+  > => ipcRenderer.invoke('market:skillhub-versions', slug, namespace),
   skillhubFetch: (
     slug: string,
     namespace: string,
@@ -90,6 +103,8 @@ const api = {
     ipcRenderer.invoke('skills:trash', paths),
   readFile: (path: string): Promise<{ content: string; truncated: boolean }> =>
     ipcRenderer.invoke('file:read', path),
+  listTree: (root: string): Promise<{ path: string; size: number; isDir: boolean }[]> =>
+    ipcRenderer.invoke('file:list-tree', root),
   onSkillsChanged: (callback: () => void): void => {
     ipcRenderer.on('skills:changed', () => callback())
   },

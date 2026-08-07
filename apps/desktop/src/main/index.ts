@@ -163,6 +163,29 @@ function registerIpc(): void {
     return { content: await fs.readFile(path, 'utf8'), truncated: false }
   })
 
+  ipcMain.handle('file:list-tree', async (_event, root: string) => {
+    const MAX_ENTRIES = 2000
+    const out: { path: string; size: number; isDir: boolean }[] = []
+    const walk = async (dir: string, rel: string): Promise<void> => {
+      if (out.length >= MAX_ENTRIES) return
+      const entries = await fs.readdir(dir, { withFileTypes: true })
+      for (const ent of entries) {
+        if (out.length >= MAX_ENTRIES) return
+        if (ent.name === '.git' || ent.name === 'node_modules') continue
+        const relPath = rel ? `${rel}/${ent.name}` : ent.name
+        if (ent.isDirectory()) {
+          out.push({ path: relPath, size: 0, isDir: true })
+          await walk(join(dir, ent.name), relPath)
+        } else if (ent.isFile()) {
+          const stat = await fs.stat(join(dir, ent.name))
+          out.push({ path: relPath, size: stat.size, isDir: false })
+        }
+      }
+    }
+    await walk(root, '')
+    return out
+  })
+
   ipcMain.handle('dialog:pick-directory', async () => {
     const result = await dialog.showOpenDialog({
       properties: ['openDirectory', 'createDirectory'],
@@ -229,10 +252,10 @@ function registerIpc(): void {
 
   /* ---------- marketplace (skillhub.cn) ---------- */
 
-  ipcMain.handle('market:skillhub-search', async (_event, q: string) => {
+  ipcMain.handle('market:skillhub-search', async (_event, q: string, page = 1) => {
     const url = new URL('https://api.skillhub.cn/api/skills')
-    url.searchParams.set('page', '1')
-    url.searchParams.set('pageSize', '30')
+    url.searchParams.set('page', String(page))
+    url.searchParams.set('pageSize', '24')
     url.searchParams.set('sortBy', 'score')
     url.searchParams.set('order', 'desc')
     if (q) url.searchParams.set('keyword', q)
@@ -258,9 +281,10 @@ function registerIpc(): void {
           labels?: { requires_api_key?: string } | null
           subCategories?: { key: string; name: string }[] | null
         }[]
+        total?: number
       }
     }
-    return (data.data?.skills ?? []).map((s) => ({
+    const items = (data.data?.skills ?? []).map((s) => ({
       slug: s.slug,
       namespace: s.namespace?.handle ?? '',
       canonicalName: s.namespace?.canonicalName ?? s.slug,
@@ -275,6 +299,38 @@ function registerIpc(): void {
       verified: s.verified ?? false,
       requiresApiKey: s.labels?.requires_api_key === 'true',
       tags: (s.subCategories ?? []).map((c) => c.name),
+    }))
+    return { items, total: data.data?.total ?? items.length }
+  })
+
+  ipcMain.handle('market:skillhub-versions', async (_event, slug: string, namespace: string) => {
+    const url = new URL(
+      `https://api.skillhub.cn/api/v1/skills/${encodeURIComponent(slug)}/versions`,
+    )
+    if (namespace) url.searchParams.set('namespace', namespace)
+    const res = await fetch(url, { signal: AbortSignal.timeout(10_000) })
+    if (!res.ok) throw new Error(`skillhub versions ${res.status}`)
+    const data = (await res.json()) as {
+      versions?: {
+        version: string
+        changelog?: string
+        createdAt?: number
+        securityReports?: Record<
+          string,
+          { status?: string; statusText?: string; reportUrl?: string }
+        >
+      }[]
+    }
+    return (data.versions ?? []).map((v) => ({
+      version: v.version,
+      changelog: v.changelog ?? '',
+      createdAt: v.createdAt ?? null,
+      security: Object.entries(v.securityReports ?? {}).map(([name, r]) => ({
+        name,
+        status: r.status ?? '',
+        statusText: r.statusText ?? '',
+        reportUrl: r.reportUrl ?? '',
+      })),
     }))
   })
 

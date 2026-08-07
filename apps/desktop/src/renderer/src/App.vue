@@ -21,6 +21,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Select } from '@/components/ui/select'
+import AttentionPage from '@/components/AttentionPage.vue'
 import DashboardPage from '@/components/DashboardPage.vue'
 import ImportSheet from '@/components/ImportSheet.vue'
 import NewSkillSheet from '@/components/NewSkillSheet.vue'
@@ -68,10 +69,17 @@ const sortOptions = computed(() => [
 
 const selected = ref<AggregatedSkill | null>(null)
 const marketSelected = ref<MarketItem | null>(null)
+const attentionOpen = ref(false)
 const newOpen = ref(false)
 const importOpen = ref(false)
 const view = ref<'dashboard' | 'skills' | 'team' | 'settings'>('dashboard')
 const prevView = ref<'dashboard' | 'skills' | 'team'>('dashboard')
+
+// sidebar navigation leaves any full-page detail (market / attention)
+watch(view, () => {
+  attentionOpen.value = false
+  marketSelected.value = null
+})
 
 function openSettings(): void {
   if (view.value !== 'settings') prevView.value = view.value
@@ -433,6 +441,13 @@ onUnmounted(() => window.removeEventListener('keydown', onSidebarShortcut))
         @close="marketSelected = null"
       />
     </main>
+    <main v-else-if="attentionOpen" class="content-surface flex min-w-0 flex-1 flex-col">
+      <AttentionPage
+        :inset="sidebarCollapsed"
+        @close="attentionOpen = false"
+        @open-skill="selected = $event"
+      />
+    </main>
     <main v-else class="content-surface flex min-w-0 flex-1 flex-col">
       <header
         v-if="view === 'dashboard'"
@@ -516,6 +531,7 @@ onUnmounted(() => window.removeEventListener('keydown', onSidebarShortcut))
         <DashboardPage
           @open-skill="selected = $event"
           @open-market="marketSelected = $event"
+          @open-attention="attentionOpen = true"
           @new-skill="newOpen = true"
           @import="importOpen = true"
         />
