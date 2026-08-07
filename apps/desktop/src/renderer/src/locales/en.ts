@@ -110,6 +110,10 @@ export default {
     skipped: 'Not found locally, skipped: {names}',
     deleteGroup: 'Delete group (skills untouched)',
     membership: 'Groups',
+    applyTemp: 'Enable temporarily',
+    tempHint: 'Installs only what is missing; ending removes just those, existing installs untouched',
+    tempActive: 'Temporarily enabled: {n} temp install(s)',
+    endTemp: 'End & remove temp installs',
   },
   market: {
     title: 'Discover skills',

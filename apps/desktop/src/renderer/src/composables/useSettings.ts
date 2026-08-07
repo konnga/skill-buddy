@@ -29,6 +29,20 @@ export interface SkillGroup {
 const groups = ref<SkillGroup[]>(load('skm.groups', []))
 watch(groups, (v) => localStorage.setItem('skm.groups', JSON.stringify(v)), { deep: true })
 
+/** One temporary group application: exactly what we installed, for exact rollback. */
+export interface TempApplication {
+  group: string
+  appliedAt: number
+  installed: { name: string; agent: string; scope: string; path: string }[]
+}
+
+const tempApplications = ref<TempApplication[]>(load('skm.tempApplications', []))
+watch(
+  tempApplications,
+  (v) => localStorage.setItem('skm.tempApplications', JSON.stringify(v)),
+  { deep: true },
+)
+
 watch(registryUrl, (v) => localStorage.setItem('skm.registryUrl', JSON.stringify(v)))
 watch(registryToken, (v) => localStorage.setItem('skm.registryToken', JSON.stringify(v)))
 watch(sidebarCollapsed, (v) => localStorage.setItem('skm.sidebarCollapsed', JSON.stringify(v)))
@@ -68,5 +82,5 @@ export async function syncCustomPlatforms(): Promise<void> {
 }
 
 export function useSettings() {
-  return { projectRoots, customPlatforms, theme, language, registryUrl, registryToken, sidebarCollapsed, groups }
+  return { projectRoots, customPlatforms, theme, language, registryUrl, registryToken, sidebarCollapsed, groups, tempApplications }
 }

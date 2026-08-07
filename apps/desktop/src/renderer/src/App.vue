@@ -56,7 +56,7 @@ const {
   refresh,
 } = useSkills()
 
-const { projectRoots, sidebarCollapsed, groups } = useSettings()
+const { projectRoots, sidebarCollapsed, groups, tempApplications } = useSettings()
 const { t } = useI18n()
 
 const basename = (p: string): string => p.split('/').filter(Boolean).pop() ?? p
@@ -144,6 +144,85 @@ async function applyGroup(): Promise<void> {
     } else {
       groupApplyOpen.value = false
     }
+  } finally {
+    groupApplyBusy.value = false
+  }
+}
+
+/** installation identity key for diffing before/after temp apply */
+const instKey = (i: { agent: string; scope: string; projectRoot?: string }): string =>
+  `${i.agent}:${i.scope}:${i.projectRoot ?? ''}`
+
+const activeTemp = computed(() =>
+  groupFilter.value ? tempApplications.value.find((r) => r.group === groupFilter.value) : undefined,
+)
+
+/** Temporary enable: install only missing members and record exactly what we added. */
+async function applyGroupTemp(): Promise<void> {
+  const group = groups.value.find((g) => g.name === groupFilter.value)
+  if (!group || groupApplyAgents.value.length === 0) return
+  groupApplyBusy.value = true
+  groupApplyNote.value = null
+  try {
+    const targets = groupApplyAgents.value.map((agent) =>
+      groupApplyScope.value === 'user'
+        ? { agent, scope: 'user' as const }
+        : { agent, scope: 'project' as const, projectRoot: groupApplyScope.value },
+    )
+    // snapshot existing installations for group members
+    const before = new Set<string>()
+    for (const name of group.skills) {
+      const local = skills.value.find((sk) => sk.name === name)
+      for (const inst of local?.installations ?? []) before.add(`${name}|${instKey(inst)}`)
+    }
+    const missing: string[] = []
+    for (const name of group.skills) {
+      const local = skills.value.find((sk) => sk.name === name)
+      if (!local) {
+        missing.push(name)
+        continue
+      }
+      const need = targets.filter((tg) => !before.has(`${name}|${instKey(tg)}`))
+      if (need.length > 0) await installSkill(local.installations[0]!.skill, need)
+    }
+    await refresh()
+    // record exactly the installations that are new
+    const installed: { name: string; agent: string; scope: string; path: string }[] = []
+    for (const name of group.skills) {
+      const local = skills.value.find((sk) => sk.name === name)
+      for (const inst of local?.installations ?? []) {
+        const key = `${name}|${instKey(inst)}`
+        const isTarget = targets.some((tg) => instKey(tg) === instKey(inst))
+        if (isTarget && !before.has(key)) {
+          installed.push({ name, agent: inst.agent, scope: inst.scope, path: inst.path })
+        }
+      }
+    }
+    tempApplications.value = [
+      ...tempApplications.value.filter((r) => r.group !== group.name),
+      { group: group.name, appliedAt: Date.now(), installed },
+    ]
+    if (missing.length > 0) {
+      groupApplyNote.value = t('groups.skipped', { names: missing.join(', ') })
+    } else {
+      groupApplyOpen.value = false
+    }
+  } finally {
+    groupApplyBusy.value = false
+  }
+}
+
+/** End a temporary application: trash only what we installed back then. */
+async function endTemp(groupName: string): Promise<void> {
+  const record = tempApplications.value.find((r) => r.group === groupName)
+  if (!record) return
+  groupApplyBusy.value = true
+  try {
+    if (record.installed.length > 0) {
+      await window.skillsManager.trashPaths(record.installed.map((i) => i.path))
+    }
+    tempApplications.value = tempApplications.value.filter((r) => r.group !== groupName)
+    await refresh()
   } finally {
     groupApplyBusy.value = false
   }
@@ -456,23 +535,52 @@ onUnmounted(() => window.removeEventListener('keydown', onSidebarShortcut))
             v-model:scope="groupApplyScope"
             v-model:agents="groupApplyAgents"
           />
-          <Button
-            size="sm"
-            class="w-fit"
-            :disabled="
-              groupApplyBusy || groupApplyAgents.length === 0 || groupCount(groupFilter) === 0
-            "
-            @click="applyGroup"
-          >
-            {{
-              groupApplyBusy
-                ? t('detail.installing')
-                : t('groups.apply', { n: groupCount(groupFilter) })
-            }}
-          </Button>
+          <div class="flex items-center gap-2">
+            <Button
+              size="sm"
+              :disabled="
+                groupApplyBusy || groupApplyAgents.length === 0 || groupCount(groupFilter) === 0
+              "
+              @click="applyGroup"
+            >
+              {{
+                groupApplyBusy
+                  ? t('detail.installing')
+                  : t('groups.apply', { n: groupCount(groupFilter) })
+              }}
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              :disabled="
+                groupApplyBusy || groupApplyAgents.length === 0 || groupCount(groupFilter) === 0
+              "
+              @click="applyGroupTemp"
+            >
+              {{ t('groups.applyTemp') }}
+            </Button>
+          </div>
+          <p class="text-xs text-muted-foreground">{{ t('groups.tempHint') }}</p>
           <p v-if="groupApplyNote" class="text-xs text-amber-600 dark:text-amber-400">
             {{ groupApplyNote }}
           </p>
+        </div>
+        <div
+          v-if="groupFilter && activeTemp"
+          class="mb-4 flex items-center justify-between gap-3 rounded-lg border border-sky-500/30 bg-sky-500/5 px-4 py-2.5"
+        >
+          <span class="text-xs text-sky-700 dark:text-sky-400">
+            {{ t('groups.tempActive', { n: activeTemp.installed.length }) }}
+          </span>
+          <Button
+            variant="outline"
+            size="sm"
+            class="shrink-0"
+            :disabled="groupApplyBusy"
+            @click="endTemp(groupFilter)"
+          >
+            {{ t('groups.endTemp') }}
+          </Button>
         </div>
         <div v-if="loading && skills.length === 0" class="py-24 text-center text-sm text-muted-foreground">
           {{ t('app.scanning') }}

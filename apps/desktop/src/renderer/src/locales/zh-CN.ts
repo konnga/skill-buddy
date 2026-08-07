@@ -110,6 +110,10 @@ export default {
     skipped: '本地不存在，已跳过：{names}',
     deleteGroup: '删除分组（不影响 skills 本体）',
     membership: '所属分组',
+    applyTemp: '临时启用',
+    tempHint: '只补装缺失的；结束时自动移除临时安装，原有安装不受影响',
+    tempActive: '临时启用中：{n} 处临时安装',
+    endTemp: '结束临时并移除',
   },
   market: {
     title: '发现 skills',
