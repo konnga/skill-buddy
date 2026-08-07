@@ -1,31 +1,33 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import {
-  DialogContent,
-  DialogOverlay,
-  DialogPortal,
-  DialogRoot,
-  DialogTitle,
-} from 'reka-ui'
-import { X } from '@lucide/vue'
+import SidebarToggle from '@/components/SidebarToggle.vue'
+import { ArrowLeft, ChevronRight } from '@lucide/vue'
 import type { InstallTarget } from '../../../shared/ipc.js'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import PlatformTargetPicker from '@/components/PlatformTargetPicker.vue'
 import { agentLabel } from '@/lib/agents'
-import { bundleText, matchFoundSkill, type BundleSkillRef, type SkillBundle } from '@/lib/bundles'
+import {
+  bundleGradient,
+  bundleRefToMarketItem,
+  bundleText,
+  matchFoundSkill,
+  type BundleSkillRef,
+  type SkillBundle,
+} from '@/lib/bundles'
+import { marketIconColor, marketIconGlyph, type MarketItem } from '@/lib/market'
 import { useSettings } from '@/composables/useSettings'
 import { useSkills } from '@/composables/useSkills'
 
-const props = defineProps<{ open: boolean; bundle: SkillBundle | null }>()
-const emit = defineEmits<{ close: [] }>()
+const props = defineProps<{ bundle: SkillBundle; inset?: boolean }>()
+const emit = defineEmits<{ close: []; openSkill: [item: MarketItem] }>()
 
 const { t, locale } = useI18n()
-const { skills, refresh } = useSkills()
+const { skills, detectedPlatforms, refresh } = useSkills()
 const { groups } = useSettings()
 
-const selected = ref<Set<string>>(new Set())
+const selected = ref<Set<string>>(new Set(props.bundle.skills.map((s) => s.name)))
 const scope = ref('user')
 const agents = ref<string[]>([])
 const busy = ref(false)
@@ -33,18 +35,10 @@ const error = ref<string | null>(null)
 const note = ref<string | null>(null)
 const progress = ref<{ n: number; total: number } | null>(null)
 
-watch(
-  () => props.open,
-  (open) => {
-    if (!open) return
-    selected.value = new Set(props.bundle?.skills.map((s) => s.name) ?? [])
-    scope.value = 'user'
-    agents.value = []
-    error.value = null
-    note.value = null
-    progress.value = null
-  },
-)
+onMounted(() => {
+  // create once, share everywhere: preselect every detected platform
+  agents.value = detectedPlatforms.value.map((p) => p.id)
+})
 
 function toggle(name: string): void {
   const next = new Set(selected.value)
@@ -60,7 +54,7 @@ const refSourceLabel = (r: BundleSkillRef): string =>
 
 async function install(): Promise<void> {
   const bundle = props.bundle
-  if (!bundle || busy.value) return
+  if (busy.value) return
   const chosen = bundle.skills.filter((s) => selected.value.has(s.name))
   if (chosen.length === 0 || agents.value.length === 0) return
 
@@ -175,73 +169,98 @@ async function install(): Promise<void> {
 </script>
 
 <template>
-  <DialogRoot :open="open" @update:open="(o) => !o && emit('close')">
-    <DialogPortal>
-      <DialogOverlay class="fixed inset-0 z-40 bg-black/30" />
-      <DialogContent
-        class="fixed inset-y-0 right-0 z-50 flex w-[520px] max-w-[92vw] flex-col border-l bg-background outline-none"
-        @open-auto-focus.prevent
+  <div class="flex h-full flex-col">
+    <!-- header -->
+    <header :class="['app-drag relative flex items-center gap-3 border-b px-6 py-3', props.inset && 'pl-[118px]']">
+      <SidebarToggle />
+      <Button variant="ghost" size="icon" class="app-no-drag" @click="emit('close')">
+        <ArrowLeft />
+      </Button>
+      <h1 class="text-base font-semibold tracking-tight">{{ bundleText(bundle.name, locale) }}</h1>
+      <div class="flex-1" />
+      <Button
+        size="sm"
+        class="app-no-drag"
+        :disabled="busy || selected.size === 0 || agents.length === 0"
+        @click="install"
       >
-        <header class="flex items-center justify-between border-b px-6 py-4">
-          <DialogTitle class="text-base font-semibold tracking-tight">
-            {{ bundle ? bundleText(bundle.name, locale) : '' }}
-          </DialogTitle>
-          <Button variant="ghost" size="icon" @click="emit('close')"><X /></Button>
-        </header>
+        {{
+          busy && progress
+            ? t('bundles.installing', { n: progress.n, total: progress.total })
+            : t('bundles.install', { n: selected.size })
+        }}
+      </Button>
+    </header>
 
-        <div v-if="bundle" class="flex flex-1 flex-col gap-4 overflow-y-auto px-6 py-4">
-          <p class="text-sm text-muted-foreground">{{ bundleText(bundle.description, locale) }}</p>
-
-          <div class="flex flex-col gap-2">
-            <label
-              v-for="s in bundle.skills"
-              :key="s.name"
-              class="flex cursor-pointer items-start gap-2.5 rounded-md border px-3 py-2.5"
-            >
-              <input
-                type="checkbox"
-                class="mt-0.5 accent-foreground"
-                :checked="selected.has(s.name)"
-                @change="toggle(s.name)"
-              />
-              <span class="flex min-w-0 flex-1 flex-col gap-0.5">
-                <span class="flex items-center gap-2 text-sm font-medium">
-                  {{ s.name }}
-                  <Badge v-if="isLocal(s.name)" variant="success">
-                    {{ t('bundles.installedBadge') }}
-                  </Badge>
-                </span>
-                <span class="line-clamp-1 text-xs text-muted-foreground">
-                  {{ refSourceLabel(s) }}
-                </span>
-              </span>
-            </label>
+    <div class="flex-1 overflow-y-auto">
+      <div class="mx-auto flex max-w-3xl flex-col gap-6 px-6 py-6">
+        <!-- hero -->
+        <div
+          class="flex items-start gap-4 rounded-2xl border bg-card px-5 py-5"
+          :style="{ backgroundImage: bundleGradient(bundle.id) }"
+        >
+          <span
+            :class="[
+              'flex size-12 shrink-0 items-center justify-center rounded-xl text-lg font-semibold text-white',
+              marketIconColor(bundle.id),
+            ]"
+          >
+            {{ marketIconGlyph(bundleText(bundle.name, locale)) }}
+          </span>
+          <div class="flex min-w-0 flex-col gap-1">
+            <h2 class="text-xl font-bold tracking-tight">{{ bundleText(bundle.name, locale) }}</h2>
+            <p class="text-sm text-muted-foreground">
+              {{ bundleText(bundle.description, locale) }}
+            </p>
+            <span class="text-xs text-muted-foreground">
+              {{ t('bundles.skillCount', { n: bundle.skills.length }) }}
+            </span>
           </div>
-
-          <span class="text-xs text-muted-foreground">{{ t('team.installTo') }}</span>
-          <PlatformTargetPicker v-model:scope="scope" v-model:agents="agents" />
-
-          <p v-if="note" class="text-xs text-amber-600 dark:text-amber-400">{{ note }}</p>
-          <p v-if="error" class="break-all text-xs text-destructive">{{ error }}</p>
         </div>
 
-        <footer class="flex items-center justify-end gap-2 border-t px-6 py-3">
-          <Button variant="ghost" size="sm" :disabled="busy" @click="emit('close')">
-            {{ t('common.cancel') }}
-          </Button>
-          <Button
-            size="sm"
-            :disabled="busy || selected.size === 0 || agents.length === 0"
-            @click="install"
+        <!-- members: checkbox selects, row opens the skill's detail page -->
+        <div class="flex flex-col gap-2">
+          <div
+            v-for="s in bundle.skills"
+            :key="s.name"
+            class="flex cursor-pointer items-center gap-2.5 rounded-md border px-3 py-2.5 transition-colors hover:border-foreground/25"
+            role="button"
+            tabindex="0"
+            @click="emit('openSkill', bundleRefToMarketItem(s))"
+            @keydown.enter="emit('openSkill', bundleRefToMarketItem(s))"
           >
-            {{
-              busy && progress
-                ? t('bundles.installing', { n: progress.n, total: progress.total })
-                : t('bundles.install', { n: selected.size })
-            }}
-          </Button>
-        </footer>
-      </DialogContent>
-    </DialogPortal>
-  </DialogRoot>
+            <input
+              type="checkbox"
+              class="accent-foreground"
+              :checked="selected.has(s.name)"
+              @click.stop
+              @change="toggle(s.name)"
+            />
+            <span class="flex min-w-0 flex-1 flex-col gap-0.5">
+              <span class="flex items-center gap-2 text-sm font-medium">
+                {{ s.name }}
+                <Badge v-if="isLocal(s.name)" variant="success">
+                  {{ t('bundles.installedBadge') }}
+                </Badge>
+              </span>
+              <span class="line-clamp-1 text-xs text-muted-foreground">
+                {{ refSourceLabel(s) }}
+              </span>
+            </span>
+            <ChevronRight class="size-4 shrink-0 text-muted-foreground" />
+          </div>
+        </div>
+
+        <!-- install targets -->
+        <section class="flex flex-col gap-2 rounded-xl border bg-muted/20 px-5 py-4">
+          <h3 class="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+            {{ t('team.installTo') }}
+          </h3>
+          <PlatformTargetPicker v-model:scope="scope" v-model:agents="agents" />
+          <p v-if="note" class="text-xs text-amber-600 dark:text-amber-400">{{ note }}</p>
+          <p v-if="error" class="break-all text-xs text-destructive">{{ error }}</p>
+        </section>
+      </div>
+    </div>
+  </div>
 </template>

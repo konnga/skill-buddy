@@ -14,11 +14,15 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import PlatformIcon from '@/components/PlatformIcon.vue'
 import { agentLabel } from '@/lib/agents'
+import type { SkillFocus } from '@/lib/navigation'
 import { useSkills } from '@/composables/useSkills'
 import { installRequired, upgradeSkill, useTeam } from '@/composables/useTeam'
 
 const props = defineProps<{ inset?: boolean }>()
-const emit = defineEmits<{ close: []; openSkill: [skill: AggregatedSkill] }>()
+const emit = defineEmits<{
+  close: []
+  openSkill: [skill: AggregatedSkill, focus?: SkillFocus]
+}>()
 
 const { skills, detectedPlatforms } = useSkills()
 const { updates, missingRequired } = useTeam()
@@ -173,7 +177,12 @@ async function runInstallRequired(item: (typeof missingRequired.value)[number]):
                 <TriangleAlert class="size-4 shrink-0 text-amber-500" />
                 <span class="truncate">{{ t('dashboard.todoDrift', { name: s.name }) }}</span>
               </span>
-              <Button variant="outline" size="sm" class="shrink-0" @click="emit('openSkill', s)">
+              <Button
+                variant="outline"
+                size="sm"
+                class="shrink-0"
+                @click="emit('openSkill', s, 'drift')"
+              >
                 {{ t('dashboard.todoDriftAction') }}
                 <ArrowRight />
               </Button>
@@ -195,7 +204,12 @@ async function runInstallRequired(item: (typeof missingRequired.value)[number]):
                   }}
                 </span>
               </span>
-              <Button variant="ghost" size="sm" class="shrink-0" @click="emit('openSkill', s)">
+              <Button
+                variant="ghost"
+                size="sm"
+                class="shrink-0"
+                @click="emit('openSkill', s, 'install')"
+              >
                 {{ t('dashboard.todoSingleAction') }}
                 <ArrowRight />
               </Button>

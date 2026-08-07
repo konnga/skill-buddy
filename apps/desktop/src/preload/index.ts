@@ -106,6 +106,14 @@ const api = {
     ipcRenderer.invoke('registry:versions', cfg, org, name),
   watchStart: (projectRoots: string[]): Promise<number> =>
     ipcRenderer.invoke('watch:start', projectRoots),
+  secureGet: (key: string): Promise<string> => ipcRenderer.invoke('secure:get', key),
+  secureSet: (key: string, value: string): Promise<void> =>
+    ipcRenderer.invoke('secure:set', key, value),
+  trashUndoable: (
+    paths: string[],
+  ): Promise<{ token: string; results: { path: string; ok: boolean; error?: string }[] }> =>
+    ipcRenderer.invoke('skills:trash-undoable', paths),
+  undoTrash: (token: string): Promise<boolean> => ipcRenderer.invoke('skills:undo-trash', token),
   trashPaths: (paths: string[]): Promise<{ path: string; ok: boolean; error?: string }[]> =>
     ipcRenderer.invoke('skills:trash', paths),
   readFile: (path: string): Promise<{ content: string; truncated: boolean }> =>

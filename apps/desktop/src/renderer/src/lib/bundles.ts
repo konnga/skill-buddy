@@ -1,5 +1,5 @@
 import type { FoundSkill } from '@skillbuddy/core'
-import type { MarketSourceId } from '@/lib/market'
+import type { MarketItem, MarketSourceId } from '@/lib/market'
 
 export interface LocalizedText {
   'zh-CN': string
@@ -91,6 +91,38 @@ export const BUILT_IN_BUNDLES: SkillBundle[] = [
 
 export function bundleText(txt: LocalizedText, locale: string): string {
   return txt[locale as keyof LocalizedText] ?? txt.en
+}
+
+/** Adapt a bundle member into the market detail page's item shape. */
+export function bundleRefToMarketItem(ref: BundleSkillRef): MarketItem {
+  if (ref.source === 'skills-sh') {
+    return {
+      key: `sksh:bundle:${ref.repo}/${ref.skillId}`,
+      kind: 'skills-sh',
+      name: ref.name,
+      description: '',
+      installs: 0,
+      stars: null,
+      icon: `https://github.com/${ref.repo.split('/')[0]}.png?size=96`,
+      sourceLabel: ref.repo,
+      link: `https://github.com/${ref.repo}`,
+      repo: ref.repo,
+      skillId: ref.skillId,
+    }
+  }
+  return {
+    key: `hub:${ref.namespace}/${ref.slug}`,
+    kind: 'skillhub',
+    name: ref.name,
+    description: '',
+    installs: 0,
+    stars: null,
+    icon: null,
+    sourceLabel: `@${ref.namespace}/${ref.slug}`,
+    link: `https://skillhub.cn/skills/${encodeURIComponent(ref.namespace)}/${encodeURIComponent(ref.slug)}`,
+    slug: ref.slug,
+    namespace: ref.namespace,
+  }
 }
 
 /**

@@ -6,7 +6,7 @@
   "description": "SkillBuddy desktop app (Electron + Vue 3)",
   "main": "./out/main/index.js",
   "scripts": {
-    "dev": "electron-vite dev --watch",
+    "dev": "node scripts/dev.mjs",
     "build": "electron-vite build",
     "typecheck": "vue-tsc --noEmit -p tsconfig.web.json && tsc --noEmit -p tsconfig.node.json",
     "start": "electron-vite preview"
@@ -21,6 +21,7 @@
     "clsx": "^2.1.1",
     "codemirror": "^6.0.2",
     "diff": "^9.0.0",
+    "fflate": "^0.8.3",
     "md-editor-v3": "^6.5.6",
     "reka-ui": "^2.10.1",
     "tailwind-merge": "^3.6.0",
@@ -32,6 +33,7 @@
     "@types/node": "^22.20.1",
     "@vitejs/plugin-vue": "^5.2.0",
     "electron": "^33.2.0",
+    "electron-builder": "^26.15.3",
     "electron-vite": "^2.3.0",
     "simple-icons": "^16.28.0",
     "tailwindcss": "^4.3.3",

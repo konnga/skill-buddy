@@ -5,7 +5,6 @@ import { Blocks, FolderGit2, MonitorCheck, TriangleAlert } from '@lucide/vue'
 import { Card, CardContent } from '@/components/ui/card'
 import { useSettings } from '@/composables/useSettings'
 import { useSkills } from '@/composables/useSkills'
-import BundleSheet from '@/components/BundleSheet.vue'
 import MarketDiscovery from '@/components/MarketDiscovery.vue'
 import OfficialBundles from '@/components/OfficialBundles.vue'
 import type { SkillBundle } from '@/lib/bundles'
@@ -14,6 +13,7 @@ import type { MarketItem } from '@/lib/market'
 const emit = defineEmits<{
   openMarket: [item: MarketItem]
   openBundles: []
+  openBundle: [bundle: SkillBundle]
 }>()
 
 const { skills, detectedPlatforms } = useSkills()
@@ -22,7 +22,6 @@ const { t } = useI18n()
 
 const driftSkills = computed(() => skills.value.filter((s) => s.hasDrift))
 
-const activeBundle = ref<SkillBundle | null>(null)
 
 const stats = computed(() => [
   {
@@ -85,15 +84,9 @@ const stats = computed(() => [
     </div>
 
     <!-- official bundles -->
-    <OfficialBundles @use="activeBundle = $event" @more="emit('openBundles')" />
+    <OfficialBundles @use="emit('openBundle', $event)" @more="emit('openBundles')" />
 
     <!-- marketplace discovery -->
     <MarketDiscovery @open="emit('openMarket', $event)" />
-
-    <BundleSheet
-      :open="activeBundle !== null"
-      :bundle="activeBundle"
-      @close="activeBundle = null"
-    />
   </div>
 </template>

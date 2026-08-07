@@ -6,6 +6,9 @@ export default {
     edit: '编辑',
     copy: '复制',
     copied: '已复制',
+    trashedN: '已移入废纸篓（{n} 处）',
+    undo: '撤销',
+    restored: '已恢复',
     settings: '设置',
   },
   app: {

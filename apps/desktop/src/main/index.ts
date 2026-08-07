@@ -1,4 +1,4 @@
-import { app, BrowserWindow, dialog, ipcMain, nativeTheme, shell } from 'electron'
+import { app, BrowserWindow, dialog, ipcMain, nativeTheme, safeStorage, shell } from 'electron'
 import { execFile } from 'node:child_process'
 import { existsSync, watch, type FSWatcher } from 'node:fs'
 import { promises as fs } from 'node:fs'
@@ -19,6 +19,10 @@ import {
 } from '@skillbuddy/core'
 
 const execFileAsync = promisify(execFile)
+
+import { randomUUID } from 'node:crypto'
+import { basename, dirname, isAbsolute, normalize, sep } from 'node:path'
+import { unzipSync } from 'fflate'
 import type { CustomPlatformInput, InstallTarget, RegistryConfig } from '../shared/ipc.js'
 
 function createWindow(): void {
@@ -109,6 +113,86 @@ function registerIpc(): void {
   let watchers: FSWatcher[] = []
   let notifyTimer: ReturnType<typeof setTimeout> | undefined
 
+  /* ---------- encrypted secrets (registry token etc.) ---------- */
+
+  const secretsPath = (): string => join(app.getPath('userData'), 'secrets.json')
+
+  async function readSecrets(): Promise<Record<string, string>> {
+    try {
+      return JSON.parse(await fs.readFile(secretsPath(), 'utf8')) as Record<string, string>
+    } catch {
+      return {}
+    }
+  }
+
+  ipcMain.handle('secure:get', async (_event, key: string) => {
+    const encrypted = (await readSecrets())[key]
+    if (!encrypted) return ''
+    try {
+      return safeStorage.decryptString(Buffer.from(encrypted, 'base64'))
+    } catch {
+      return ''
+    }
+  })
+
+  ipcMain.handle('secure:set', async (_event, key: string, value: string) => {
+    const secrets = await readSecrets()
+    if (!value) {
+      delete secrets[key]
+    } else {
+      // encryptString throws when no OS backend is available (e.g. Linux with
+      // no keyring); fail loudly rather than silently persisting plaintext.
+      if (!safeStorage.isEncryptionAvailable()) {
+        throw new Error('secure storage unavailable — cannot encrypt secret / 系统加密后端不可用')
+      }
+      secrets[key] = safeStorage.encryptString(value).toString('base64')
+    }
+    await fs.writeFile(secretsPath(), JSON.stringify(secrets), 'utf8')
+  })
+
+  /* ---------- undoable trash ---------- */
+
+  const undoStash = new Map<string, { root: string; entries: { path: string; stashPath: string }[] }>()
+
+  ipcMain.handle('skills:trash-undoable', async (_event, paths: string[]) => {
+    const token = randomUUID()
+    const stashRoot = join(app.getPath('userData'), 'undo', token)
+    const entries: { path: string; stashPath: string }[] = []
+    for (const [i, path] of paths.entries()) {
+      const stashPath = join(stashRoot, `${i}-${basename(path)}`)
+      await fs.cp(path, stashPath, { recursive: true })
+      entries.push({ path, stashPath })
+    }
+    const results = await Promise.allSettled(paths.map((path) => shell.trashItem(path)))
+    undoStash.set(token, { root: stashRoot, entries })
+    setTimeout(() => {
+      const record = undoStash.get(token)
+      if (record) {
+        undoStash.delete(token)
+        void fs.rm(record.root, { recursive: true, force: true })
+      }
+    }, 60_000)
+    return {
+      token,
+      results: results.map((r, i) => ({
+        path: paths[i]!,
+        ok: r.status === 'fulfilled',
+        error: r.status === 'rejected' ? String(r.reason?.message ?? r.reason) : undefined,
+      })),
+    }
+  })
+
+  ipcMain.handle('skills:undo-trash', async (_event, token: string) => {
+    const record = undoStash.get(token)
+    if (!record) return false
+    undoStash.delete(token)
+    for (const entry of record.entries) {
+      await fs.cp(entry.stashPath, entry.path, { recursive: true })
+    }
+    await fs.rm(record.root, { recursive: true, force: true })
+    return true
+  })
+
   ipcMain.handle('watch:start', async (_event, projectRoots: string[]) => {
     for (const w of watchers) w.close()
     watchers = []
@@ -122,21 +206,27 @@ function registerIpc(): void {
         if (projectDir) dirs.add(projectDir)
       }
     }
-    for (const dir of dirs) {
-      if (!existsSync(dir)) continue
+    const notify = (): void => {
+      clearTimeout(notifyTimer)
+      notifyTimer = setTimeout(() => {
+        for (const win of BrowserWindow.getAllWindows()) {
+          win.webContents.send('skills:changed')
+        }
+      }, 500)
+    }
+    const addWatch = (target: string, recursive: boolean): void => {
+      if (!existsSync(target)) return
       try {
-        const watcher = watch(dir, { recursive: true }, () => {
-          clearTimeout(notifyTimer)
-          notifyTimer = setTimeout(() => {
-            for (const win of BrowserWindow.getAllWindows()) {
-              win.webContents.send('skills:changed')
-            }
-          }, 500)
-        })
-        watchers.push(watcher)
+        watchers.push(watch(target, { recursive }, notify))
       } catch {
         // unwatchable dir (permissions etc.) — skip
       }
+    }
+    for (const dir of dirs) {
+      addWatch(dir, true)
+      // shallow-watch the parent so a freshly created skills dir (first
+      // install on a platform) still triggers a rescan + watcher rebuild
+      addWatch(dirname(dir), false)
     }
     return watchers.length
   })
@@ -204,6 +294,11 @@ function registerIpc(): void {
   ipcMain.handle('skills:import-git', async (_event, url: string) => {
     if (!/^(https?:\/\/|git@)[\w.@:/~-]+$/.test(url)) {
       throw new Error(`invalid git url: ${url}`)
+    }
+    try {
+      await execFileAsync('git', ['--version'], { timeout: 5_000 })
+    } catch {
+      throw new Error('git not found — please install Git first / 未检测到 git，请先安装')
     }
     const tmp = await fs.mkdtemp(join(tmpdir(), 'skm-import-'))
     try {
@@ -435,13 +530,20 @@ function registerIpc(): void {
       if (!res.ok) throw new Error(`skillhub download ${res.status}`)
       const tmp = await fs.mkdtemp(join(tmpdir(), 'skm-import-'))
       try {
-        const zipPath = join(tmp, 'skill.zip')
-        await fs.writeFile(zipPath, Buffer.from(await res.arrayBuffer()))
         const unpacked = join(tmp, 'unpacked')
         await fs.mkdir(unpacked, { recursive: true })
-        await execFileAsync('unzip', ['-o', '-q', zipPath, '-d', unpacked], {
-          timeout: 30_000,
-        })
+        // pure-JS extraction (no unzip binary dependency, works on Windows)
+        const files = unzipSync(new Uint8Array(await res.arrayBuffer()))
+        for (const [rel, data] of Object.entries(files)) {
+          if (rel.endsWith('/')) continue
+          const safe = normalize(rel)
+          // zip-slip guard: reject absolute and parent-escaping entries
+          if (isAbsolute(safe) || safe === '..' || safe.startsWith(`..${sep}`)) continue
+          const dest = join(unpacked, safe)
+          if (dest !== unpacked && !dest.startsWith(unpacked + sep)) continue
+          await fs.mkdir(dirname(dest), { recursive: true })
+          await fs.writeFile(dest, data)
+        }
         return { root: tmp, items: await findSkills(unpacked) }
       } catch (e) {
         await fs.rm(tmp, { recursive: true, force: true })

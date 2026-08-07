@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, ref, useTemplateRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import SidebarToggle from '@/components/SidebarToggle.vue'
 import MarkdownView from '@/components/MarkdownView.vue'
@@ -18,12 +18,28 @@ import { agentLabel } from '@/lib/agents'
 import { hasScriptResources, nextPatch } from '@/lib/resources'
 import { useSettings } from '@/composables/useSettings'
 import { useSkills } from '@/composables/useSkills'
+import { showToast } from '@/composables/useToast'
+import type { SkillFocus } from '@/lib/navigation'
 
-const props = defineProps<{ skill: AggregatedSkill; inset?: boolean }>()
+const props = defineProps<{ skill: AggregatedSkill; inset?: boolean; focus?: SkillFocus }>()
 const emit = defineEmits<{ close: [] }>()
 
 const { detectedPlatforms, install, installSkill, refresh } = useSkills()
 const { projectRoots, registryUrl, registryToken, groups } = useSettings()
+
+const driftSection = useTemplateRef<HTMLElement>('driftSection')
+const installSection = useTemplateRef<HTMLElement>('installSection')
+
+function focusSection(): void {
+  if (!props.focus) return
+  const target = props.focus === 'drift' ? driftSection.value : installSection.value
+  if (!target) return
+  target.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  target.focus({ preventScroll: true })
+}
+
+onMounted(() => void nextTick(focusSection))
+watch(() => props.focus, () => void nextTick(focusSection))
 
 /* ---------- groups membership ---------- */
 
@@ -259,17 +275,32 @@ async function syncFromBase(): Promise<void> {
 
 /* ---------- uninstall (to trash) ---------- */
 
+async function trashWithUndo(paths: string[]): Promise<boolean> {
+  const { token, results } = await window.skillsManager.trashUndoable(paths)
+  const failed = results.filter((r) => !r.ok)
+  if (failed.length > 0) {
+    actionError.value = failed.map((f) => f.error).join('；')
+    return false
+  }
+  showToast({
+    message: t('common.trashedN', { n: paths.length }),
+    actionLabel: t('common.undo'),
+    onAction: async () => {
+      if (await window.skillsManager.undoTrash(token)) {
+        await refresh()
+        showToast({ message: t('common.restored') })
+      }
+    },
+  })
+  return true
+}
+
 async function removeInstallation(path: string): Promise<void> {
   busy.value = true
   actionError.value = null
   try {
     const wasLast = props.skill.installations.length <= 1
-    const results = await window.skillsManager.trashPaths([path])
-    const failed = results.filter((r) => !r.ok)
-    if (failed.length > 0) {
-      actionError.value = failed.map((f) => f.error).join('；')
-      return
-    }
+    if (!(await trashWithUndo([path]))) return
     await refresh()
     if (wasLast) emit('close')
   } finally {
@@ -281,14 +312,7 @@ async function runUninstall(): Promise<void> {
   busy.value = true
   actionError.value = null
   try {
-    const results = await window.skillsManager.trashPaths(
-      props.skill.installations.map((i) => i.path),
-    )
-    const failed = results.filter((r) => !r.ok)
-    if (failed.length > 0) {
-      actionError.value = failed.map((f) => f.error).join('；')
-      return
-    }
+    if (!(await trashWithUndo(props.skill.installations.map((i) => i.path)))) return
     await refresh()
     emit('close')
   } finally {
@@ -341,7 +365,7 @@ async function runUninstall(): Promise<void> {
           {{ skill.description || t('card.noDescription') }}
         </p>
 
-        <div class="mb-6 flex flex-wrap items-center gap-2">
+        <div v-if="!props.focus" class="mb-6 flex flex-wrap items-center gap-2">
           <span class="text-xs text-muted-foreground">{{ t('groups.membership') }}</span>
           <button
             v-for="g in groups"
@@ -367,7 +391,11 @@ async function runUninstall(): Promise<void> {
           </button>
         </div>
 
-        <DialogRoot :open="newGroupOpen" @update:open="(o: boolean) => !o && (newGroupOpen = false)">
+        <DialogRoot
+          v-if="!props.focus"
+          :open="newGroupOpen"
+          @update:open="(o: boolean) => !o && (newGroupOpen = false)"
+        >
           <DialogPortal>
             <DialogOverlay class="fixed inset-0 z-40 bg-black/40" />
             <DialogContent
@@ -450,7 +478,15 @@ async function runUninstall(): Promise<void> {
         </section>
 
         <!-- drift -->
-        <section v-if="skill.hasDrift" class="mb-8">
+        <section
+          v-if="skill.hasDrift"
+          ref="driftSection"
+          tabindex="-1"
+          :class="[
+            'mb-8 scroll-mt-6 outline-none transition-colors',
+            props.focus === 'drift' && 'border-l-2 border-amber-500 pl-4',
+          ]"
+        >
           <h3
             class="mb-2 flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-amber-600 dark:text-amber-400"
           >
@@ -495,7 +531,14 @@ async function runUninstall(): Promise<void> {
         </section>
 
         <!-- install to -->
-        <section class="mb-8">
+        <section
+          ref="installSection"
+          tabindex="-1"
+          :class="[
+            'mb-8 scroll-mt-6 outline-none transition-colors',
+            props.focus === 'install' && 'border-l-2 border-foreground/30 pl-4',
+          ]"
+        >
           <h3 class="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
             {{ t('detail.installTo') }}
           </h3>
@@ -637,4 +680,3 @@ async function runUninstall(): Promise<void> {
     </div>
   </div>
 </template>
-

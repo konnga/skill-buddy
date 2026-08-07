@@ -18,7 +18,19 @@ const customPlatforms = ref<CustomPlatformInput[]>(load('skm.customPlatforms', [
 const theme = ref<ThemeMode>(load('skm.theme', 'system'))
 const language = ref<Locale>(load('skm.language', detectLocale()))
 const registryUrl = ref<string>(load('skm.registryUrl', ''))
-const registryToken = ref<string>(load('skm.registryToken', ''))
+/** Registry token lives in the OS keychain (via safeStorage), not localStorage. */
+const registryToken = ref<string>('')
+
+void (async () => {
+  // one-time migration from the old plaintext localStorage slot
+  const legacy = load('skm.registryToken', '')
+  if (legacy) {
+    await window.skillsManager.secureSet('registryToken', legacy)
+    localStorage.removeItem('skm.registryToken')
+  }
+  registryToken.value = await window.skillsManager.secureGet('registryToken')
+  watch(registryToken, (v) => void window.skillsManager.secureSet('registryToken', v))
+})()
 const sidebarCollapsed = ref<boolean>(load('skm.sidebarCollapsed', false))
 
 export interface SkillGroup {
@@ -62,7 +74,6 @@ watch(
 )
 
 watch(registryUrl, (v) => localStorage.setItem('skm.registryUrl', JSON.stringify(v)))
-watch(registryToken, (v) => localStorage.setItem('skm.registryToken', JSON.stringify(v)))
 watch(sidebarCollapsed, (v) => localStorage.setItem('skm.sidebarCollapsed', JSON.stringify(v)))
 
 i18n.global.locale.value = language.value

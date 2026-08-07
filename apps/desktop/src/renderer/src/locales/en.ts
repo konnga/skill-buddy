@@ -6,6 +6,9 @@ export default {
     edit: 'Edit',
     copy: 'Copy',
     copied: 'Copied',
+    trashedN: 'Moved to trash ({n})',
+    undo: 'Undo',
+    restored: 'Restored',
     settings: 'Settings',
   },
   app: {

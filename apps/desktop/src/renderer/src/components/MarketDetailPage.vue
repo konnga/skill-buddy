@@ -367,6 +367,7 @@ async function install(): Promise<void> {
             </button>
             <div class="flex items-center gap-4 text-sm tabular-nums text-muted-foreground">
               <span
+                v-if="item.installs > 0"
                 class="flex items-center gap-1.5"
                 :title="t('market.installs', { n: item.installs })"
               >

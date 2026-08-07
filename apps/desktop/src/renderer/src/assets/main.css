@@ -89,7 +89,11 @@
     background: transparent;
   }
   .content-surface {
-    @apply bg-background;
+    @apply border-l bg-background;
+    border-left-color: rgb(0 0 0 / 0.18);
+  }
+  .dark .content-surface {
+    border-left-color: rgb(255 255 255 / 0.16);
   }
 
   /* Codex-style sidebar selection: a quiet flat gray pill, one step
