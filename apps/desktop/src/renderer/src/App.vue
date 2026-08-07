@@ -23,8 +23,9 @@ import { Input } from '@/components/ui/input'
 import { Select } from '@/components/ui/select'
 import AttentionPage from '@/components/AttentionPage.vue'
 import DashboardPage from '@/components/DashboardPage.vue'
+import ImportAppsModal from '@/components/ImportAppsModal.vue'
 import ImportSheet from '@/components/ImportSheet.vue'
-import NewSkillSheet from '@/components/NewSkillSheet.vue'
+import NewSkillPage from '@/components/NewSkillPage.vue'
 import PlatformIcon from '@/components/PlatformIcon.vue'
 import PlatformTargetPicker from '@/components/PlatformTargetPicker.vue'
 import SettingsPage from '@/components/SettingsPage.vue'
@@ -35,8 +36,10 @@ import SkillDetailPage from '@/components/SkillDetailPage.vue'
 import TeamPage from '@/components/TeamPage.vue'
 import { setPlatformNames } from '@/lib/agents'
 import type { MarketItem } from '@/lib/market'
+import { runImportSync } from '@/composables/useImportSync'
 import { syncCustomPlatforms, useSettings } from '@/composables/useSettings'
 import { useSkills } from '@/composables/useSkills'
+import { useTeam } from '@/composables/useTeam'
 
 const {
   platforms,
@@ -70,15 +73,28 @@ const sortOptions = computed(() => [
 const selected = ref<AggregatedSkill | null>(null)
 const marketSelected = ref<MarketItem | null>(null)
 const attentionOpen = ref(false)
+
+/* needs-attention badge count (mirrors AttentionPage's list) */
+const { updates, missingRequired } = useTeam()
+const todoCount = computed(() => {
+  const drift = skills.value.filter((s) => s.hasDrift).length
+  const singleEnd = skills.value.filter((s) => {
+    const agents = new Set(s.installations.map((i) => i.agent))
+    return agents.size === 1 && detectedPlatforms.value.length > 1
+  }).length
+  return drift + singleEnd + updates.value.length + missingRequired.value.length
+})
 const newOpen = ref(false)
 const importOpen = ref(false)
+const advancedImportOpen = ref(false)
 const view = ref<'dashboard' | 'skills' | 'team' | 'settings'>('dashboard')
 const prevView = ref<'dashboard' | 'skills' | 'team'>('dashboard')
 
-// sidebar navigation leaves any full-page detail (market / attention)
+// sidebar navigation leaves any full-page detail (market / attention / new-skill)
 watch(view, () => {
   attentionOpen.value = false
   marketSelected.value = null
+  newOpen.value = false
 })
 
 function openSettings(): void {
@@ -242,6 +258,8 @@ watch(skills, (v) => {
   if (selected.value) {
     selected.value = v.find((s) => s.name === selected.value!.name) ?? null
   }
+  // standing "keep imports in sync" connections (additive, once per skill)
+  void runImportSync()
 })
 
 function onSidebarShortcut(e: KeyboardEvent): void {
@@ -448,6 +466,9 @@ onUnmounted(() => window.removeEventListener('keydown', onSidebarShortcut))
         @open-skill="selected = $event"
       />
     </main>
+    <main v-else-if="newOpen" class="content-surface flex min-w-0 flex-1 flex-col">
+      <NewSkillPage :inset="sidebarCollapsed" @close="newOpen = false" />
+    </main>
     <main v-else class="content-surface flex min-w-0 flex-1 flex-col">
       <header
         v-if="view === 'dashboard'"
@@ -455,6 +476,34 @@ onUnmounted(() => window.removeEventListener('keydown', onSidebarShortcut))
       >
         <SidebarToggle />
         <div class="flex-1" />
+        <button
+          type="button"
+          :class="[
+            'app-no-drag flex items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-xs transition-colors',
+            todoCount > 0
+              ? 'border-amber-500/50 bg-amber-500/10 text-amber-700 dark:text-amber-400'
+              : 'text-muted-foreground hover:border-primary/40',
+          ]"
+          :title="t('dashboard.todo')"
+          @click="attentionOpen = true"
+        >
+          <TriangleAlert class="size-3.5" />
+          {{ t('dashboard.todo') }}
+          <span
+            v-if="todoCount > 0"
+            class="rounded-full bg-amber-500 px-1.5 text-[10px] font-semibold tabular-nums text-white"
+          >
+            {{ todoCount }}
+          </span>
+        </button>
+        <Button variant="outline" size="sm" class="app-no-drag" @click="newOpen = true">
+          <Plus />
+          {{ t('dashboard.actionNew') }}
+        </Button>
+        <Button variant="outline" size="sm" class="app-no-drag" @click="importOpen = true">
+          <Import />
+          {{ t('dashboard.actionImport') }}
+        </Button>
         <Button
           variant="outline"
           size="sm"
@@ -528,13 +577,7 @@ onUnmounted(() => window.removeEventListener('keydown', onSidebarShortcut))
       </header>
 
       <div v-if="view === 'dashboard'" class="flex-1 overflow-y-auto">
-        <DashboardPage
-          @open-skill="selected = $event"
-          @open-market="marketSelected = $event"
-          @open-attention="attentionOpen = true"
-          @new-skill="newOpen = true"
-          @import="importOpen = true"
-        />
+        <DashboardPage @open-market="marketSelected = $event" />
       </div>
 
       <div v-else-if="view === 'team'" class="flex-1 overflow-y-auto">
@@ -633,8 +676,12 @@ onUnmounted(() => window.removeEventListener('keydown', onSidebarShortcut))
       </div>
     </main>
 
-    <NewSkillSheet :open="newOpen" @close="newOpen = false" />
-    <ImportSheet :open="importOpen" @close="importOpen = false" />
+    <ImportAppsModal
+      :open="importOpen"
+      @close="importOpen = false"
+      @advanced="((importOpen = false), (advancedImportOpen = true))"
+    />
+    <ImportSheet :open="advancedImportOpen" @close="advancedImportOpen = false" />
     </div>
   </div>
 </template>

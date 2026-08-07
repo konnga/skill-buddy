@@ -37,6 +37,24 @@ export interface TempApplication {
 }
 
 const tempApplications = ref<TempApplication[]>(load('skm.tempApplications', []))
+
+/** A standing source→target import connection ("keep in sync"). */
+export interface ImportSyncPair {
+  source: string
+  target: string
+  scope: string
+  projectRoot?: string
+  /** skill names already handled — each syncs at most once (additive, never re-forced) */
+  synced: string[]
+}
+
+const importSyncPairs = ref<ImportSyncPair[]>(load('skm.importSyncPairs', []))
+watch(
+  importSyncPairs,
+  (v) => localStorage.setItem('skm.importSyncPairs', JSON.stringify(v)),
+  { deep: true },
+)
+
 watch(
   tempApplications,
   (v) => localStorage.setItem('skm.tempApplications', JSON.stringify(v)),
@@ -82,5 +100,5 @@ export async function syncCustomPlatforms(): Promise<void> {
 }
 
 export function useSettings() {
-  return { projectRoots, customPlatforms, theme, language, registryUrl, registryToken, sidebarCollapsed, groups, tempApplications }
+  return { projectRoots, customPlatforms, theme, language, registryUrl, registryToken, sidebarCollapsed, groups, tempApplications, importSyncPairs }
 }
