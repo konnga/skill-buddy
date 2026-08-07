@@ -9,6 +9,10 @@
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
+    },
+    "./planners": {
+      "types": "./dist/planners.d.ts",
+      "import": "./dist/planners.js"
     }
   },
   "scripts": {

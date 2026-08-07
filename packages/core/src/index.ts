@@ -11,3 +11,4 @@ export {
   type RegistrySkill,
   type RegistrySkillSummary,
 } from './registry-client.js'
+export { planAdditiveInstall, planImportSync, targetKey, type AdditivePlan, type SyncAction, type SyncPairLike, type TargetRef } from './planners.js'
