@@ -155,7 +155,7 @@ async function runImport(): Promise<void> {
 <template>
   <DialogRoot :open="open" @update:open="(o) => !o && emit('close')">
     <DialogPortal>
-      <DialogOverlay class="fixed inset-0 z-40 bg-black/30 backdrop-blur-[2px]" />
+      <DialogOverlay class="fixed inset-0 z-40 bg-black/30" />
       <DialogContent
         class="fixed inset-y-0 right-0 z-50 flex w-[600px] max-w-[92vw] flex-col border-l bg-background outline-none"
         @open-auto-focus.prevent

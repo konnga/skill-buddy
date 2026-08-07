@@ -1,68 +1,27 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import {
-  ChevronRight,
-  Blocks,
-  FolderGit2,
-  History,
-  Import,
-  MonitorCheck,
-  Plus,
-  RefreshCw,
-  TriangleAlert,
-} from '@lucide/vue'
-import type { AggregatedSkill } from '@skillbuddy/core'
-import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
+import { Blocks, FolderGit2, MonitorCheck, TriangleAlert } from '@lucide/vue'
 import { Card, CardContent } from '@/components/ui/card'
 import { useSettings } from '@/composables/useSettings'
 import { useSkills } from '@/composables/useSkills'
-import { useTeam } from '@/composables/useTeam'
+import BundleSheet from '@/components/BundleSheet.vue'
 import MarketDiscovery from '@/components/MarketDiscovery.vue'
+import OfficialBundles from '@/components/OfficialBundles.vue'
+import type { SkillBundle } from '@/lib/bundles'
 import type { MarketItem } from '@/lib/market'
 
 const emit = defineEmits<{
-  openSkill: [skill: AggregatedSkill]
   openMarket: [item: MarketItem]
-  openAttention: []
-  newSkill: []
-  import: []
 }>()
 
-const { skills, detectedPlatforms, loading, refresh } = useSkills()
+const { skills, detectedPlatforms } = useSkills()
 const { projectRoots } = useSettings()
-const { updates, missingRequired } = useTeam()
 const { t } = useI18n()
-
-const todoCount = computed(
-  () =>
-    driftSkills.value.length +
-    singleEndSkills.value.length +
-    updates.value.length +
-    missingRequired.value.length,
-)
 
 const driftSkills = computed(() => skills.value.filter((s) => s.hasDrift))
 
-/** Skills installed on exactly one platform while others are available. */
-const singleEndSkills = computed(() =>
-  skills.value.filter((s) => {
-    const agents = new Set(s.installations.map((i) => i.agent))
-    return agents.size === 1 && detectedPlatforms.value.length > 1
-  }),
-)
-
-const recentSkills = computed(() =>
-  [...skills.value]
-    .map((s) => ({
-      skill: s,
-      modifiedAt: Math.max(...s.installations.map((i) => i.modifiedAt ?? 0)),
-    }))
-    .filter((s) => s.modifiedAt > 0)
-    .sort((a, b) => b.modifiedAt - a.modifiedAt)
-    .slice(0, 5),
-)
+const activeBundle = ref<SkillBundle | null>(null)
 
 const stats = computed(() => [
   { icon: Blocks, label: t('dashboard.totalSkills'), value: skills.value.length },
@@ -106,62 +65,16 @@ const stats = computed(() => [
       </Card>
     </div>
 
-    <!-- quick actions -->
-    <section>
-      <h3 class="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-        {{ t('dashboard.quickActions') }}
-      </h3>
-      <div class="flex flex-wrap gap-2">
-        <Button variant="outline" size="sm" :disabled="loading" @click="refresh">
-          <RefreshCw :class="loading ? 'animate-spin' : ''" />
-          {{ t('app.rescan') }}
-        </Button>
-        <Button variant="outline" size="sm" @click="emit('newSkill')">
-          <Plus />
-          {{ t('dashboard.actionNew') }}
-        </Button>
-        <Button variant="outline" size="sm" @click="emit('import')">
-          <Import />
-          {{ t('dashboard.actionImport') }}
-        </Button>
-      </div>
-    </section>
-
-    <!-- needs attention / recent: badge-count entries, lists live on AttentionPage -->
-    <div class="flex flex-col gap-2">
-      <button
-        :class="[
-          'flex w-full items-center gap-2.5 rounded-md border px-4 py-2.5 text-left text-sm transition-colors hover:border-foreground/25',
-          todoCount > 0 && 'border-amber-500/30 bg-amber-500/5',
-        ]"
-        @click="emit('openAttention')"
-      >
-        <TriangleAlert
-          :class="['size-4 shrink-0', todoCount > 0 ? 'text-amber-500' : 'text-muted-foreground']"
-        />
-        <span>{{ t('dashboard.todo') }}</span>
-        <Badge v-if="todoCount > 0" variant="secondary" class="text-[10px] tabular-nums">
-          {{ todoCount }}
-        </Badge>
-        <div class="flex-1" />
-        <ChevronRight class="size-4 text-muted-foreground" />
-      </button>
-      <button
-        v-if="recentSkills.length > 0"
-        class="flex w-full items-center gap-2.5 rounded-md border px-4 py-2.5 text-left text-sm transition-colors hover:border-foreground/25"
-        @click="emit('openAttention')"
-      >
-        <History class="size-4 shrink-0 text-muted-foreground" />
-        <span>{{ t('dashboard.recent') }}</span>
-        <Badge variant="secondary" class="text-[10px] tabular-nums">
-          {{ recentSkills.length }}
-        </Badge>
-        <div class="flex-1" />
-        <ChevronRight class="size-4 text-muted-foreground" />
-      </button>
-    </div>
+    <!-- official bundles -->
+    <OfficialBundles @use="activeBundle = $event" />
 
     <!-- marketplace discovery -->
     <MarketDiscovery @open="emit('openMarket', $event)" />
+
+    <BundleSheet
+      :open="activeBundle !== null"
+      :bundle="activeBundle"
+      @close="activeBundle = null"
+    />
   </div>
 </template>

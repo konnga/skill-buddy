@@ -8,10 +8,13 @@ import {
   siTrae,
   type SimpleIcon,
 } from 'simple-icons'
+import workbuddyIcon from '@/assets/platform-icons/workbuddy.svg'
 
 interface PlatformIconDef {
   /** SVG path (24x24 viewBox) from simple-icons */
   path?: string
+  /** Full image asset URL (for complex multi-element brand marks) */
+  src?: string
   /** Fallback monogram when no brand icon is available */
   monogram?: string
   /**
@@ -41,9 +44,7 @@ const ICONS: Record<string, PlatformIconDef> = {
   codebuddy: { path: siCodebuddy.path, color: `#${siCodebuddy.hex}` },
   trae: { path: siTrae.path, color: '#17b877' },
   'trae-cn': { path: siTrae.path, color: '#17b877' },
-  // No standalone WorkBuddy mark exists yet (site uses the CodeBuddy
-  // family logo) — branded gradient badge until one ships.
-  workbuddy: { monogram: 'W', bg: 'linear-gradient(135deg, #32e6b9, #0052d9)' },
+  workbuddy: { src: workbuddyIcon },
 }
 
 export function platformIcon(id: string): PlatformIconDef {

@@ -17,8 +17,17 @@ const def = computed(() => platformIcon(props.id))
 </script>
 
 <template>
+  <img
+    v-if="def.src"
+    :src="def.src"
+    :width="size"
+    :height="size"
+    :class="cn('shrink-0 rounded-[3px]', props.class)"
+    alt=""
+    aria-hidden="true"
+  />
   <svg
-    v-if="def.path"
+    v-else-if="def.path"
     :width="size"
     :height="size"
     viewBox="0 0 24 24"

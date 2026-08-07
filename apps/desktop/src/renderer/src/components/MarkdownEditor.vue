@@ -5,6 +5,7 @@ import { markdown } from '@codemirror/lang-markdown'
 import { EditorState } from '@codemirror/state'
 
 const model = defineModel<string>({ default: '' })
+const props = withDefaults(defineProps<{ height?: string }>(), { height: '420px' })
 const host = ref<HTMLElement>()
 let view: EditorView | undefined
 
@@ -35,14 +36,18 @@ watch(model, (value) => {
 </script>
 
 <template>
-  <div ref="host" class="cm-host overflow-hidden rounded-md border" />
+  <div ref="host" class="cm-host overflow-hidden rounded-md border" :style="{ height: props.height }" />
 </template>
 
 <style>
 .cm-host .cm-editor {
+  height: 100%;
   font-size: 13px;
   background: var(--background);
   color: var(--foreground);
+}
+.cm-host .cm-scroller {
+  overflow: auto;
 }
 .cm-host .cm-editor.cm-focused {
   outline: none;
@@ -61,7 +66,7 @@ watch(model, (value) => {
 .cm-host .cm-content {
   caret-color: var(--foreground);
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-  min-height: 260px;
+  min-height: 100%;
 }
 .cm-host .cm-cursor {
   border-left-color: var(--foreground);

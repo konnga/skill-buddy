@@ -1,4 +1,4 @@
-import { app, BrowserWindow, dialog, ipcMain, shell } from 'electron'
+import { app, BrowserWindow, dialog, ipcMain, nativeTheme, shell } from 'electron'
 import { execFile } from 'node:child_process'
 import { existsSync, watch, type FSWatcher } from 'node:fs'
 import { promises as fs } from 'node:fs'
@@ -96,6 +96,12 @@ function registerIpc(): void {
 
   ipcMain.handle('shell:open-external', (_event, url: string) => {
     if (/^https?:\/\//.test(url)) return shell.openExternal(url)
+  })
+
+  // The sidebar vibrancy material follows nativeTheme, not the renderer's
+  // .dark class — keep them in sync when the in-app theme changes.
+  ipcMain.handle('theme:set', (_event, mode: 'system' | 'light' | 'dark') => {
+    nativeTheme.themeSource = mode
   })
 
   /* ---------- filesystem watching ---------- */
@@ -210,6 +216,91 @@ function registerIpc(): void {
       throw new Error(`git clone failed: ${e instanceof Error ? e.message : String(e)}`)
     }
     return { root: tmp, items: await findSkills(tmp) }
+  })
+
+  /* ---------- AI generation via local agent CLIs ---------- */
+
+  // GUI apps on macOS inherit a minimal PATH; extend it so `claude` etc. resolve
+  const CLI_PATH = [
+    process.env.PATH ?? '',
+    '/usr/local/bin',
+    '/opt/homebrew/bin',
+    join(process.env.HOME ?? '', '.local/bin'),
+    join(process.env.HOME ?? '', '.bun/bin'),
+  ].join(':')
+
+  interface GeneratorDef {
+    id: string
+    bin: string
+    args: (prompt: string) => string[]
+    /** pull the assistant's text out of raw stdout */
+    extract: (stdout: string) => string
+  }
+
+  const GENERATORS: GeneratorDef[] = [
+    {
+      id: 'claude-code',
+      bin: 'claude',
+      args: (prompt) => ['-p', prompt, '--output-format', 'json'],
+      extract: (stdout) => {
+        const parsed = JSON.parse(stdout) as { result?: string }
+        return parsed.result ?? ''
+      },
+    },
+    {
+      id: 'codex',
+      bin: 'codex',
+      args: (prompt) => ['exec', '--skip-git-repo-check', prompt],
+      extract: (stdout) => stdout,
+    },
+    {
+      id: 'gemini-cli',
+      bin: 'gemini',
+      args: (prompt) => ['-p', prompt],
+      extract: (stdout) => stdout,
+    },
+  ]
+
+  ipcMain.handle('ai:generators', async () => {
+    const results = await Promise.all(
+      GENERATORS.map(async (g) => {
+        try {
+          await execFileAsync('which', [g.bin], { env: { ...process.env, PATH: CLI_PATH } })
+          return { id: g.id, available: true }
+        } catch {
+          return { id: g.id, available: false }
+        }
+      }),
+    )
+    return results.filter((r) => r.available).map((r) => r.id)
+  })
+
+  ipcMain.handle('ai:generate', async (_event, generatorId: string, prompt: string) => {
+    const gen = GENERATORS.find((g) => g.id === generatorId)
+    if (!gen) throw new Error(`unknown generator: ${generatorId}`)
+    try {
+      const { stdout } = await execFileAsync(gen.bin, gen.args(prompt), {
+        env: { ...process.env, PATH: CLI_PATH },
+        timeout: 240_000,
+        maxBuffer: 20 * 1024 * 1024,
+        cwd: tmpdir(),
+      })
+      return { text: gen.extract(stdout) }
+    } catch (e) {
+      const err = e as Error & { stderr?: string; killed?: boolean }
+      if (err.killed) throw new Error('generation timed out (240s)')
+      const detail = (err.stderr ?? err.message ?? '').slice(0, 500)
+      throw new Error(detail || 'generation failed')
+    }
+  })
+
+  /* ---------- official bundles ---------- */
+
+  // Renderer CSP is default-src 'self' — remote manifest fetches go through main.
+  ipcMain.handle('bundles:manifest', async (_event, url: string) => {
+    const res = await fetch(url, { signal: AbortSignal.timeout(10_000) })
+    if (!res.ok) throw new Error(`bundles manifest ${res.status}`)
+    return (await res.json()) as unknown
   })
 
   /* ---------- marketplace (skills.sh) ---------- */

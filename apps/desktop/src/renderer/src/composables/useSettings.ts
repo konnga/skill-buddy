@@ -88,6 +88,9 @@ media.addEventListener('change', () => applyTheme())
 export function applyTheme(): void {
   const dark = theme.value === 'dark' || (theme.value === 'system' && media.matches)
   document.documentElement.classList.toggle('dark', dark)
+  // The macOS window vibrancy (transparent sidebar) renders in the OS theme,
+  // so a fixed light/dark choice must also be pushed to the main process.
+  void window.skillsManager?.setTheme(theme.value)
 }
 
 /** Push persisted custom platforms into the main-process registry. */

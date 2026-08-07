@@ -54,7 +54,9 @@ const model = defineModel<string>()
             :value="opt.value"
             class="relative flex cursor-pointer select-none items-center rounded-[5px] py-1.5 pl-2.5 pr-8 text-sm outline-none data-[highlighted]:bg-accent"
           >
-            <SelectItemText>{{ opt.label }}</SelectItemText>
+            <SelectItemText>
+              <slot name="option" :option="opt">{{ opt.label }}</slot>
+            </SelectItemText>
             <SelectItemIndicator class="absolute right-2 inline-flex items-center">
               <Check class="size-3.5" />
             </SelectItemIndicator>

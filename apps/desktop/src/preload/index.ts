@@ -32,11 +32,18 @@ const api = {
     ipcRenderer.invoke('skills:import-git', url),
   cleanupImport: (root: string): Promise<void> =>
     ipcRenderer.invoke('skills:cleanup-import', root),
+  aiGenerators: (): Promise<string[]> => ipcRenderer.invoke('ai:generators'),
+  aiGenerate: (generatorId: string, prompt: string): Promise<{ text: string }> =>
+    ipcRenderer.invoke('ai:generate', generatorId, prompt),
   marketSearch: (
     q: string,
   ): Promise<{ id: string; skillId: string; name: string; installs: number; source: string }[]> =>
     ipcRenderer.invoke('market:search', q),
   openExternal: (url: string): Promise<void> => ipcRenderer.invoke('shell:open-external', url),
+  setTheme: (mode: 'system' | 'light' | 'dark'): Promise<void> =>
+    ipcRenderer.invoke('theme:set', mode),
+  fetchBundlesManifest: (url: string): Promise<unknown> =>
+    ipcRenderer.invoke('bundles:manifest', url),
   skillhubSearch: (
     q: string,
     page = 1,

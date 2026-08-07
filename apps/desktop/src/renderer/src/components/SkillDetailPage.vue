@@ -362,7 +362,9 @@ async function runUninstall(): Promise<void> {
               <div class="flex min-w-0 items-center gap-2">
                 <PlatformIcon :id="inst.agent" :size="15" />
                 <span class="shrink-0 text-sm">{{ agentLabel(inst.agent) }}</span>
-                <Badge variant="outline">{{ inst.scope }}</Badge>
+                <Badge variant="outline">
+                  {{ inst.scope === 'user' ? t('detail.scopeUser') : t('detail.scopeProject') }}
+                </Badge>
                 <code class="select-text truncate text-xs text-muted-foreground/70">{{
                   inst.path
                 }}</code>
@@ -423,7 +425,7 @@ async function runUninstall(): Promise<void> {
                   baseInstallation?.path === inst.path ? 'border-background/40 text-background' : ''
                 "
               >
-                {{ inst.scope }}
+                {{ inst.scope === 'user' ? t('detail.scopeUser') : t('detail.scopeProject') }}
               </Badge>
             </button>
           </div>
