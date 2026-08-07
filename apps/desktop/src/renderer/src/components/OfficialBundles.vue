@@ -22,7 +22,7 @@ onMounted(() => void ensureLoaded())
     <ul class="grid grid-cols-2 gap-3 lg:grid-cols-4">
       <li v-for="b in bundles" :key="b.id">
         <div
-          class="group flex h-full cursor-pointer flex-col gap-2 rounded-2xl border bg-card px-3.5 py-3.5 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md"
+          class="group flex h-full cursor-pointer flex-col gap-2 rounded-2xl border bg-card px-3.5 py-3.5 transition-colors hover:border-foreground/25"
           role="button"
           tabindex="0"
           @click="emit('use', b)"

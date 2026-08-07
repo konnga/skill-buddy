@@ -224,7 +224,7 @@ watch(source, () => void search())
 
     <ul v-if="loading" class="grid grid-cols-2 gap-3 lg:grid-cols-3 xl:grid-cols-4">
       <li v-for="i in 8" :key="i">
-        <div class="flex h-full flex-col rounded-2xl border bg-card px-3.5 py-3.5 shadow-sm">
+        <div class="flex h-full flex-col rounded-2xl border bg-card px-3.5 py-3.5">
           <div class="flex items-center gap-2.5">
             <Skeleton class="size-8 shrink-0 rounded-full" />
             <Skeleton class="h-4 flex-1" />
@@ -247,7 +247,7 @@ watch(source, () => void search())
       <ul class="grid grid-cols-2 gap-3 lg:grid-cols-3 xl:grid-cols-4">
         <li v-for="item in items" :key="item.key">
           <div
-            class="group flex h-full cursor-pointer flex-col rounded-2xl border bg-card px-3.5 py-3.5 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md"
+            class="group flex h-full cursor-pointer flex-col rounded-2xl border bg-card px-3.5 py-3.5 transition-colors hover:border-foreground/25"
             role="button"
             tabindex="0"
             @click="emit('open', item)"
@@ -313,7 +313,7 @@ watch(source, () => void search())
       <div v-if="hasMore" ref="sentinel" class="pt-3">
         <ul v-if="loadingMore" class="grid grid-cols-2 gap-3 lg:grid-cols-3 xl:grid-cols-4">
           <li v-for="i in 4" :key="i">
-            <div class="flex h-full flex-col rounded-2xl border bg-card px-3.5 py-3.5 shadow-sm">
+            <div class="flex h-full flex-col rounded-2xl border bg-card px-3.5 py-3.5">
               <div class="flex items-center gap-2.5">
                 <Skeleton class="size-8 shrink-0 rounded-full" />
                 <Skeleton class="h-4 flex-1" />
