@@ -369,7 +369,7 @@ async function runUninstall(): Promise<void> {
 
         <DialogRoot :open="newGroupOpen" @update:open="(o: boolean) => !o && (newGroupOpen = false)">
           <DialogPortal>
-            <DialogOverlay class="fixed inset-0 z-40 bg-black/40 backdrop-blur-[2px]" />
+            <DialogOverlay class="fixed inset-0 z-40 bg-black/40" />
             <DialogContent
               class="fixed left-1/2 top-1/2 z-50 w-80 -translate-x-1/2 -translate-y-1/2 rounded-2xl border bg-background p-6 outline-none"
               @open-auto-focus.prevent

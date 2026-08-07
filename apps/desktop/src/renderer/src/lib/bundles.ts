@@ -93,6 +93,30 @@ export function bundleText(txt: LocalizedText, locale: string): string {
   return txt[locale as keyof LocalizedText] ?? txt.en
 }
 
+/**
+ * Soft dual-radial color washes per bundle. Alpha-based so they sit on
+ * bg-card and adapt to light/dark without separate variants.
+ */
+const BUNDLE_GRADIENTS: Record<string, string> = {
+  frontend:
+    'radial-gradient(120% 110% at 0% 0%, rgba(59, 130, 246, 0.16), transparent 55%), radial-gradient(120% 110% at 100% 100%, rgba(34, 211, 238, 0.14), transparent 55%)',
+  design:
+    'radial-gradient(120% 110% at 0% 0%, rgba(244, 63, 94, 0.13), transparent 55%), radial-gradient(120% 110% at 100% 100%, rgba(251, 191, 36, 0.15), transparent 55%)',
+  backend:
+    'radial-gradient(120% 110% at 0% 0%, rgba(16, 185, 129, 0.15), transparent 55%), radial-gradient(120% 110% at 100% 100%, rgba(45, 212, 191, 0.13), transparent 55%)',
+  documents:
+    'radial-gradient(120% 110% at 0% 0%, rgba(245, 158, 11, 0.15), transparent 55%), radial-gradient(120% 110% at 100% 100%, rgba(249, 115, 22, 0.12), transparent 55%)',
+}
+
+const GRADIENT_POOL = Object.values(BUNDLE_GRADIENTS)
+
+export function bundleGradient(id: string): string {
+  if (BUNDLE_GRADIENTS[id]) return BUNDLE_GRADIENTS[id]
+  let h = 0
+  for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) >>> 0
+  return GRADIENT_POOL[h % GRADIENT_POOL.length]!
+}
+
 const isLocalized = (v: unknown): v is LocalizedText =>
   typeof v === 'object' &&
   v !== null &&
