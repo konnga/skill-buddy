@@ -12,6 +12,7 @@ import {
 import type { AggregatedSkill } from '@skillbuddy/core'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { ScrollArea } from '@/components/ui/scroll-area'
 import PlatformIcon from '@/components/PlatformIcon.vue'
 import { agentLabel } from '@/lib/agents'
 import type { SkillFocus } from '@/lib/navigation'
@@ -30,7 +31,11 @@ const { t } = useI18n()
 
 const teamBusy = ref<string | null>(null)
 
-const driftSkills = computed(() => skills.value.filter((s) => s.hasDrift))
+const driftSkills = computed(() =>
+  skills.value.filter(
+    (skill) => skill.hasDrift && skill.installations.some((installation) => !installation.readOnly),
+  ),
+)
 
 /** Skills installed on exactly one platform while others are available. */
 const singleEndSkills = computed(() =>
@@ -105,7 +110,7 @@ async function runInstallRequired(item: (typeof missingRequired.value)[number]):
       <Badge v-if="todoCount > 0" variant="secondary" class="text-[10px]">{{ todoCount }}</Badge>
     </header>
 
-    <div class="flex-1 overflow-y-auto">
+    <ScrollArea class="flex-1">
       <div class="mx-auto flex max-w-3xl flex-col gap-8 px-6 py-6">
         <!-- needs attention -->
         <section>
@@ -247,6 +252,6 @@ async function runInstallRequired(item: (typeof missingRequired.value)[number]):
           </ul>
         </section>
       </div>
-    </div>
+    </ScrollArea>
   </div>
 </template>

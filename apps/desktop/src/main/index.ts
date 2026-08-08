@@ -7,10 +7,10 @@ import { join } from 'node:path'
 import { promisify } from 'node:util'
 import {
   aggregateSkills,
-  allAdapters,
   findSkills,
   getAdapter,
   listPlatformStatus,
+  listSkillRoots,
   registerPlatform,
   RegistryClient,
   scanInstalledSkills,
@@ -196,16 +196,7 @@ function registerIpc(): void {
   ipcMain.handle('watch:start', async (_event, projectRoots: string[]) => {
     for (const w of watchers) w.close()
     watchers = []
-    const dirs = new Set<string>()
-    for (const adapter of allAdapters()) {
-      if (!(await adapter.detect())) continue
-      const userDir = adapter.skillsDir('user')
-      if (userDir) dirs.add(userDir)
-      for (const root of projectRoots) {
-        const projectDir = adapter.skillsDir('project', root)
-        if (projectDir) dirs.add(projectDir)
-      }
-    }
+    const dirs = new Set((await listSkillRoots(projectRoots)).map((root) => root.path))
     const notify = (): void => {
       clearTimeout(notifyTimer)
       notifyTimer = setTimeout(() => {

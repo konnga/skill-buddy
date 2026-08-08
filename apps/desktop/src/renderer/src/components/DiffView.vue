@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { diffLines, diffWordsWithSpace } from 'diff'
+import { ScrollArea } from '@/components/ui/scroll-area'
 
 const props = defineProps<{ base: string; other: string }>()
 
@@ -76,7 +77,10 @@ const rows = computed<Row[]>(() => {
 </script>
 
 <template>
-  <div class="max-h-64 overflow-auto rounded-md border font-mono text-xs leading-5">
+  <ScrollArea
+    class="max-h-64 rounded-md border font-mono text-xs leading-5"
+    viewport-class="max-h-64"
+  >
     <div
       v-for="(row, i) in rows"
       :key="i"
@@ -102,5 +106,5 @@ const rows = computed<Row[]>(() => {
         ></template
       >
     </div>
-  </div>
+  </ScrollArea>
 </template>

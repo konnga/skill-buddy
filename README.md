@@ -1,7 +1,8 @@
 # SkillBuddy
 
 AI agent skills 的可视化管理平台：统一管理、安装、同步各主流 AI agent
-（Claude Code / Codex / OpenCode / Trae / CodeBuddy / WorkBuddy …）的 skills，
+（Claude Code / Codex / OpenCode / Trae / CodeBuddy / WorkBuddy / 豆包 / Kimi Code /
+Z Code …）的 skills，
 打破平台间的格式差异，支持团队共享与企业内部使用。
 
 ## 架构
@@ -40,8 +41,7 @@ UI 走 headless 路线：**Reka UI + Tailwind CSS v4 + shadcn-vue 约定**（组
 
 ```bash
 pnpm install
-pnpm --filter @skillbuddy/core build   # 先构建内核
-pnpm dev                                   # 启动桌面端（electron-vite dev）
+pnpm dev       # 构建内核并启动桌面端（electron-vite dev）
 ```
 
 其他命令：

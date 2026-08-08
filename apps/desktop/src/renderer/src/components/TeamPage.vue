@@ -8,6 +8,7 @@ import MarkdownView from '@/components/MarkdownView.vue'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { ScrollArea } from '@/components/ui/scroll-area'
 import CopyButton from '@/components/CopyButton.vue'
 import PlatformTargetPicker from '@/components/PlatformTargetPicker.vue'
 import { agentLabel } from '@/lib/agents'
@@ -192,9 +193,12 @@ onMounted(search)
               >
                 {{ t('detail.scriptWarning') }}
               </div>
-              <div class="max-h-64 overflow-auto rounded-md border bg-muted/40 px-4 py-3">
+              <ScrollArea
+                class="max-h-64 rounded-md border bg-muted/40"
+                viewport-class="max-h-64 px-4 py-3"
+              >
                 <MarkdownView :content="detail.content" preview-id="team-detail" />
-              </div>
+              </ScrollArea>
               <ul v-if="detail.resources" class="flex flex-col gap-0.5">
                 <li
                   v-for="rel in Object.keys(detail.resources)"

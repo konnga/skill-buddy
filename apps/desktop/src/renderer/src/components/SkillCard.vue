@@ -15,6 +15,7 @@ const { t } = useI18n()
 
 const agents = computed(() => [...new Set(props.skill.installations.map((i) => i.agent))])
 const hasProject = computed(() => props.skill.installations.some((i) => i.scope === 'project'))
+const readOnly = computed(() => props.skill.installations.every((i) => i.readOnly))
 </script>
 
 <template>
@@ -32,6 +33,9 @@ const hasProject = computed(() => props.skill.installations.some((i) => i.scope 
           />
         </span>
         <span class="flex shrink-0 items-center gap-1.5">
+          <Badge v-if="readOnly" variant="secondary" class="text-[11px]">
+            {{ t('card.readOnly') }}
+          </Badge>
           <Badge v-if="hasProject" variant="secondary" class="text-[11px]">project</Badge>
           <Badge
             v-if="skill.hasDrift"

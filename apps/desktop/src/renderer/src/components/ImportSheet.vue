@@ -15,6 +15,7 @@ import MarkdownView from '@/components/MarkdownView.vue'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { ScrollArea } from '@/components/ui/scroll-area'
 import PlatformTargetPicker from '@/components/PlatformTargetPicker.vue'
 import { agentLabel } from '@/lib/agents'
 import { hasScriptResources } from '@/lib/resources'
@@ -167,7 +168,8 @@ async function runImport(): Promise<void> {
           <Button variant="ghost" size="icon" @click="emit('close')"><X /></Button>
         </header>
 
-        <div class="flex flex-1 flex-col gap-4 overflow-y-auto px-6 py-4">
+        <ScrollArea class="flex-1">
+          <div class="flex flex-col gap-4 px-6 py-4">
           <!-- source tabs -->
           <div class="flex gap-2">
             <button
@@ -265,13 +267,14 @@ async function runImport(): Promise<void> {
                   >
                     {{ t('import.viewContent') }} {{ previewDir === f.dir ? '−' : '+' }}
                   </button>
-                  <div
+                  <ScrollArea
                     v-if="previewDir === f.dir"
-                    class="max-h-56 overflow-auto rounded-md border bg-muted/40 px-3 py-2"
+                    class="max-h-56 rounded-md border bg-muted/40"
+                    viewport-class="max-h-56 px-3 py-2"
                     @click.prevent.stop
                   >
                     <MarkdownView :content="f.skill.content" :preview-id="`import-${f.dir}`" />
-                  </div>
+                  </ScrollArea>
                   <ul v-if="previewDir === f.dir && f.skill.resources" class="flex flex-col gap-0.5">
                     <li
                       v-for="rel in Object.keys(f.skill.resources)"
@@ -290,7 +293,8 @@ async function runImport(): Promise<void> {
           </template>
 
           <p v-if="error" class="break-all text-xs text-destructive">{{ error }}</p>
-        </div>
+          </div>
+        </ScrollArea>
 
         <footer class="flex items-center justify-end gap-2 border-t px-6 py-3">
           <Button variant="ghost" size="sm" :disabled="busy" @click="emit('close')">

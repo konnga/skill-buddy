@@ -48,6 +48,26 @@ watch(model, (value) => {
 }
 .cm-host .cm-scroller {
   overflow: auto;
+  scrollbar-color: var(--scrollbar-thumb) transparent;
+  scrollbar-width: thin;
+}
+.cm-host .cm-scroller::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+.cm-host .cm-scroller::-webkit-scrollbar-track {
+  background: transparent;
+}
+.cm-host .cm-scroller::-webkit-scrollbar-thumb {
+  min-height: 24px;
+  border: 2px solid transparent;
+  border-radius: 999px;
+  background: var(--scrollbar-thumb);
+  background-clip: padding-box;
+}
+.cm-host .cm-scroller::-webkit-scrollbar-thumb:hover {
+  background: var(--scrollbar-thumb-hover);
+  background-clip: padding-box;
 }
 .cm-host .cm-editor.cm-focused {
   outline: none;

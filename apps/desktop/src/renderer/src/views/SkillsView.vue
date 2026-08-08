@@ -17,6 +17,7 @@ import SkillCard from '@/components/SkillCard.vue'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Select } from '@/components/ui/select'
+import { ScrollArea } from '@/components/ui/scroll-area'
 import { useGroups } from '@/composables/useGroups'
 import { useSkills } from '@/composables/useSkills'
 
@@ -117,7 +118,7 @@ const sortOptions = computed(() => [
       </Button>
     </header>
 
-    <div class="flex-1 overflow-y-auto px-6 py-5">
+    <ScrollArea class="flex-1" viewport-class="px-6 py-5">
       <div
         v-if="groupFilter && groupApplyOpen"
         class="mb-4 flex flex-col gap-2 rounded-lg border px-4 py-3"
@@ -197,6 +198,6 @@ const sortOptions = computed(() => [
           @open="emit('openSkill', skill)"
         />
       </div>
-    </div>
+    </ScrollArea>
   </div>
 </template>

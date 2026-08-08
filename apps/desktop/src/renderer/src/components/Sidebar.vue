@@ -127,7 +127,7 @@ function selectGroup(name: string): void {
           {{ t('team.title') }}
         </button>
 
-        <p class="mb-1 mt-4 px-3 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+        <p class="mb-1 mt-4 px-3 text-sm font-medium text-muted-foreground">
           {{ t('app.platforms') }}
         </p>
         <button
@@ -152,7 +152,7 @@ function selectGroup(name: string): void {
         </button>
 
         <template v-if="projectRoots.length > 0">
-          <p class="mb-1 mt-4 px-3 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+          <p class="mb-1 mt-4 px-3 text-sm font-medium text-muted-foreground">
             {{ t('app.scope') }}
           </p>
           <button
@@ -194,7 +194,7 @@ function selectGroup(name: string): void {
         </template>
 
         <template v-if="groups.length > 0">
-          <p class="mb-1 mt-4 px-3 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+          <p class="mb-1 mt-4 px-3 text-sm font-medium text-muted-foreground">
             {{ t('groups.title') }}
           </p>
           <div

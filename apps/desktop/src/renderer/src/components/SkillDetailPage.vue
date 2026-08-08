@@ -3,13 +3,14 @@ import { computed, nextTick, onMounted, ref, useTemplateRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import SidebarToggle from '@/components/SidebarToggle.vue'
 import MarkdownView from '@/components/MarkdownView.vue'
-import { ArrowLeft, FolderOpen, Pencil, Plus, TriangleAlert, Trash2 } from '@lucide/vue'
-import type { AggregatedSkill } from '@skillbuddy/core'
+import { ArrowLeft, FolderOpen, LockKeyhole, Pencil, Plus, TriangleAlert, Trash2 } from '@lucide/vue'
+import type { AggregatedSkill, Installation } from '@skillbuddy/core'
 import type { InstallTarget } from '../../../shared/ipc.js'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Select } from '@/components/ui/select'
+import { ScrollArea } from '@/components/ui/scroll-area'
 import CopyButton from '@/components/CopyButton.vue'
 import DiffView from '@/components/DiffView.vue'
 import PlatformIcon from '@/components/PlatformIcon.vue'
@@ -50,13 +51,24 @@ function inGroup(name: string): boolean {
 const newGroupOpen = ref(false)
 const newGroupName = ref('')
 
+function openNewGroup(): void {
+  newGroupName.value = ''
+  newGroupOpen.value = true
+}
+
+function closeNewGroup(): void {
+  newGroupOpen.value = false
+  newGroupName.value = ''
+}
+
 function createGroupWithSkill(): void {
   const name = newGroupName.value.trim()
   if (!name || groups.value.some((g) => g.name === name)) return
   groups.value = [...groups.value, { name, skills: [props.skill.name] }]
-  newGroupName.value = ''
-  newGroupOpen.value = false
+  closeNewGroup()
 }
+
+watch(() => props.skill.name, closeNewGroup)
 
 function toggleGroup(name: string): void {
   groups.value = groups.value.map((g) => {
@@ -70,7 +82,31 @@ const { t } = useI18n()
 
 const mode = ref<'view' | 'edit'>('view')
 
-const skillContent = computed(() => props.skill.installations[0]!.skill.content)
+const writableInstallations = computed(() =>
+  props.skill.installations.filter((installation) => !installation.readOnly),
+)
+const primaryInstallation = computed(
+  () => writableInstallations.value[0] ?? props.skill.installations[0]!,
+)
+const canEdit = computed(() => writableInstallations.value.length > 0)
+const skillContent = computed(() => primaryInstallation.value.skill.content)
+
+function originLabel(installation: Installation): string {
+  switch (installation.origin) {
+    case 'legacy':
+      return t('detail.originLegacy')
+    case 'admin':
+      return t('detail.originAdmin')
+    case 'system':
+      return t('detail.originSystem')
+    case 'plugin':
+      return t('detail.originPlugin')
+    case 'project':
+      return t('detail.scopeProject')
+    default:
+      return t('detail.scopeUser')
+  }
+}
 
 /* ---------- publish to registry ---------- */
 
@@ -126,7 +162,7 @@ async function publish(): Promise<void> {
     await window.skillsManager.registryPublish(
       registryCfg.value,
       publishOrg.value,
-      props.skill.installations[0]!.skill,
+      primaryInstallation.value.skill,
       publishVersion.value,
     )
     publishMessage.value = t('team.publishOk', {
@@ -142,7 +178,7 @@ async function publish(): Promise<void> {
 
 /* ---------- resources ---------- */
 
-const resources = computed(() => props.skill.installations[0]?.skill.resources ?? {})
+const resources = computed(() => primaryInstallation.value.skill.resources ?? {})
 const resourceList = computed(() => Object.entries(resources.value))
 const containsScripts = computed(() => hasScriptResources(resources.value))
 const openResource = ref<string | null>(null)
@@ -250,13 +286,16 @@ const driftOthers = computed(() =>
       i.contentHash !== baseInstallation.value?.contentHash,
   ),
 )
+const writableDriftOthers = computed(() =>
+  driftOthers.value.filter((installation) => !installation.readOnly),
+)
 
 async function syncFromBase(): Promise<void> {
-  if (!baseInstallation.value) return
+  if (!baseInstallation.value || writableDriftOthers.value.length === 0) return
   busy.value = true
   actionError.value = null
   try {
-    const targets: InstallTarget[] = driftOthers.value.map((i) => ({
+    const targets: InstallTarget[] = writableDriftOthers.value.map((i) => ({
       agent: i.agent,
       scope: i.scope,
       projectRoot: i.projectRoot,
@@ -296,6 +335,8 @@ async function trashWithUndo(paths: string[]): Promise<boolean> {
 }
 
 async function removeInstallation(path: string): Promise<void> {
+  const installation = props.skill.installations.find((item) => item.path === path)
+  if (!installation || installation.readOnly) return
   busy.value = true
   actionError.value = null
   try {
@@ -309,12 +350,15 @@ async function removeInstallation(path: string): Promise<void> {
 }
 
 async function runUninstall(): Promise<void> {
+  if (writableInstallations.value.length === 0) return
+  const removesAllInstallations =
+    writableInstallations.value.length === props.skill.installations.length
   busy.value = true
   actionError.value = null
   try {
-    if (!(await trashWithUndo(props.skill.installations.map((i) => i.path)))) return
+    if (!(await trashWithUndo(writableInstallations.value.map((i) => i.path)))) return
     await refresh()
-    emit('close')
+    if (removesAllInstallations) emit('close')
   } finally {
     busy.value = false
     confirmUninstall.value = false
@@ -340,7 +384,7 @@ async function runUninstall(): Promise<void> {
       </div>
       <div class="flex-1" />
       <Button
-        v-if="mode === 'view'"
+        v-if="mode === 'view' && canEdit"
         variant="outline"
         size="sm"
         class="app-no-drag"
@@ -352,14 +396,14 @@ async function runUninstall(): Promise<void> {
     </header>
 
     <!-- edit mode -->
-    <div v-if="mode === 'edit'" class="flex-1 overflow-y-auto">
+    <ScrollArea v-if="mode === 'edit'" class="flex-1">
       <div class="mx-auto max-w-3xl">
         <SkillEditor :skill="skill" @done="mode = 'view'" @cancel="mode = 'view'" />
       </div>
-    </div>
+    </ScrollArea>
 
     <!-- view mode -->
-    <div v-else class="flex-1 overflow-y-auto">
+    <ScrollArea v-else class="flex-1">
       <div class="mx-auto max-w-3xl px-6 py-6">
         <p class="mb-4 text-sm text-muted-foreground">
           {{ skill.description || t('card.noDescription') }}
@@ -384,7 +428,7 @@ async function runUninstall(): Promise<void> {
           <button
             type="button"
             class="flex items-center gap-1 rounded-full border border-dashed px-2.5 py-0.5 text-xs text-muted-foreground transition-colors hover:border-foreground/40 hover:text-foreground"
-            @click="((newGroupName = ''), (newGroupOpen = true))"
+            @click.stop="openNewGroup"
           >
             <Plus class="size-3" />
             {{ t('groups.createTitle') }}
@@ -392,9 +436,9 @@ async function runUninstall(): Promise<void> {
         </div>
 
         <DialogRoot
-          v-if="!props.focus"
+          v-if="!props.focus && newGroupOpen"
           :open="newGroupOpen"
-          @update:open="(o: boolean) => !o && (newGroupOpen = false)"
+          @update:open="(open: boolean) => !open && closeNewGroup()"
         >
           <DialogPortal>
             <DialogOverlay class="fixed inset-0 z-40 bg-black/40" />
@@ -413,7 +457,7 @@ async function runUninstall(): Promise<void> {
                 @keydown.enter="createGroupWithSkill"
               />
               <div class="mt-4 flex justify-end gap-2">
-                <Button variant="ghost" size="sm" @click="newGroupOpen = false">
+                <Button variant="ghost" size="sm" @click="closeNewGroup">
                   {{ t('common.cancel') }}
                 </Button>
                 <Button
@@ -445,7 +489,7 @@ async function runUninstall(): Promise<void> {
                 <PlatformIcon :id="inst.agent" :size="15" />
                 <span class="shrink-0 text-sm">{{ agentLabel(inst.agent) }}</span>
                 <Badge variant="outline">
-                  {{ inst.scope === 'user' ? t('detail.scopeUser') : t('detail.scopeProject') }}
+                  {{ originLabel(inst) }}
                 </Badge>
                 <code class="select-text truncate text-xs text-muted-foreground/70">{{
                   inst.path
@@ -463,6 +507,7 @@ async function runUninstall(): Promise<void> {
                   <FolderOpen class="size-3.5" />
                 </Button>
                 <Button
+                  v-if="!inst.readOnly"
                   variant="ghost"
                   size="icon"
                   class="size-7 text-muted-foreground hover:text-destructive"
@@ -472,6 +517,11 @@ async function runUninstall(): Promise<void> {
                 >
                   <Trash2 class="size-3.5" />
                 </Button>
+                <LockKeyhole
+                  v-else
+                  class="mx-1.5 size-3.5 text-muted-foreground"
+                  :title="t('detail.readOnly')"
+                />
               </span>
             </li>
           </ul>
@@ -515,7 +565,7 @@ async function runUninstall(): Promise<void> {
                   baseInstallation?.path === inst.path ? 'border-background/40 text-background' : ''
                 "
               >
-                {{ inst.scope === 'user' ? t('detail.scopeUser') : t('detail.scopeProject') }}
+                {{ originLabel(inst) }}
               </Badge>
             </button>
           </div>
@@ -525,8 +575,16 @@ async function runUninstall(): Promise<void> {
             </p>
             <DiffView :base="other.skill.content" :other="baseInstallation?.skill.content ?? ''" />
           </div>
-          <Button size="sm" :disabled="busy || driftOthers.length === 0" @click="syncFromBase">
-            {{ busy ? t('detail.syncing') : t('detail.syncToOthers', { n: driftOthers.length }) }}
+          <Button
+            size="sm"
+            :disabled="busy || writableDriftOthers.length === 0"
+            @click="syncFromBase"
+          >
+            {{
+              busy
+                ? t('detail.syncing')
+                : t('detail.syncToOthers', { n: writableDriftOthers.length })
+            }}
           </Button>
         </section>
 
@@ -630,11 +688,15 @@ async function runUninstall(): Promise<void> {
                   openResource === rel ? '−' : '+'
                 }}</span>
               </button>
-              <pre
+              <ScrollArea
                 v-if="openResource === rel"
-                class="mt-1 max-h-56 overflow-auto rounded-md border bg-muted px-3 py-2 text-xs"
-              ><code class="select-text">{{ resourcePreview }}</code><span v-if="resourceTruncated" class="text-muted-foreground">
+                orientation="both"
+                class="mt-1 max-h-56 rounded-md border bg-muted text-xs"
+                viewport-class="max-h-56"
+              >
+                <pre class="px-3 py-2"><code class="select-text">{{ resourcePreview }}</code><span v-if="resourceTruncated" class="text-muted-foreground">
 {{ t('detail.truncated') }}</span></pre>
+              </ScrollArea>
             </li>
           </ul>
         </section>
@@ -648,14 +710,17 @@ async function runUninstall(): Promise<void> {
         </section>
 
         <!-- danger zone -->
-        <section class="flex items-center justify-between rounded-md border px-4 py-3">
+        <section
+          v-if="writableInstallations.length > 0"
+          class="flex items-center justify-between rounded-md border px-4 py-3"
+        >
           <p class="text-xs text-muted-foreground">
-            {{ t('detail.installedCount', { n: skill.installations.length }) }}
+            {{ t('detail.manageableCount', { n: writableInstallations.length }) }}
           </p>
           <div class="flex items-center gap-2">
             <template v-if="confirmUninstall">
               <span class="text-xs text-muted-foreground">
-                {{ t('detail.deleteConfirm', { n: skill.installations.length }) }}
+                {{ t('detail.deleteConfirm', { n: writableInstallations.length }) }}
               </span>
               <Button variant="destructive" size="sm" :disabled="busy" @click="runUninstall">
                 {{ t('detail.confirmDelete') }}
@@ -677,6 +742,6 @@ async function runUninstall(): Promise<void> {
           </div>
         </section>
       </div>
-    </div>
+    </ScrollArea>
   </div>
 </template>

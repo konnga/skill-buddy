@@ -83,7 +83,7 @@ const stats = computed(() => [
       </Card>
     </div>
 
-    <!-- official bundles -->
+    <!-- skill packages -->
     <OfficialBundles @use="emit('openBundle', $event)" @more="emit('openBundles')" />
 
     <!-- marketplace discovery -->

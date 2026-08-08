@@ -33,7 +33,15 @@ export abstract class SkillDirAdapter implements AgentAdapter {
       } catch {
         modifiedAt = undefined
       }
-      skills.push({ agent: this.agent, scope, path: skillPath, modifiedAt, skill })
+      skills.push({
+        agent: this.agent,
+        scope,
+        path: skillPath,
+        origin: scope,
+        readOnly: false,
+        modifiedAt,
+        skill,
+      })
     }
     return skills
   }

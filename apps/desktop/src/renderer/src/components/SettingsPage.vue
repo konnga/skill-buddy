@@ -18,6 +18,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Select } from '@/components/ui/select'
+import { ScrollArea } from '@/components/ui/scroll-area'
 import CopyButton from '@/components/CopyButton.vue'
 import PlatformIcon from '@/components/PlatformIcon.vue'
 import { useSettings, syncCustomPlatforms } from '@/composables/useSettings'
@@ -155,8 +156,9 @@ async function removeCustomPlatform(id: string): Promise<void> {
         </div>
       </div>
 
-      <nav class="flex flex-1 flex-col gap-0.5 overflow-y-auto px-3 pb-4">
-        <template v-for="group in groups" :key="group.labelKey">
+      <ScrollArea class="flex-1">
+        <nav class="flex flex-col gap-0.5 px-3 pb-4">
+          <template v-for="group in groups" :key="group.labelKey">
           <p
             class="mb-1 mt-4 px-2 text-xs font-medium uppercase tracking-wide text-muted-foreground"
           >
@@ -174,13 +176,15 @@ async function removeCustomPlatform(id: string): Promise<void> {
             <component :is="item.icon" class="size-4 text-foreground/70" />
             {{ t(item.labelKey) }}
           </button>
-        </template>
-      </nav>
+          </template>
+        </nav>
+      </ScrollArea>
     </aside>
 
     <!-- content -->
-    <main class="content-surface min-w-0 flex-1 overflow-y-auto">
-      <div class="mx-auto max-w-3xl px-10 py-10">
+    <ScrollArea class="content-surface min-w-0 flex-1">
+      <main>
+        <div class="mx-auto max-w-3xl px-10 py-10">
         <h1 class="mb-8 text-2xl font-semibold tracking-tight">{{ activeTitle }}</h1>
 
         <!-- general -->
@@ -372,7 +376,8 @@ async function removeCustomPlatform(id: string): Promise<void> {
             </div>
           </div>
         </section>
-      </div>
-    </main>
+        </div>
+      </main>
+    </ScrollArea>
   </div>
 </template>

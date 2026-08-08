@@ -19,6 +19,7 @@ import type { FoundSkill } from '@skillbuddy/core'
 import type { InstallTarget } from '../../../shared/ipc.js'
 import MarkdownView from '@/components/MarkdownView.vue'
 import { Button } from '@/components/ui/button'
+import { ScrollArea } from '@/components/ui/scroll-area'
 import { Skeleton } from '@/components/ui/skeleton'
 import PlatformTargetPicker from '@/components/PlatformTargetPicker.vue'
 import { agentLabel } from '@/lib/agents'
@@ -327,7 +328,7 @@ async function install(): Promise<void> {
       </Button>
     </header>
 
-    <div class="flex-1 overflow-y-auto">
+    <ScrollArea class="flex-1">
       <div class="mx-auto flex max-w-3xl flex-col gap-6 px-6 py-8">
         <!-- hero -->
         <div class="flex items-start gap-5">
@@ -598,10 +599,14 @@ async function install(): Promise<void> {
               preview-id="market-file"
               class="select-text"
             />
-            <pre
+            <ScrollArea
               v-else
-              class="select-text max-h-[32rem] overflow-auto rounded-lg border bg-muted/30 px-4 py-3 text-xs leading-relaxed"
-            >{{ fileContent }}</pre>
+              orientation="both"
+              class="max-h-[32rem] rounded-lg border bg-muted/30"
+              viewport-class="max-h-[32rem]"
+            >
+              <pre class="select-text px-4 py-3 text-xs leading-relaxed">{{ fileContent }}</pre>
+            </ScrollArea>
           </div>
 
           <!-- file tree -->
@@ -639,6 +644,6 @@ async function install(): Promise<void> {
           </div>
         </section>
       </div>
-    </div>
+    </ScrollArea>
   </div>
 </template>

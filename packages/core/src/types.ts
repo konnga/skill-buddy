@@ -10,6 +10,9 @@ export type BuiltinAgentId =
   | 'trae-cn'
   | 'codebuddy'
   | 'workbuddy'
+  | 'doubao'
+  | 'kimi'
+  | 'zcode'
 
 /**
  * An agent platform id: a built-in id (with autocomplete) or any string
@@ -35,6 +38,9 @@ export interface Skill {
 /** Where a skill can be installed for a given agent. */
 export type InstallScope = 'user' | 'project'
 
+/** How a discovered skill is managed on disk. */
+export type SkillOrigin = InstallScope | 'legacy' | 'admin' | 'system' | 'plugin'
+
 /** A skill discovered on disk in some agent's native location. */
 export interface InstalledSkill {
   skill: Skill
@@ -44,6 +50,10 @@ export interface InstalledSkill {
   path: string
   /** Project root this installation belongs to (project scope only). */
   projectRoot?: string
+  /** Physical source category, used to distinguish managed and read-only skills. */
+  origin?: SkillOrigin
+  /** System, administrator and plugin-owned skills cannot be edited or removed here. */
+  readOnly?: boolean
   /** SKILL.md mtime, ms since epoch. */
   modifiedAt?: number
 }

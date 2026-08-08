@@ -182,13 +182,13 @@ watch(source, () => void search())
 <template>
   <section>
     <div class="mb-3 flex items-center gap-2">
-      <h3 class="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+      <h3 class="text-base font-semibold">
         {{ t('market.title') }}
       </h3>
       <div class="flex-1" />
       <button
         :class="[
-          'rounded-md px-2.5 py-1 text-xs transition-colors',
+          'rounded-md px-3 py-1.5 text-sm transition-colors',
           source === 'skills-sh' ? 'nav-active' : 'text-muted-foreground hover:bg-accent/60',
         ]"
         @click="source = 'skills-sh'"
@@ -197,7 +197,7 @@ watch(source, () => void search())
       </button>
       <button
         :class="[
-          'rounded-md px-2.5 py-1 text-xs transition-colors',
+          'rounded-md px-3 py-1.5 text-sm transition-colors',
           source === 'skillhub' ? 'nav-active' : 'text-muted-foreground hover:bg-accent/60',
         ]"
         @click="source = 'skillhub'"
@@ -271,7 +271,7 @@ watch(source, () => void search())
               >
                 {{ marketIconGlyph(item.name) }}
               </span>
-              <span class="min-w-0 flex-1 truncate text-sm font-semibold" :title="item.name">
+              <span class="min-w-0 flex-1 truncate text-[15px] font-semibold" :title="item.name">
                 {{ item.name }}
               </span>
               <KeyRound

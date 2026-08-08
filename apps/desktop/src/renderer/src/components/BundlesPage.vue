@@ -4,6 +4,7 @@ import { useI18n } from 'vue-i18n'
 import SidebarToggle from '@/components/SidebarToggle.vue'
 import { ArrowLeft } from '@lucide/vue'
 import { Button } from '@/components/ui/button'
+import { ScrollArea } from '@/components/ui/scroll-area'
 import BundleCard from '@/components/BundleCard.vue'
 import { useBundles } from '@/composables/useBundles'
 import type { SkillBundle } from '@/lib/bundles'
@@ -28,14 +29,14 @@ onMounted(() => void ensureLoaded())
       <h1 class="text-base font-semibold tracking-tight">{{ t('bundles.title') }}</h1>
     </header>
 
-    <div class="flex-1 overflow-y-auto">
+    <ScrollArea class="flex-1">
       <div class="mx-auto flex max-w-5xl flex-col gap-6 px-6 py-6">
-        <ul class="grid grid-cols-2 gap-3 lg:grid-cols-3">
+        <ul class="grid grid-cols-1 gap-x-6 gap-y-7 md:grid-cols-2 xl:grid-cols-3">
           <li v-for="b in bundles" :key="b.id">
             <BundleCard :bundle="b" @use="emit('open', b)" />
           </li>
         </ul>
       </div>
-    </div>
+    </ScrollArea>
   </div>
 </template>

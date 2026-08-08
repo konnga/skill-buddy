@@ -21,6 +21,11 @@ const sortBy = ref<'name' | 'recent'>('name')
 const lastModified = (s: AggregatedSkill): number =>
   Math.max(0, ...s.installations.map((i) => i.modifiedAt ?? 0))
 
+/** Convert Vue reactive values into contextBridge-safe plain data. */
+function cloneForIpc<T>(value: T): T {
+  return JSON.parse(JSON.stringify(value)) as T
+}
+
 const filtered = computed(() => {
   const q = search.value.trim().toLowerCase()
   const list = skills.value.filter((s) => {
@@ -109,9 +114,16 @@ if (!watcherWired) {
 }
 
 /** Install/write a concrete skill payload to the given targets. */
-async function installSkill(skill: Skill, targets: InstallTarget[]): Promise<TargetResult[]> {
-  const results = await window.skillsManager.installSkill(skill, targets)
-  await refresh()
+async function installSkill(
+  skill: Skill,
+  targets: InstallTarget[],
+  options: { refresh?: boolean } = {},
+): Promise<TargetResult[]> {
+  const results = await window.skillsManager.installSkill(
+    cloneForIpc(skill),
+    cloneForIpc(targets),
+  )
+  if (options.refresh !== false) await refresh()
   return results
 }
 

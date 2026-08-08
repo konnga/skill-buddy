@@ -4,10 +4,11 @@ import type { AgentId } from './types.js'
  * Declarative definition of an agent platform's skills locations.
  * Paths starting with `~/` are resolved against the home directory;
  * `projectSkillsDir` is relative to a project root. This is the single
- * place a platform's on-disk convention lives — built-in platforms are
- * rows in BUILTIN_PLATFORMS, user-defined ("custom") platforms are the
- * same shape supplied at runtime. Sources and confidence levels for the
- * built-in rows are documented in docs/platform-conventions.md.
+ * place a platform's writable installation convention lives. Read-only
+ * system and plugin roots are resolved separately by the scanner. Built-in
+ * platforms are rows in BUILTIN_PLATFORMS; user-defined ("custom") platforms
+ * use the same shape at runtime. Sources and confidence levels are documented
+ * in docs/platform-conventions.md.
  */
 export interface PlatformDef {
   id: AgentId
@@ -98,5 +99,27 @@ export const BUILTIN_PLATFORMS: readonly PlatformDef[] = [
     userSkillsDir: '~/.workbuddy/skills',
     projectSkillsDir: null,
     detectPath: '~/.workbuddy',
+  },
+  {
+    id: 'doubao',
+    displayName: '豆包',
+    /** The desktop app creates this user-visible directory for imported skills. */
+    userSkillsDir: '~/Doubao/skills',
+    projectSkillsDir: null,
+    detectPath: '~/Doubao',
+  },
+  {
+    id: 'kimi',
+    displayName: 'Kimi Code',
+    userSkillsDir: '~/.kimi/skills',
+    projectSkillsDir: '.kimi/skills',
+    detectPath: '~/.kimi',
+  },
+  {
+    id: 'zcode',
+    displayName: 'Z Code',
+    userSkillsDir: '~/.zcode/skills',
+    projectSkillsDir: '.zcode/skills',
+    detectPath: '~/.zcode',
   },
 ]

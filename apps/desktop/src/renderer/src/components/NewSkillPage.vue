@@ -8,6 +8,7 @@ import type { InstallTarget } from '../../../shared/ipc.js'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Select } from '@/components/ui/select'
+import { ScrollArea } from '@/components/ui/scroll-area'
 import MarkdownEditor from '@/components/MarkdownEditor.vue'
 import PlatformIcon from '@/components/PlatformIcon.vue'
 import PlatformTargetPicker from '@/components/PlatformTargetPicker.vue'
@@ -147,7 +148,7 @@ async function create(): Promise<void> {
       </Button>
     </header>
 
-    <div class="flex-1 overflow-y-auto">
+    <ScrollArea class="flex-1">
       <div class="mx-auto flex max-w-3xl flex-col gap-5 px-6 py-6">
         <!-- AI draft: primary path — describe intent, local agent writes the skill -->
         <section
@@ -231,6 +232,6 @@ async function create(): Promise<void> {
 
         <p v-if="error" class="text-xs text-destructive">{{ error }}</p>
       </div>
-    </div>
+    </ScrollArea>
   </div>
 </template>

@@ -6,6 +6,7 @@ import type { AggregatedSkill } from '@skillbuddy/core'
 import DashboardPage from '@/components/DashboardPage.vue'
 import SidebarToggle from '@/components/SidebarToggle.vue'
 import { Button } from '@/components/ui/button'
+import { ScrollArea } from '@/components/ui/scroll-area'
 import { useSkills } from '@/composables/useSkills'
 import { useTeam } from '@/composables/useTeam'
 import type { SkillBundle } from '@/lib/bundles'
@@ -26,7 +27,10 @@ const { skills, detectedPlatforms, loading, refresh } = useSkills()
 const { updates, missingRequired } = useTeam()
 
 const todoCount = computed(() => {
-  const drift = skills.value.filter((skill) => skill.hasDrift).length
+  const drift = skills.value.filter(
+    (skill) =>
+      skill.hasDrift && skill.installations.some((installation) => !installation.readOnly),
+  ).length
   const singleEnd = skills.value.filter((skill: AggregatedSkill) => {
     const agents = new Set(skill.installations.map((installation) => installation.agent))
     return agents.size === 1 && detectedPlatforms.value.length > 1
@@ -85,12 +89,12 @@ const todoCount = computed(() => {
       </Button>
     </header>
 
-    <div class="flex-1 overflow-y-auto">
+    <ScrollArea class="flex-1">
       <DashboardPage
         @open-market="emit('openMarket', $event)"
         @open-bundles="emit('openBundles')"
         @open-bundle="emit('openBundle', $event)"
       />
-    </div>
+    </ScrollArea>
   </div>
 </template>

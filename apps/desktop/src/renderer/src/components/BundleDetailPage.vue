@@ -6,6 +6,7 @@ import { ArrowLeft, ChevronRight } from '@lucide/vue'
 import type { InstallTarget } from '../../../shared/ipc.js'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { ScrollArea } from '@/components/ui/scroll-area'
 import PlatformTargetPicker from '@/components/PlatformTargetPicker.vue'
 import { agentLabel } from '@/lib/agents'
 import {
@@ -24,7 +25,7 @@ const props = defineProps<{ bundle: SkillBundle; inset?: boolean }>()
 const emit = defineEmits<{ close: []; openSkill: [item: MarketItem] }>()
 
 const { t, locale } = useI18n()
-const { skills, detectedPlatforms, refresh } = useSkills()
+const { skills, detectedPlatforms, installSkill, refresh } = useSkills()
 const { groups } = useSettings()
 
 const selected = ref<Set<string>>(new Set(props.bundle.skills.map((s) => s.name)))
@@ -89,10 +90,9 @@ async function install(): Promise<void> {
               ),
           )
           if (need.length > 0) {
-            const results = await window.skillsManager.installSkill(
-              local.installations[0]!.skill,
-              need,
-            )
+            const results = await installSkill(local.installations[0]!.skill, need, {
+              refresh: false,
+            })
             failures.push(
               ...results
                 .filter((r) => !r.ok)
@@ -125,7 +125,7 @@ async function install(): Promise<void> {
           failures.push(`${skillRef.name}: ${t('market.notFound')}`)
           continue
         }
-        const results = await window.skillsManager.installSkill(found.skill, targets)
+        const results = await installSkill(found.skill, targets, { refresh: false })
         failures.push(
           ...results
             .filter((r) => !r.ok)
@@ -192,7 +192,7 @@ async function install(): Promise<void> {
       </Button>
     </header>
 
-    <div class="flex-1 overflow-y-auto">
+    <ScrollArea class="flex-1">
       <div class="mx-auto flex max-w-3xl flex-col gap-6 px-6 py-6">
         <!-- hero -->
         <div
@@ -261,6 +261,6 @@ async function install(): Promise<void> {
           <p v-if="error" class="break-all text-xs text-destructive">{{ error }}</p>
         </section>
       </div>
-    </div>
+    </ScrollArea>
   </div>
 </template>

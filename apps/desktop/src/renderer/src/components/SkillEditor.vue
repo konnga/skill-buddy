@@ -17,18 +17,19 @@ const emit = defineEmits<{ done: [] ; cancel: [] }>()
 const { installSkill } = useSkills()
 const { t } = useI18n()
 
-const source = props.skill.installations[0]!
+const writableInstallations = props.skill.installations.filter((installation) => !installation.readOnly)
+const source = writableInstallations[0]!
 const description = ref(props.skill.description)
 const version = ref(props.skill.version ?? '')
 const tagsInput = ref(props.skill.tags.join(', '))
 const content = ref(source.skill.content)
 
 /** Which installations to write to — default: all (keeps ends in sync). */
-const targetPaths = ref<Set<string>>(new Set(props.skill.installations.map((i) => i.path)))
+const targetPaths = ref<Set<string>>(new Set(writableInstallations.map((i) => i.path)))
 const busy = ref(false)
 const error = ref<string | null>(null)
 
-const multiInstalled = computed(() => props.skill.installations.length > 1)
+const multiInstalled = computed(() => writableInstallations.length > 1)
 
 function toggle(path: string): void {
   const next = new Set(targetPaths.value)
@@ -56,7 +57,7 @@ async function save(): Promise<void> {
       content: content.value,
       resources: source.skill.resources,
     }
-    const targets: InstallTarget[] = props.skill.installations
+    const targets: InstallTarget[] = writableInstallations
       .filter((i) => targetPaths.value.has(i.path))
       .map((i) => ({ agent: i.agent, scope: i.scope, projectRoot: i.projectRoot }))
     const results = await installSkill(payload, targets)
@@ -97,7 +98,7 @@ async function save(): Promise<void> {
     <div v-if="multiInstalled" class="flex flex-col gap-2 rounded-md border px-3 py-2.5">
       <span class="text-xs text-muted-foreground">{{ t('editor.saveTo') }}</span>
       <label
-        v-for="inst in skill.installations"
+        v-for="inst in writableInstallations"
         :key="inst.path"
         class="flex cursor-pointer items-center gap-2 text-sm"
       >

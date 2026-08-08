@@ -1,7 +1,13 @@
 export * from './types.js'
 export * from './platforms.js'
 export * from './adapters/index.js'
-export { scanInstalledSkills, listPlatformStatus, type PlatformStatus } from './scanner.js'
+export {
+  scanInstalledSkills,
+  listPlatformStatus,
+  listSkillRoots,
+  type PlatformStatus,
+  type SkillRoot,
+} from './scanner.js'
 export { aggregateSkills, type AggregatedSkill, type Installation } from './aggregate.js'
 export { readSkillDir, findSkills, type FoundSkill } from './skill-io.js'
 export {

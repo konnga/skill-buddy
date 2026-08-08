@@ -2,6 +2,7 @@
 import { useI18n } from 'vue-i18n'
 import SidebarToggle from '@/components/SidebarToggle.vue'
 import TeamPage from '@/components/TeamPage.vue'
+import { ScrollArea } from '@/components/ui/scroll-area'
 
 const props = defineProps<{ inset?: boolean }>()
 const emit = defineEmits<{ openSettings: [] }>()
@@ -19,8 +20,8 @@ const { t } = useI18n()
       <SidebarToggle />
       <h1 class="text-sm font-semibold tracking-tight">{{ t('team.title') }}</h1>
     </header>
-    <div class="flex-1 overflow-y-auto">
+    <ScrollArea class="flex-1">
       <TeamPage @open-settings="emit('openSettings')" />
-    </div>
+    </ScrollArea>
   </div>
 </template>

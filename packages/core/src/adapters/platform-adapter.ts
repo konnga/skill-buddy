@@ -38,6 +38,9 @@ export class PlatformAdapter extends SkillDirAdapter {
   }
 
   async detect(): Promise<boolean> {
+    if (this.agent === 'codex' && process.env.CODEX_HOME) {
+      return exists(process.env.CODEX_HOME)
+    }
     return exists(expand(this.def.detectPath, this.homeDir))
   }
 }

@@ -17,8 +17,22 @@ const def = computed(() => platformIcon(props.id))
 </script>
 
 <template>
+  <span
+    v-if="def.maskSrc"
+    :style="{
+      width: `${size}px`,
+      height: `${size}px`,
+      backgroundColor: 'currentColor',
+      maskImage: `url(${def.maskSrc})`,
+      maskPosition: 'center',
+      maskRepeat: 'no-repeat',
+      maskSize: 'contain',
+    }"
+    :class="cn('inline-block shrink-0', props.class)"
+    aria-hidden="true"
+  />
   <img
-    v-if="def.src"
+    v-else-if="def.src"
     :src="def.src"
     :width="size"
     :height="size"
@@ -26,17 +40,6 @@ const def = computed(() => platformIcon(props.id))
     alt=""
     aria-hidden="true"
   />
-  <svg
-    v-else-if="def.path"
-    :width="size"
-    :height="size"
-    viewBox="0 0 24 24"
-    :fill="def.color ?? 'currentColor'"
-    :class="cn('shrink-0', props.class)"
-    aria-hidden="true"
-  >
-    <path :d="def.path" />
-  </svg>
   <span
     v-else
     :style="{

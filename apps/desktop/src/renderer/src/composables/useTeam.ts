@@ -54,7 +54,11 @@ export async function checkTeamStatus(): Promise<void> {
 
     updates.value = remote.flatMap((r) => {
       const local = localByName.get(r.name)
-      if (!local?.version || !versionLt(local.version, r.version)) return []
+      if (
+        !local?.version ||
+        !local.installations.some((installation) => !installation.readOnly) ||
+        !versionLt(local.version, r.version)
+      ) return []
       return [{ org: r.org, name: r.name, localVersion: local.version, remoteVersion: r.version }]
     })
 
@@ -78,11 +82,13 @@ export async function upgradeSkill(item: UpdateItem): Promise<TargetResult[]> {
   const { registryUrl, registryToken } = useSettings()
   const { skills, refresh } = useSkills()
   const local = skills.value.find((s) => s.name === item.name)
-  const targets: InstallTarget[] = (local?.installations ?? []).map((i) => ({
-    agent: i.agent,
-    scope: i.scope,
-    projectRoot: i.projectRoot,
-  }))
+  const targets: InstallTarget[] = (local?.installations ?? [])
+    .filter((installation) => !installation.readOnly)
+    .map((installation) => ({
+      agent: installation.agent,
+      scope: installation.scope,
+      projectRoot: installation.projectRoot,
+    }))
   const results = await window.skillsManager.registryInstall(
     { url: registryUrl.value, token: registryToken.value },
     item.org,

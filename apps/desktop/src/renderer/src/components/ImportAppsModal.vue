@@ -13,6 +13,7 @@ import {
 import { ArrowLeft, X } from '@lucide/vue'
 import type { InstallTarget } from '../../../shared/ipc.js'
 import { Button } from '@/components/ui/button'
+import { ScrollArea } from '@/components/ui/scroll-area'
 import PlatformIcon from '@/components/PlatformIcon.vue'
 import PlatformTargetPicker from '@/components/PlatformTargetPicker.vue'
 import { useSettings } from '@/composables/useSettings'
@@ -142,7 +143,8 @@ async function runImport(): Promise<void> {
           <Button variant="ghost" size="icon" @click="emit('close')"><X /></Button>
         </header>
 
-        <div class="flex-1 overflow-y-auto px-7 py-5">
+        <ScrollArea class="flex-1">
+          <div class="px-7 py-5">
           <!-- step 1: sources -->
           <template v-if="step === 1">
             <p class="mb-3 text-sm text-muted-foreground">{{ t('importApps.found') }}</p>
@@ -206,7 +208,8 @@ async function runImport(): Promise<void> {
               {{ message }}
             </p>
           </template>
-        </div>
+          </div>
+        </ScrollArea>
 
         <footer class="flex items-center gap-3 px-7 pb-6">
           <button
