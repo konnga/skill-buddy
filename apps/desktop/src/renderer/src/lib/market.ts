@@ -1,4 +1,4 @@
-export type MarketSourceId = 'skills-sh' | 'skillhub'
+export type MarketSourceId = 'skills-sh' | 'skillhub' | 'github'
 
 export interface MarketItem {
   key: string
@@ -15,12 +15,13 @@ export interface MarketItem {
   requiresApiKey?: boolean
   /** sub-category names (SkillHub, localized) */
   tags?: string[]
-  /** repo (skills.sh) or canonical name (skillhub) — shown under the title */
+  /** repository or canonical name — shown under the title */
   sourceLabel: string
   /** external page to open */
   link: string
-  /** skills.sh: repo + skill id */
+  /** GitHub-backed sources: repository */
   repo?: string
+  /** skills.sh: skill id */
   skillId?: string
   /** skillhub: slug + namespace */
   slug?: string

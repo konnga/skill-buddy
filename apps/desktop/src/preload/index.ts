@@ -39,6 +39,22 @@ const api = {
     q: string,
   ): Promise<{ id: string; skillId: string; name: string; installs: number; source: string }[]> =>
     ipcRenderer.invoke('market:search', q),
+  githubSearch: (
+    q: string,
+    page = 1,
+  ): Promise<{
+    items: {
+      fullName: string
+      name: string
+      description: string
+      stars: number
+      updatedAt: string | null
+      defaultBranch: string
+      avatarUrl: string | null
+      htmlUrl: string
+    }[]
+    total: number
+  }> => ipcRenderer.invoke('market:github-search', q, page),
   openExternal: (url: string): Promise<void> => ipcRenderer.invoke('shell:open-external', url),
   setTheme: (mode: 'system' | 'light' | 'dark'): Promise<void> =>
     ipcRenderer.invoke('theme:set', mode),

@@ -54,18 +54,19 @@ const overviewContent = computed(() => matched.value?.skill.content ?? null)
 
 async function fetchSource(): Promise<{ root: string; items: FoundSkill[] }> {
   const item = props.item
-  return item.kind === 'skills-sh'
+  return item.kind === 'skills-sh' || item.kind === 'github'
     ? await window.skillsManager.importFromGit(`https://github.com/${item.repo}`)
     : await window.skillsManager.skillhubFetch(item.slug!, item.namespace ?? '')
 }
 
 function matchSkill(items: FoundSkill[]): FoundSkill | undefined {
   const item = props.item
-  const wanted = item.kind === 'skills-sh' ? item.skillId! : item.slug!
+  const wanted =
+    item.kind === 'skills-sh' ? item.skillId! : item.kind === 'skillhub' ? item.slug! : item.name
   return (
     items.find((f) => f.skill.name === wanted) ??
     items.find((f) => f.dir.endsWith(`/${wanted}`)) ??
-    (item.kind === 'skillhub' ? items[0] : undefined)
+    (item.kind !== 'skills-sh' ? items[0] : undefined)
   )
 }
 
@@ -313,12 +314,12 @@ async function install(): Promise<void> {
 <template>
   <div class="flex h-full flex-col">
     <!-- header -->
-    <header :class="['app-drag relative flex items-center gap-3 border-b px-6 py-3', props.inset && 'pl-[118px]']">
+    <header :class="['app-drag relative flex h-14 shrink-0 items-center gap-3 border-b px-6', props.inset && 'pl-[118px]']">
       <SidebarToggle />
       <Button variant="ghost" size="icon" class="app-no-drag" @click="emit('close')">
-        <ArrowLeft />
+        <ArrowLeft class="!size-5 translate-y-px" />
       </Button>
-      <h1 class="select-text min-w-0 truncate text-base font-semibold tracking-tight">
+      <h1 class="select-text min-w-0 truncate text-base font-semibold leading-5 tracking-tight">
         {{ item.name }}
       </h1>
       <div class="flex-1" />
@@ -364,7 +365,13 @@ async function install(): Promise<void> {
               :title="t('market.viewSource')"
               @click="openLink"
             >
-              {{ item.sourceLabel.startsWith('@') ? item.sourceLabel : `@${item.sourceLabel}` }}
+              {{
+                item.kind === 'skillhub'
+                  ? item.sourceLabel.startsWith('@')
+                    ? item.sourceLabel
+                    : `@${item.sourceLabel}`
+                  : item.sourceLabel
+              }}
             </button>
             <div class="flex items-center gap-4 text-sm tabular-nums text-muted-foreground">
               <span

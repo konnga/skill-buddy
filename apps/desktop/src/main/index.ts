@@ -401,6 +401,56 @@ function registerIpc(): void {
     return (data.skills ?? []).sort((a, b) => b.installs - a.installs)
   })
 
+  /* ---------- marketplace (GitHub repositories) ---------- */
+
+  ipcMain.handle('market:github-search', async (_event, q: string, page = 1) => {
+    const term = q.trim()
+    if (term.length < 2) return { items: [], total: 0 }
+
+    const url = new URL('https://api.github.com/search/repositories')
+    url.searchParams.set('q', `${term} skill in:name,description,readme`)
+    url.searchParams.set('page', String(Math.max(1, page)))
+    url.searchParams.set('per_page', '24')
+    const res = await fetch(url, {
+      headers: {
+        accept: 'application/vnd.github+json',
+        'user-agent': 'SkillBuddy',
+        'x-github-api-version': '2022-11-28',
+      },
+      signal: AbortSignal.timeout(10_000),
+    })
+    if (!res.ok) {
+      if (res.status === 403) throw new Error('GitHub search rate limit exceeded')
+      throw new Error(`GitHub search ${res.status}`)
+    }
+    const data = (await res.json()) as {
+      total_count?: number
+      items?: {
+        full_name: string
+        name: string
+        description: string | null
+        stargazers_count: number
+        updated_at: string | null
+        default_branch: string
+        owner?: { avatar_url?: string }
+        html_url: string
+      }[]
+    }
+    return {
+      items: (data.items ?? []).map((repo) => ({
+        fullName: repo.full_name,
+        name: repo.name,
+        description: repo.description ?? '',
+        stars: repo.stargazers_count,
+        updatedAt: repo.updated_at,
+        defaultBranch: repo.default_branch,
+        avatarUrl: repo.owner?.avatar_url ?? null,
+        htmlUrl: repo.html_url,
+      })),
+      total: Math.min(data.total_count ?? 0, 1000),
+    }
+  })
+
   /* GitHub stars for skills.sh sources, cached per session */
   const starsCache = new Map<string, number>()
 

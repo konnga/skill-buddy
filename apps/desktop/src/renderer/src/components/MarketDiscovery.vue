@@ -39,6 +39,9 @@ let skshAll: MarketItem[] = []
 /** skillhub: server-side pages */
 let hubPage = 1
 let hubTotal = 0
+/** GitHub: server-side repository pages */
+let githubPage = 1
+let githubTotal = 0
 const hasMore = ref(false)
 
 function mapSkillsSh(
@@ -84,6 +87,23 @@ function mapSkillhub(
   }))
 }
 
+function mapGithub(
+  list: Awaited<ReturnType<typeof window.skillsManager.githubSearch>>['items'],
+): MarketItem[] {
+  return list.map((repo) => ({
+    key: `github:${repo.fullName}`,
+    kind: 'github' as const,
+    name: repo.name,
+    description: repo.description,
+    installs: 0,
+    stars: repo.stars,
+    icon: repo.avatarUrl,
+    sourceLabel: repo.fullName,
+    link: repo.htmlUrl,
+    repo: repo.fullName,
+  }))
+}
+
 /** resolve GitHub stars for a batch of skills.sh cards (cached in main) */
 function fillStars(batch: MarketItem[]): void {
   const repos = [...new Set(batch.map((b) => b.repo).filter(Boolean))] as string[]
@@ -110,7 +130,7 @@ async function search(): Promise<void> {
       items.value = first
       hasMore.value = skshAll.length > first.length
       fillStars(first)
-    } else {
+    } else if (source.value === 'skillhub') {
       hubPage = 1
       const { items: list, total } = await window.skillsManager.skillhubSearch(
         query.value.trim(),
@@ -119,6 +139,14 @@ async function search(): Promise<void> {
       items.value = mapSkillhub(list)
       hubTotal = total
       hasMore.value = items.value.length < hubTotal
+    } else {
+      const term = query.value.trim()
+      if (!term) return
+      githubPage = 1
+      const { items: list, total } = await window.skillsManager.githubSearch(term, githubPage)
+      items.value = mapGithub(list)
+      githubTotal = total
+      hasMore.value = items.value.length < githubTotal
     }
   } catch (e) {
     error.value = e instanceof Error ? e.message : String(e)
@@ -136,7 +164,7 @@ async function loadMore(): Promise<void> {
       items.value = [...items.value, ...next]
       hasMore.value = skshAll.length > items.value.length
       fillStars(next)
-    } else {
+    } else if (source.value === 'skillhub') {
       hubPage += 1
       const { items: list, total } = await window.skillsManager.skillhubSearch(
         query.value.trim(),
@@ -146,6 +174,13 @@ async function loadMore(): Promise<void> {
       const known = new Set(items.value.map((i) => i.key))
       items.value = [...items.value, ...mapSkillhub(list).filter((i) => !known.has(i.key))]
       hasMore.value = list.length > 0 && items.value.length < hubTotal
+    } else {
+      githubPage += 1
+      const { items: list, total } = await window.skillsManager.githubSearch(query.value.trim(), githubPage)
+      githubTotal = total
+      const known = new Set(items.value.map((i) => i.key))
+      items.value = [...items.value, ...mapGithub(list).filter((i) => !known.has(i.key))]
+      hasMore.value = list.length > 0 && items.value.length < githubTotal
     }
   } catch (e) {
     error.value = e instanceof Error ? e.message : String(e)
@@ -188,7 +223,7 @@ watch(source, () => void search())
       <div class="flex-1" />
       <button
         :class="[
-          'rounded-md px-3 py-1.5 text-sm transition-colors',
+          'cursor-pointer rounded-md px-3 py-1.5 text-sm transition-colors',
           source === 'skills-sh' ? 'nav-active' : 'text-muted-foreground hover:bg-accent/60',
         ]"
         @click="source = 'skills-sh'"
@@ -197,12 +232,21 @@ watch(source, () => void search())
       </button>
       <button
         :class="[
-          'rounded-md px-3 py-1.5 text-sm transition-colors',
+          'cursor-pointer rounded-md px-3 py-1.5 text-sm transition-colors',
           source === 'skillhub' ? 'nav-active' : 'text-muted-foreground hover:bg-accent/60',
         ]"
         @click="source = 'skillhub'"
       >
         {{ t('market.sourceSkillhub') }}
+      </button>
+      <button
+        :class="[
+          'cursor-pointer rounded-md px-3 py-1.5 text-sm transition-colors',
+          source === 'github' ? 'nav-active' : 'text-muted-foreground hover:bg-accent/60',
+        ]"
+        @click="source = 'github'"
+      >
+        {{ t('market.sourceGithub') }}
       </button>
     </div>
 
@@ -213,7 +257,11 @@ watch(source, () => void search())
       <Input
         v-model="query"
         :placeholder="
-          source === 'skills-sh' ? t('market.searchPh') : t('market.searchSkillhubPh')
+          source === 'skills-sh'
+            ? t('market.searchPh')
+            : source === 'skillhub'
+              ? t('market.searchSkillhubPh')
+              : t('market.searchGithubPh')
         "
         class="pl-8"
         @keydown.enter="search()"
