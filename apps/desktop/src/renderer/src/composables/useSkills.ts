@@ -26,35 +26,66 @@ function cloneForIpc<T>(value: T): T {
   return JSON.parse(JSON.stringify(value)) as T
 }
 
+/** Return a relevance score when every search token matches at least one field. */
+function searchScore(skill: AggregatedSkill, query: string, tokens: string[]): number | null {
+  const name = skill.name.toLowerCase()
+  const description = skill.description.toLowerCase()
+  const tags = skill.tags.map((tag) => tag.toLowerCase())
+  const fields = [name, description, ...tags]
+
+  if (!tokens.every((token) => fields.some((field) => field.includes(token)))) return null
+
+  let score = 0
+  if (name === query) score += 1000
+  else if (name.startsWith(query)) score += 800
+  else if (name.includes(query)) score += 600
+
+  for (const token of tokens) {
+    if (name === token) score += 300
+    else if (name.startsWith(token)) score += 120
+    else if (name.includes(token)) score += 90
+
+    if (tags.some((tag) => tag === token)) score += 70
+    else if (tags.some((tag) => tag.includes(token))) score += 50
+    if (description.includes(token)) score += 20
+  }
+  return score
+}
+
 const filtered = computed(() => {
   const q = search.value.trim().toLowerCase()
-  const list = skills.value.filter((s) => {
+  const tokens = q ? q.split(/\s+/) : []
+  const matches = skills.value.flatMap((s) => {
     if (platformFilter.value && !s.installations.some((i) => i.agent === platformFilter.value))
-      return false
+      return []
     if (projectFilter.value === 'user' && !s.installations.some((i) => i.scope === 'user'))
-      return false
+      return []
     if (
       projectFilter.value &&
       projectFilter.value !== 'user' &&
       !s.installations.some((i) => i.projectRoot === projectFilter.value)
     )
-      return false
+      return []
     if (groupFilter.value) {
       const { groups } = useSettings()
       const group = groups.value.find((g) => g.name === groupFilter.value)
-      if (!group || !group.skills.includes(s.name)) return false
+      if (!group || !group.skills.includes(s.name)) return []
     }
-    if (driftOnly.value && !s.hasDrift) return false
-    if (!q) return true
-    return (
-      s.name.toLowerCase().includes(q) ||
-      s.description.toLowerCase().includes(q) ||
-      s.tags.some((t) => t.toLowerCase().includes(q))
-    )
+    if (driftOnly.value && !s.hasDrift) return []
+    const score = q ? searchScore(s, q, tokens) : 0
+    return score === null ? [] : [{ skill: s, score }]
   })
-  return sortBy.value === 'recent'
-    ? [...list].sort((a, b) => lastModified(b) - lastModified(a))
-    : list
+
+  return matches
+    .sort((a, b) => {
+      if (q && b.score !== a.score) return b.score - a.score
+      if (sortBy.value === 'recent') {
+        const recentDiff = lastModified(b.skill) - lastModified(a.skill)
+        if (recentDiff !== 0) return recentDiff
+      }
+      return a.skill.name.localeCompare(b.skill.name)
+    })
+    .map(({ skill }) => skill)
 })
 
 const detectedPlatforms = computed(() => platforms.value.filter((p) => p.detected))

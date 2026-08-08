@@ -26,7 +26,7 @@ const readOnly = computed(() => props.skill.installations.every((i) => i.readOnl
     <CardHeader class="pb-3">
       <div class="flex items-start justify-between gap-2">
         <span class="flex min-w-0 items-center gap-1.5">
-          <CardTitle class="select-text truncate text-sm">{{ skill.name }}</CardTitle>
+          <CardTitle class="select-text truncate text-base">{{ skill.name }}</CardTitle>
           <CopyButton
             :text="skill.name"
             class="opacity-0 transition-opacity group-hover:opacity-100"
