@@ -9,7 +9,15 @@ export {
   type SkillRoot,
 } from './scanner.js'
 export { aggregateSkills, type AggregatedSkill, type Installation } from './aggregate.js'
-export { readSkillDir, findSkills, type FoundSkill } from './skill-io.js'
+export {
+  readSkillDir,
+  readSkillDirState,
+  findSkills,
+  type FoundSkill,
+  type SkillFileState,
+  SKILL_FILE_NAME,
+  DISABLED_SKILL_FILE_NAME,
+} from './skill-io.js'
 export {
   RegistryClient,
   RegistryError,

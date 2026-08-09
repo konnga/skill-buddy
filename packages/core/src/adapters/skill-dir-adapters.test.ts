@@ -110,6 +110,23 @@ describe.each(cases)('PlatformAdapter($id)', (def) => {
     expect(await adapter.list('user')).toHaveLength(0)
   })
 
+  it('toggles the enabled state without removing the skill directory', async () => {
+    await adapter.install(sample, 'user')
+    const skillPath = join(at(home, def.userSkillsDir!), 'commit-style')
+
+    await adapter.setEnabled('commit-style', false, 'user')
+    expect(await fs.stat(join(skillPath, 'SKILL.md.disabled'))).toBeTruthy()
+    expect(await adapter.list('user')).toEqual([
+      expect.objectContaining({ enabled: false, path: skillPath }),
+    ])
+
+    await adapter.setEnabled('commit-style', true, 'user')
+    expect(await fs.stat(join(skillPath, 'SKILL.md'))).toBeTruthy()
+    expect(await adapter.list('user')).toEqual([
+      expect.objectContaining({ enabled: true, path: skillPath }),
+    ])
+  })
+
   it('rejects non-kebab-case names', async () => {
     await expect(adapter.install({ ...sample, name: 'Bad Name' }, 'user')).rejects.toThrow(
       /kebab-case/,

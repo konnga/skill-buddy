@@ -2,7 +2,11 @@ import { promises as fs } from 'node:fs'
 import { dirname, join } from 'node:path'
 import matter from 'gray-matter'
 import type { AgentAdapter, AgentId, InstallScope, InstalledSkill, Skill } from '../types.js'
-import { readSkillDir } from '../skill-io.js'
+import {
+  DISABLED_SKILL_FILE_NAME,
+  readSkillDirState,
+  SKILL_FILE_NAME,
+} from '../skill-io.js'
 import { exists, isKebabCase } from './shared.js'
 
 /**
@@ -25,11 +29,13 @@ export abstract class SkillDirAdapter implements AgentAdapter {
     for (const entry of entries) {
       if (!entry.isDirectory()) continue
       const skillPath = join(dir, entry.name)
-      const skill = await readSkillDir(skillPath, entry.name)
-      if (!skill) continue
+      const state = await readSkillDirState(skillPath, entry.name)
+      if (!state) continue
       let modifiedAt: number | undefined
       try {
-        modifiedAt = (await fs.stat(join(skillPath, 'SKILL.md'))).mtimeMs
+        modifiedAt = (
+          await fs.stat(join(skillPath, state.enabled ? SKILL_FILE_NAME : DISABLED_SKILL_FILE_NAME))
+        ).mtimeMs
       } catch {
         modifiedAt = undefined
       }
@@ -39,8 +45,9 @@ export abstract class SkillDirAdapter implements AgentAdapter {
         path: skillPath,
         origin: scope,
         readOnly: false,
+        enabled: state.enabled,
         modifiedAt,
-        skill,
+        skill: state.skill,
       })
     }
     return skills
@@ -54,6 +61,7 @@ export abstract class SkillDirAdapter implements AgentAdapter {
     if (!dir) throw new Error(`${this.agent}: no skills directory for scope "${scope}"`)
     const skillPath = join(dir, skill.name)
     await fs.mkdir(skillPath, { recursive: true })
+    await fs.rm(join(skillPath, DISABLED_SKILL_FILE_NAME), { force: true })
     const frontmatter: Record<string, unknown> = {
       name: skill.name,
       description: skill.description,
@@ -61,7 +69,7 @@ export abstract class SkillDirAdapter implements AgentAdapter {
     if (skill.version) frontmatter.version = skill.version
     if (skill.tags?.length) frontmatter.tags = skill.tags
     const raw = matter.stringify(`\n${skill.content}\n`, frontmatter)
-    await fs.writeFile(join(skillPath, 'SKILL.md'), raw, 'utf8')
+    await fs.writeFile(join(skillPath, SKILL_FILE_NAME), raw, 'utf8')
     if (skill.resources) {
       for (const [rel, src] of Object.entries(skill.resources)) {
         const dest = join(skillPath, rel)
@@ -76,5 +84,34 @@ export abstract class SkillDirAdapter implements AgentAdapter {
     const dir = this.skillsDir(scope, projectRoot)
     if (!dir) return
     await fs.rm(join(dir, name), { recursive: true, force: true })
+  }
+
+  async setEnabled(
+    name: string,
+    enabled: boolean,
+    scope: InstallScope,
+    projectRoot?: string,
+  ): Promise<void> {
+    if (!isKebabCase(name)) throw new Error(`skill name must be kebab-case, got "${name}"`)
+    const dir = this.skillsDir(scope, projectRoot)
+    if (!dir) throw new Error(`${this.agent}: no skills directory for scope "${scope}"`)
+    const skillPath = join(dir, name)
+    const activePath = join(skillPath, SKILL_FILE_NAME)
+    const disabledPath = join(skillPath, DISABLED_SKILL_FILE_NAME)
+    if (enabled) {
+      if (await exists(activePath)) {
+        await fs.rm(disabledPath, { force: true })
+        return
+      }
+      if (!(await exists(disabledPath))) throw new Error(`skill not found: ${name}`)
+      await fs.rename(disabledPath, activePath)
+      return
+    }
+    if (await exists(disabledPath)) {
+      await fs.rm(activePath, { force: true })
+      return
+    }
+    if (!(await exists(activePath))) throw new Error(`skill not found: ${name}`)
+    await fs.rename(activePath, disabledPath)
   }
 }

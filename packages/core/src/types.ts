@@ -54,6 +54,8 @@ export interface InstalledSkill {
   origin?: SkillOrigin
   /** System, administrator and plugin-owned skills cannot be edited or removed here. */
   readOnly?: boolean
+  /** Whether the installation is discoverable by the target agent. */
+  enabled?: boolean
   /** SKILL.md mtime, ms since epoch. */
   modifiedAt?: number
 }
@@ -75,4 +77,11 @@ export interface AgentAdapter {
   install(skill: Skill, scope: InstallScope, projectRoot?: string): Promise<string>
   /** Remove an installed skill by name. */
   uninstall(name: string, scope: InstallScope, projectRoot?: string): Promise<void>
+  /** Enable or disable an installed skill without removing its files. */
+  setEnabled(
+    name: string,
+    enabled: boolean,
+    scope: InstallScope,
+    projectRoot?: string,
+  ): Promise<void>
 }

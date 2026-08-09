@@ -4,12 +4,20 @@ import matter from 'gray-matter'
 import type { Skill } from './types.js'
 import { exists } from './adapters/shared.js'
 
+export const SKILL_FILE_NAME = 'SKILL.md'
+export const DISABLED_SKILL_FILE_NAME = 'SKILL.md.disabled'
+
+export interface SkillFileState {
+  skill: Skill
+  enabled: boolean
+}
+
 /**
  * Read one SKILL.md-convention folder into a canonical Skill.
  * Returns null when the folder has no readable SKILL.md.
  */
 export async function readSkillDir(skillPath: string, fallbackName?: string): Promise<Skill | null> {
-  const skillFile = join(skillPath, 'SKILL.md')
+  const skillFile = join(skillPath, SKILL_FILE_NAME)
   if (!(await exists(skillFile))) return null
   let raw: string
   try {
@@ -29,6 +37,35 @@ export async function readSkillDir(skillPath: string, fallbackName?: string): Pr
   }
 }
 
+/** Read an active or SkillBuddy-disabled skill while preserving its state. */
+export async function readSkillDirState(
+  skillPath: string,
+  fallbackName?: string,
+): Promise<SkillFileState | null> {
+  const activePath = join(skillPath, SKILL_FILE_NAME)
+  const disabledPath = join(skillPath, DISABLED_SKILL_FILE_NAME)
+  if (await exists(activePath)) {
+    const skill = await readSkillDir(skillPath, fallbackName)
+    return skill ? { skill, enabled: true } : null
+  }
+  if (!(await exists(disabledPath))) return null
+  const raw = await fs.readFile(disabledPath, 'utf8').catch(() => null)
+  if (raw === null) return null
+  const { data, content } = matter(raw)
+  return {
+    enabled: false,
+    skill: {
+      name: typeof data.name === 'string' ? data.name : (fallbackName ?? ''),
+      description: typeof data.description === 'string' ? data.description : '',
+      version: typeof data.version === 'string' ? data.version : undefined,
+      tags: Array.isArray(data.tags) ? data.tags.filter((t) => typeof t === 'string') : undefined,
+      content: content.trim(),
+      resources: await collectResources(skillPath),
+      metadata: data,
+    },
+  }
+}
+
 /** Walk a skill directory and collect non-SKILL.md files as resources. */
 export async function collectResources(
   skillPath: string,
@@ -40,7 +77,7 @@ export async function collectResources(
       const rel = prefix ? `${prefix}/${entry.name}` : entry.name
       if (entry.isDirectory()) {
         await walk(join(dir, entry.name), rel)
-      } else if (rel !== 'SKILL.md') {
+      } else if (rel !== SKILL_FILE_NAME && rel !== DISABLED_SKILL_FILE_NAME) {
         resources[rel] = join(dir, entry.name)
       }
     }

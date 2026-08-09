@@ -3,7 +3,7 @@ import { homedir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { allAdapters } from './adapters/index.js'
 import { exists } from './adapters/shared.js'
-import { readSkillDir } from './skill-io.js'
+import { readSkillDirState } from './skill-io.js'
 import type {
   AgentId,
   InstallScope,
@@ -237,23 +237,26 @@ async function scanSkillRoot(root: SkillRoot): Promise<InstalledSkill[]> {
   const skills: InstalledSkill[] = []
   for (const name of await listDirectories(root.path)) {
     const skillPath = join(root.path, name)
-    const skill = await readSkillDir(skillPath, name)
-    if (!skill) continue
+    const state = await readSkillDirState(skillPath, name)
+    if (!state) continue
     let modifiedAt: number | undefined
     try {
-      modifiedAt = (await fs.stat(join(skillPath, 'SKILL.md'))).mtimeMs
+      modifiedAt = (
+        await fs.stat(join(skillPath, state.enabled ? 'SKILL.md' : 'SKILL.md.disabled'))
+      ).mtimeMs
     } catch {
       modifiedAt = undefined
     }
     skills.push({
-      skill,
       agent: root.agent,
       scope: root.scope,
       path: skillPath,
       projectRoot: root.projectRoot,
       origin: root.origin,
       readOnly: root.readOnly,
+      enabled: state.enabled,
       modifiedAt,
+      skill: state.skill,
     })
   }
   return skills
