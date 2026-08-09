@@ -114,7 +114,7 @@ async function runInstallRequired(item: (typeof missingRequired.value)[number]):
       <div class="mx-auto flex max-w-3xl flex-col gap-8 px-6 py-6">
         <!-- needs attention -->
         <section>
-          <h3 class="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+          <h3 class="mb-2 text-sm font-medium uppercase tracking-wide text-muted-foreground">
             {{ t('dashboard.todo') }}
           </h3>
           <p
@@ -224,7 +224,7 @@ async function runInstallRequired(item: (typeof missingRequired.value)[number]):
 
         <!-- recently modified -->
         <section v-if="recentSkills.length > 0">
-          <h3 class="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+          <h3 class="mb-2 text-sm font-medium uppercase tracking-wide text-muted-foreground">
             {{ t('dashboard.recent') }}
           </h3>
           <ul class="flex flex-col gap-1.5">
@@ -244,7 +244,7 @@ async function runInstallRequired(item: (typeof missingRequired.value)[number]):
                     />
                   </span>
                 </span>
-                <span class="shrink-0 text-xs text-muted-foreground">
+                <span class="shrink-0 text-sm text-muted-foreground">
                   {{ timeAgo(item.modifiedAt) }}
                 </span>
               </button>

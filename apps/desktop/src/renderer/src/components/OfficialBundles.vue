@@ -31,7 +31,7 @@ onMounted(() => void ensureLoaded())
         <ChevronRight class="size-3.5" />
       </button>
     </div>
-    <ul class="grid grid-cols-1 gap-x-6 gap-y-7 md:grid-cols-2 xl:grid-cols-3">
+    <ul class="grid grid-cols-1 gap-x-5 gap-y-6 py-3 md:grid-cols-2 xl:grid-cols-3">
       <li v-for="b in featured" :key="b.id">
         <BundleCard :bundle="b" @use="emit('use', b)" />
       </li>

@@ -268,7 +268,7 @@ watch(source, () => void search())
       />
     </div>
 
-    <p v-if="error" class="mb-2 break-all text-xs text-destructive">{{ error }}</p>
+    <p v-if="error" class="mb-2 break-all text-sm text-destructive">{{ error }}</p>
 
     <ul v-if="loading" class="grid grid-cols-2 gap-3 lg:grid-cols-3 xl:grid-cols-4">
       <li v-for="i in 8" :key="i">
@@ -337,10 +337,10 @@ watch(source, () => void search())
                 <Plus class="size-3.5" />
               </Button>
             </div>
-            <p class="mt-2 line-clamp-2 min-h-8 text-xs leading-relaxed text-muted-foreground">
+            <p class="mt-2 line-clamp-2 min-h-8 text-sm leading-relaxed text-muted-foreground">
               {{ item.description || item.sourceLabel }}
             </p>
-            <div class="mt-2 flex items-center gap-3 text-xs tabular-nums text-muted-foreground">
+            <div class="mt-2 flex items-center gap-3 text-sm tabular-nums text-muted-foreground">
               <span
                 class="flex items-center gap-1"
                 :title="t('market.installs', { n: item.installs })"

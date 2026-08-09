@@ -78,7 +78,7 @@ const stats = computed(() => [
           >
             {{ stat.value }}
           </span>
-          <span class="text-xs text-muted-foreground">{{ stat.desc }}</span>
+          <span class="text-sm text-muted-foreground">{{ stat.desc }}</span>
         </CardContent>
       </Card>
     </div>

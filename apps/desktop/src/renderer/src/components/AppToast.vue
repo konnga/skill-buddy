@@ -13,13 +13,13 @@ async function runAction(): Promise<void> {
 <template>
   <Transition
     enter-active-class="transition duration-200"
-    enter-from-class="translate-y-2 opacity-0"
+    enter-from-class="-translate-y-2 opacity-0"
     leave-active-class="transition duration-150"
-    leave-to-class="translate-y-2 opacity-0"
+    leave-to-class="-translate-y-2 opacity-0"
   >
     <div
       v-if="toast"
-      class="fixed bottom-6 left-1/2 z-[90] flex max-w-[calc(100vw-3rem)] -translate-x-1/2 items-center gap-3 rounded-lg border bg-background px-4 py-2.5 text-sm shadow-lg"
+      class="fixed left-1/2 top-5 z-[90] flex max-w-[calc(100vw-3rem)] -translate-x-1/2 items-center gap-3 rounded-lg border bg-background px-4 py-2.5 text-sm shadow-lg"
       role="status"
       aria-live="polite"
     >

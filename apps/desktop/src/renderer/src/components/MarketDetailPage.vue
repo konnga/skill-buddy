@@ -391,8 +391,11 @@ async function install(): Promise<void> {
         </div>
 
         <!-- description -->
-        <p class="select-text text-sm leading-relaxed text-foreground/85">
-          {{ item.description || t('card.noDescription') }}
+        <p
+          v-if="item.description.trim()"
+          class="select-text text-sm leading-relaxed text-foreground/85"
+        >
+          {{ item.description }}
         </p>
 
         <!-- meta chips -->
@@ -402,7 +405,7 @@ async function install(): Promise<void> {
         >
           <span
             v-if="item.requiresApiKey"
-            class="flex items-center gap-1 rounded-full border border-amber-500/40 bg-amber-500/10 px-2.5 py-0.5 text-xs text-amber-700 dark:text-amber-400"
+            class="flex items-center gap-1 rounded-full border border-amber-500/40 bg-amber-500/10 px-2.5 py-0.5 text-sm text-amber-700 dark:text-amber-400"
           >
             <KeyRound class="size-3" />
             {{ t('market.requiresApiKey') }}
@@ -410,19 +413,19 @@ async function install(): Promise<void> {
           <span
             v-for="tag in item.tags ?? []"
             :key="tag"
-            class="rounded-full border px-2.5 py-0.5 text-xs text-muted-foreground"
+            class="rounded-full border px-2.5 py-0.5 text-sm text-muted-foreground"
           >
             {{ tag }}
           </span>
           <span
             v-if="item.updatedAt"
-            class="rounded-full border px-2.5 py-0.5 text-xs text-muted-foreground"
+            class="rounded-full border px-2.5 py-0.5 text-sm text-muted-foreground"
           >
             {{ t('market.updated', { t: timeAgo(item.updatedAt) }) }}
           </span>
           <span
             v-if="item.version"
-            class="rounded-full border px-2.5 py-0.5 text-xs tabular-nums text-muted-foreground"
+            class="rounded-full border px-2.5 py-0.5 text-sm tabular-nums text-muted-foreground"
           >
             v{{ item.version }}
           </span>
@@ -430,11 +433,12 @@ async function install(): Promise<void> {
 
         <!-- install -->
         <section class="flex flex-col gap-2 rounded-xl border bg-muted/20 px-5 py-4">
-          <h3 class="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-            {{ t('team.installTo') }}
-          </h3>
-          <PlatformTargetPicker v-model:scope="scope" v-model:agents="agents" />
-          <p v-if="error" class="break-all text-xs text-destructive">{{ error }}</p>
+          <PlatformTargetPicker
+            v-model:scope="scope"
+            v-model:agents="agents"
+            :label="t('team.installTo')"
+          />
+          <p v-if="error" class="break-all text-sm text-destructive">{{ error }}</p>
           <Button
             class="mt-1 w-fit"
             :disabled="busy || agents.length === 0"
@@ -521,7 +525,7 @@ async function install(): Promise<void> {
                   {{ t('market.latest') }}
                 </span>
                 <div class="flex-1" />
-                <span v-if="v.createdAt" class="text-xs tabular-nums text-muted-foreground">
+                <span v-if="v.createdAt" class="text-sm tabular-nums text-muted-foreground">
                   {{ formatDate(v.createdAt) }}
                 </span>
               </div>
@@ -577,13 +581,13 @@ async function install(): Promise<void> {
                 {{ t('market.backToFiles') }}
               </Button>
               <span class="min-w-0 truncate text-sm font-medium">{{ openedFile.path }}</span>
-              <span class="shrink-0 text-xs tabular-nums text-muted-foreground">
+              <span class="shrink-0 text-sm tabular-nums text-muted-foreground">
                 {{ formatSize(openedFile.size) }}
               </span>
             </div>
             <p
               v-if="fileTruncated"
-              class="rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-1.5 text-xs text-amber-700 dark:text-amber-400"
+              class="rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-1.5 text-sm text-amber-700 dark:text-amber-400"
             >
               {{ t('market.fileTruncated') }}
             </p>
@@ -612,7 +616,7 @@ async function install(): Promise<void> {
               class="max-h-[32rem] rounded-lg border bg-muted/30"
               viewport-class="max-h-[32rem]"
             >
-              <pre class="select-text px-4 py-3 text-xs leading-relaxed">{{ fileContent }}</pre>
+              <pre class="select-text px-4 py-3 text-sm leading-relaxed">{{ fileContent }}</pre>
             </ScrollArea>
           </div>
 
@@ -641,7 +645,7 @@ async function install(): Promise<void> {
                   <span class="min-w-0 flex-1 truncate text-left">{{ row.node.name }}</span>
                   <span
                     v-if="!row.node.isDir"
-                    class="shrink-0 text-xs tabular-nums text-muted-foreground"
+                    class="shrink-0 text-sm tabular-nums text-muted-foreground"
                   >
                     {{ formatSize(row.node.size) }}
                   </span>

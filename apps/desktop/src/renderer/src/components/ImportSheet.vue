@@ -230,7 +230,7 @@ async function runImport(): Promise<void> {
               {{ t('import.none') }}
             </p>
             <div v-else class="flex flex-col gap-2">
-              <p class="text-xs text-muted-foreground">
+              <p class="text-sm text-muted-foreground">
                 {{ t('import.found', { n: items.length }) }}
               </p>
               <label
@@ -257,12 +257,12 @@ async function runImport(): Promise<void> {
                       {{ t('import.hasScripts') }}
                     </Badge>
                   </span>
-                  <span class="line-clamp-1 text-xs text-muted-foreground">
+                  <span class="line-clamp-1 text-sm text-muted-foreground">
                     {{ f.skill.description || t('card.noDescription') }}
                   </span>
                   <button
                     type="button"
-                    class="w-fit text-xs text-muted-foreground underline-offset-2 hover:underline"
+                    class="w-fit text-sm text-muted-foreground underline-offset-2 hover:underline"
                     @click.prevent.stop="previewDir = previewDir === f.dir ? null : f.dir"
                   >
                     {{ t('import.viewContent') }} {{ previewDir === f.dir ? '−' : '+' }}
@@ -279,7 +279,7 @@ async function runImport(): Promise<void> {
                     <li
                       v-for="rel in Object.keys(f.skill.resources)"
                       :key="rel"
-                      class="text-xs text-muted-foreground"
+                      class="text-sm text-muted-foreground"
                     >
                       <code>{{ rel }}</code>
                     </li>
@@ -287,12 +287,15 @@ async function runImport(): Promise<void> {
                 </span>
               </label>
 
-              <span class="mt-2 text-xs text-muted-foreground">{{ t('import.targets') }}</span>
-              <PlatformTargetPicker v-model:scope="scope" v-model:agents="agents" />
+              <PlatformTargetPicker
+                v-model:scope="scope"
+                v-model:agents="agents"
+                :label="t('import.targets')"
+              />
             </div>
           </template>
 
-          <p v-if="error" class="break-all text-xs text-destructive">{{ error }}</p>
+          <p v-if="error" class="break-all text-sm text-destructive">{{ error }}</p>
           </div>
         </ScrollArea>
 

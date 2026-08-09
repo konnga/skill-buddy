@@ -212,7 +212,7 @@ async function install(): Promise<void> {
             <p class="text-sm text-muted-foreground">
               {{ bundleText(bundle.description, locale) }}
             </p>
-            <span class="text-xs text-muted-foreground">
+            <span class="text-sm text-muted-foreground">
               {{ t('bundles.skillCount', { n: bundle.skills.length }) }}
             </span>
           </div>
@@ -243,7 +243,7 @@ async function install(): Promise<void> {
                   {{ t('bundles.installedBadge') }}
                 </Badge>
               </span>
-              <span class="line-clamp-1 text-xs text-muted-foreground">
+              <span class="line-clamp-1 text-sm text-muted-foreground">
                 {{ refSourceLabel(s) }}
               </span>
             </span>
@@ -253,12 +253,13 @@ async function install(): Promise<void> {
 
         <!-- install targets -->
         <section class="flex flex-col gap-2 rounded-xl border bg-muted/20 px-5 py-4">
-          <h3 class="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-            {{ t('team.installTo') }}
-          </h3>
-          <PlatformTargetPicker v-model:scope="scope" v-model:agents="agents" />
-          <p v-if="note" class="text-xs text-amber-600 dark:text-amber-400">{{ note }}</p>
-          <p v-if="error" class="break-all text-xs text-destructive">{{ error }}</p>
+          <PlatformTargetPicker
+            v-model:scope="scope"
+            v-model:agents="agents"
+            :label="t('team.installTo')"
+          />
+          <p v-if="note" class="text-sm text-amber-600 dark:text-amber-400">{{ note }}</p>
+          <p v-if="error" class="break-all text-sm text-destructive">{{ error }}</p>
         </section>
       </div>
     </ScrollArea>

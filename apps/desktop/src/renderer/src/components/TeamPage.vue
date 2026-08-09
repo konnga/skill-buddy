@@ -132,7 +132,7 @@ onMounted(search)
         />
       </div>
 
-      <p v-if="error" class="break-all text-xs text-destructive">
+      <p v-if="error" class="break-all text-sm text-destructive">
         {{ t('team.error', { msg: error }) }}
       </p>
 
@@ -163,7 +163,7 @@ onMounted(search)
                   {{ tag }}
                 </Badge>
               </span>
-              <span class="line-clamp-1 text-xs text-muted-foreground">
+              <span class="line-clamp-1 text-sm text-muted-foreground">
                 {{ item.description || t('card.noDescription') }}
               </span>
             </div>
@@ -185,11 +185,11 @@ onMounted(search)
             v-if="expanded === `${item.org}/${item.name}`"
             class="mt-3 flex flex-col gap-2 border-t pt-3"
           >
-            <div v-if="detailLoading" class="py-4 text-center text-xs text-muted-foreground">…</div>
+            <div v-if="detailLoading" class="py-4 text-center text-sm text-muted-foreground">…</div>
             <template v-else-if="detail">
               <div
                 v-if="hasScriptResources(detail.resources)"
-                class="flex items-center gap-2 rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-700 dark:text-amber-400"
+                class="flex items-center gap-2 rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm text-amber-700 dark:text-amber-400"
               >
                 {{ t('detail.scriptWarning') }}
               </div>
@@ -203,14 +203,17 @@ onMounted(search)
                 <li
                   v-for="rel in Object.keys(detail.resources)"
                   :key="rel"
-                  class="text-xs text-muted-foreground"
+                  class="text-sm text-muted-foreground"
                 >
                   <code>{{ rel }}</code>
                 </li>
               </ul>
             </template>
-            <span class="text-xs text-muted-foreground">{{ t('team.installTo') }}</span>
-            <PlatformTargetPicker v-model:scope="scope" v-model:agents="agents" />
+            <PlatformTargetPicker
+              v-model:scope="scope"
+              v-model:agents="agents"
+              :label="t('team.installTo')"
+            />
             <Button
               size="sm"
               class="w-fit"

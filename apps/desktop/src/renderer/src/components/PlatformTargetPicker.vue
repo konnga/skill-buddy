@@ -8,6 +8,7 @@ import { useSkills } from '@/composables/useSkills'
 
 const scope = defineModel<string>('scope', { default: 'user' })
 const agents = defineModel<string[]>('agents', { default: () => [] })
+defineProps<{ label?: string }>()
 
 const { detectedPlatforms } = useSkills()
 const { projectRoots } = useSettings()
@@ -34,12 +35,20 @@ function toggle(id: string): void {
 
 <template>
   <div class="flex flex-col gap-2">
-    <Select
-      v-if="projectRoots.length > 0"
-      v-model="scope"
-      class="w-fit max-w-full"
-      :options="scopeOptions"
-    />
+    <div v-if="label || projectRoots.length > 0" class="flex items-center justify-between gap-3">
+      <span
+        v-if="label"
+        class="text-sm font-medium uppercase tracking-wide text-muted-foreground"
+      >
+        {{ label }}
+      </span>
+      <Select
+        v-if="projectRoots.length > 0"
+        v-model="scope"
+        class="w-fit max-w-full"
+        :options="scopeOptions"
+      />
+    </div>
     <div class="flex flex-wrap gap-2">
       <button
         v-for="p in available"

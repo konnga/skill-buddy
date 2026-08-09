@@ -31,7 +31,7 @@ onMounted(() => void ensureLoaded())
 
     <ScrollArea class="flex-1">
       <div class="mx-auto flex max-w-5xl flex-col gap-6 px-6 py-6">
-        <ul class="grid grid-cols-1 gap-x-6 gap-y-7 md:grid-cols-2 xl:grid-cols-3">
+        <ul class="grid grid-cols-1 gap-x-5 gap-y-6 md:grid-cols-2 xl:grid-cols-3">
           <li v-for="b in bundles" :key="b.id">
             <BundleCard :bundle="b" @use="emit('open', b)" />
           </li>

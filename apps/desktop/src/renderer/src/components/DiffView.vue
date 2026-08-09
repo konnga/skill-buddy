@@ -78,7 +78,7 @@ const rows = computed<Row[]>(() => {
 
 <template>
   <ScrollArea
-    class="max-h-64 rounded-md border font-mono text-xs leading-5"
+    class="max-h-64 rounded-md border font-mono text-sm leading-5"
     viewport-class="max-h-64"
   >
     <div

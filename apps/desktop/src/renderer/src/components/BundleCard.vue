@@ -15,7 +15,7 @@ const emit = defineEmits<{ use: [] }>()
 const { t, locale } = useI18n()
 
 const previewSkills = computed(() =>
-  props.bundle.skills.slice(0, 3).map((skill) => ({
+  props.bundle.skills.slice(0, 2).map((skill) => ({
     skill,
     item: bundleRefToMarketItem(skill),
   })),
@@ -37,9 +37,9 @@ function skillSource(skill: BundleSkillRef): string {
 </script>
 
 <template>
-  <div class="group relative block min-w-0 pt-5">
+  <div class="group relative block min-w-0 pt-4">
     <div
-      class="pointer-events-none absolute h-[253px] rounded-[25.6px] border-[0.6px] bg-card shadow-md"
+      class="pointer-events-none absolute h-[202px] rounded-[20px] border-[0.6px] bg-card"
       :style="{
         top: '3px',
         left: '4%',
@@ -49,7 +49,7 @@ function skillSource(skill: BundleSkillRef): string {
       aria-hidden="true"
     />
     <div
-      class="pointer-events-none absolute h-[237px] rounded-[18px] border-[0.6px] bg-card shadow-md"
+      class="pointer-events-none absolute h-[190px] rounded-[15px] border-[0.6px] bg-card"
       :style="{
         top: '6px',
         left: '4%',
@@ -59,13 +59,13 @@ function skillSource(skill: BundleSkillRef): string {
       aria-hidden="true"
     />
     <article
-      class="relative flex h-[246px] flex-col overflow-hidden rounded-[20px] border bg-card px-[19px] py-[18px] shadow-sm transition-shadow duration-200 group-hover:shadow-md"
+      class="relative flex h-[190px] flex-col overflow-hidden rounded-[18px] border bg-card px-4 py-[15px] transition-shadow duration-200 group-hover:shadow-md"
     >
       <h3 class="truncate font-serif text-base font-semibold leading-6">
         {{ bundleText(bundle.name, locale) }}
       </h3>
 
-      <ul class="mt-4 flex min-h-0 flex-col gap-3">
+      <ul class="mt-3 flex min-h-0 flex-col gap-3">
         <li v-for="entry in previewSkills" :key="entry.item.key" class="min-w-0">
           <button
             type="button"
@@ -92,7 +92,7 @@ function skillSource(skill: BundleSkillRef): string {
               <span class="truncate text-sm font-medium capitalize leading-5">
                 {{ skillName(entry.skill) }}
               </span>
-              <span class="truncate text-xs leading-[18px] text-muted-foreground">
+              <span class="truncate text-sm leading-[18px] text-muted-foreground">
                 {{ skillSource(entry.skill) }}
               </span>
             </span>
@@ -102,7 +102,7 @@ function skillSource(skill: BundleSkillRef): string {
 
       <button
         type="button"
-        class="mt-auto self-start text-[13px] leading-5 text-muted-foreground transition-colors hover:text-foreground"
+        class="mt-auto self-start text-sm leading-5 text-muted-foreground transition-colors hover:text-foreground"
         @click="emit('use')"
       >
         {{ t('bundles.viewMore') }}

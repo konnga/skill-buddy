@@ -160,7 +160,7 @@ async function removeCustomPlatform(id: string): Promise<void> {
         <nav class="flex flex-col gap-0.5 px-3 pb-4">
           <template v-for="group in groups" :key="group.labelKey">
           <p
-            class="mb-1 mt-4 px-2 text-xs font-medium uppercase tracking-wide text-muted-foreground"
+            class="mb-1 mt-4 px-2 text-sm font-medium uppercase tracking-wide text-muted-foreground"
           >
             {{ t(group.labelKey) }}
           </p>
@@ -198,7 +198,7 @@ async function removeCustomPlatform(id: string): Promise<void> {
             >
               <div class="min-w-0">
                 <p class="text-sm font-medium">{{ t('settings.languageTitle') }}</p>
-                <p class="mt-0.5 text-xs text-muted-foreground">{{ t('settings.languageDesc') }}</p>
+                <p class="mt-0.5 text-sm text-muted-foreground">{{ t('settings.languageDesc') }}</p>
               </div>
               <Select
                 v-model="language"
@@ -222,7 +222,7 @@ async function removeCustomPlatform(id: string): Promise<void> {
             >
               <div class="min-w-0">
                 <p class="text-sm font-medium">{{ t('settings.themeTitle') }}</p>
-                <p class="mt-0.5 text-xs text-muted-foreground">{{ t('settings.themeDesc') }}</p>
+                <p class="mt-0.5 text-sm text-muted-foreground">{{ t('settings.themeDesc') }}</p>
               </div>
               <Select
                 v-model="theme"
@@ -240,7 +240,7 @@ async function removeCustomPlatform(id: string): Promise<void> {
         <!-- registry -->
         <section v-if="showCat('registry')" class="mb-10">
           <h2 class="mb-3 text-sm font-medium">{{ t('settings.sectionRegistry') }}</h2>
-          <p class="mb-3 text-xs text-muted-foreground">{{ t('settings.registryDesc') }}</p>
+          <p class="mb-3 text-sm text-muted-foreground">{{ t('settings.registryDesc') }}</p>
           <div class="divide-y rounded-xl border">
             <div
               v-if="visible(t('settings.registryUrlTitle'))"
@@ -277,7 +277,7 @@ async function removeCustomPlatform(id: string): Promise<void> {
               {{ t('settings.customPlatform') }}
             </Button>
           </div>
-          <p class="mb-3 text-xs text-muted-foreground">{{ t('settings.platformsDesc') }}</p>
+          <p class="mb-3 text-sm text-muted-foreground">{{ t('settings.platformsDesc') }}</p>
 
           <div v-if="showForm" class="mb-3 flex flex-col gap-2 rounded-xl border px-5 py-4">
             <div class="grid grid-cols-2 gap-2">
@@ -303,7 +303,7 @@ async function removeCustomPlatform(id: string): Promise<void> {
               :placeholder="t('settings.formProjectDirPh')"
               class="text-sm"
             />
-            <p v-if="formError" class="text-xs text-destructive">{{ formError }}</p>
+            <p v-if="formError" class="text-sm text-destructive">{{ formError }}</p>
             <div class="flex justify-end gap-2">
               <Button variant="ghost" size="sm" @click="showForm = false">
                 {{ t('common.cancel') }}
@@ -348,7 +348,7 @@ async function removeCustomPlatform(id: string): Promise<void> {
               {{ t('common.add') }}
             </Button>
           </div>
-          <p class="mb-3 text-xs text-muted-foreground">{{ t('settings.projectDirsDesc') }}</p>
+          <p class="mb-3 text-sm text-muted-foreground">{{ t('settings.projectDirsDesc') }}</p>
           <p
             v-if="projectRoots.length === 0"
             class="rounded-xl border border-dashed px-5 py-10 text-center text-sm text-muted-foreground"
@@ -361,7 +361,7 @@ async function removeCustomPlatform(id: string): Promise<void> {
               :key="root"
               class="flex items-center justify-between gap-2 px-5 py-3"
             >
-              <code class="select-text truncate text-xs">{{ root }}</code>
+              <code class="select-text truncate text-sm">{{ root }}</code>
               <span class="flex shrink-0 items-center gap-0.5">
                 <CopyButton :text="root" class="size-7" />
                 <Button

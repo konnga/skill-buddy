@@ -52,7 +52,7 @@ const todoCount = computed(() => {
       <button
         type="button"
         :class="[
-          'app-no-drag flex items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-xs transition-colors',
+          'app-no-drag flex items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-sm transition-colors',
           todoCount > 0
             ? 'border-amber-500/50 bg-amber-500/10 text-amber-700 dark:text-amber-400'
             : 'text-muted-foreground hover:border-primary/40',
