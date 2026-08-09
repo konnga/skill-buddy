@@ -15,7 +15,11 @@ import DashboardView from '@/views/DashboardView.vue'
 import SkillsView from '@/views/SkillsView.vue'
 import TeamView from '@/views/TeamView.vue'
 
-const props = defineProps<{ view: WorkspaceViewName; inset?: boolean }>()
+const props = defineProps<{
+  view: WorkspaceViewName
+  navigationRevision: number
+  inset?: boolean
+}>()
 const emit = defineEmits<{
   openSettings: []
   importSkills: []
@@ -24,33 +28,53 @@ const emit = defineEmits<{
 const { skills } = useSkills()
 const selected = shallowRef<AggregatedSkill | null>(null)
 const selectedFocus = shallowRef<SkillFocus | null>(null)
+const selectedMode = shallowRef<'view' | 'edit'>('view')
 const marketSelected = shallowRef<MarketItem | null>(null)
 const attentionOpen = shallowRef(false)
 const bundlesOpen = shallowRef(false)
 const bundleSelected = shallowRef<SkillBundle | null>(null)
 const newOpen = shallowRef(false)
+const conversationSkill = shallowRef<AggregatedSkill | null>(null)
 
 function closeDetails(): void {
   selected.value = null
   selectedFocus.value = null
+  selectedMode.value = 'view'
   marketSelected.value = null
   attentionOpen.value = false
   bundlesOpen.value = false
   bundleSelected.value = null
   newOpen.value = false
+  conversationSkill.value = null
 }
 
-function openSkill(skill: AggregatedSkill, focus: SkillFocus | null = null): void {
+function openSkill(
+  skill: AggregatedSkill,
+  focus: SkillFocus | null = null,
+  mode: 'view' | 'edit' = 'view',
+): void {
   selected.value = skill
   selectedFocus.value = focus
+  selectedMode.value = mode
 }
 
 function closeSkill(): void {
   selected.value = null
   selectedFocus.value = null
+  selectedMode.value = 'view'
 }
 
-watch(() => props.view, closeDetails)
+function openConversation(skill: AggregatedSkill | null = null): void {
+  conversationSkill.value = skill
+  newOpen.value = true
+}
+
+function closeConversation(): void {
+  newOpen.value = false
+  conversationSkill.value = null
+}
+
+watch([() => props.view, () => props.navigationRevision], closeDetails)
 watch(skills, (value) => {
   if (selected.value) {
     selected.value = value.find((skill) => skill.name === selected.value?.name) ?? null
@@ -65,6 +89,7 @@ watch(skills, (value) => {
       :key="selected.name"
       :skill="selected"
       :focus="selectedFocus ?? undefined"
+      :initial-mode="selectedMode"
       :inset="props.inset"
       @close="closeSkill"
     />
@@ -95,7 +120,12 @@ watch(skills, (value) => {
       @close="bundlesOpen = false"
       @open="bundleSelected = $event"
     />
-    <NewSkillPage v-else-if="newOpen" :inset="props.inset" @close="newOpen = false" />
+    <NewSkillPage
+      v-else-if="newOpen"
+      :inset="props.inset"
+      :skill="conversationSkill ?? undefined"
+      @close="closeConversation"
+    />
     <DashboardView
       v-else-if="props.view === 'dashboard'"
       :inset="props.inset"
@@ -103,7 +133,7 @@ watch(skills, (value) => {
       @open-bundles="bundlesOpen = true"
       @open-bundle="bundleSelected = $event"
       @open-attention="attentionOpen = true"
-      @new-skill="newOpen = true"
+      @new-skill="openConversation()"
       @import-skills="emit('importSkills')"
     />
     <TeamView
@@ -115,7 +145,8 @@ watch(skills, (value) => {
       v-else
       :inset="props.inset"
       @open-skill="openSkill"
-      @new-skill="newOpen = true"
+      @edit-skill="openSkill($event, null, 'edit')"
+      @new-skill="openConversation()"
       @import-skills="emit('importSkills')"
     />
   </main>

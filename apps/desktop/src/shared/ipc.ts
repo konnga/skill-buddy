@@ -11,6 +11,7 @@ export interface AiSkillContextItem {
 export interface AiConversationContext {
   skills: AiSkillContextItem[]
   platforms: { id: string; displayName: string }[]
+  editingSkill?: { name: string; sourcePath: string }
 }
 
 /** Normalized event stream emitted by local AI agent adapters. */

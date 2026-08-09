@@ -5,14 +5,14 @@ import {
   ArrowLeft,
   ArrowUp,
   Check,
-  CircleStop,
   FileText,
   Hammer,
   LoaderCircle,
   Sparkles,
+  Square,
   Terminal,
 } from '@lucide/vue'
-import type { FoundSkill } from '@skillbuddy/core'
+import type { AggregatedSkill, FoundSkill } from '@skillbuddy/core'
 import type { AiConversationEvent, InstallTarget } from '../../../shared/ipc.js'
 import MarkdownView from '@/components/MarkdownView.vue'
 import PlatformIcon from '@/components/PlatformIcon.vue'
@@ -32,7 +32,7 @@ interface ChatMessage {
   error?: string
 }
 
-const props = defineProps<{ inset?: boolean }>()
+const props = defineProps<{ inset?: boolean; skill?: AggregatedSkill }>()
 const emit = defineEmits<{ close: [] }>()
 
 const { detectedPlatforms, installSkill, skills } = useSkills()
@@ -44,7 +44,11 @@ const selectedAgent = ref('')
 const conversationId = ref<string | null>(null)
 const nativeSessionId = ref<string | null>(null)
 const messages = ref<ChatMessage[]>([])
-const composer = ref(t('newSkill.chatDefault'))
+const composer = ref(
+  props.skill
+    ? t('newSkill.chatEditDefault', { name: props.skill.name })
+    : t('newSkill.chatDefault'),
+)
 const running = ref(false)
 const scrollElement = ref<HTMLElement | null>(null)
 const activeAssistantId = ref<string | null>(null)
@@ -163,6 +167,14 @@ async function ensureConversation(): Promise<string> {
       id: platform.id,
       displayName: platform.displayName,
     })),
+    editingSkill: props.skill
+      ? {
+          name: props.skill.name,
+          sourcePath:
+            props.skill.installations.find((installation) => !installation.readOnly)?.path ??
+            props.skill.installations[0]!.path,
+        }
+      : undefined,
   }
   const result = await window.skillsManager.aiConversationCreate(selectedAgent.value, context)
   localStorage.setItem('skillbuddy:new-skill-agent', selectedAgent.value)
@@ -283,7 +295,13 @@ onBeforeUnmount(() => {
         <ArrowLeft class="!size-5 translate-y-px" />
       </Button>
       <div class="flex h-9 min-w-0 flex-col justify-center">
-        <h1 class="truncate text-sm font-semibold leading-5">{{ t('newSkill.chatTitle') }}</h1>
+        <h1 class="truncate text-sm font-semibold leading-5">
+          {{
+            props.skill
+              ? t('newSkill.chatEditTitle', { name: props.skill.name })
+              : t('newSkill.chatTitle')
+          }}
+        </h1>
         <p v-if="nativeSessionId" class="truncate text-[11px] leading-4 text-muted-foreground">
           {{ t('newSkill.sessionActive') }}
         </p>
@@ -300,9 +318,11 @@ onBeforeUnmount(() => {
           <div class="mb-4 flex size-10 items-center justify-center rounded-lg border bg-muted/30">
             <Sparkles class="size-5" />
           </div>
-          <h2 class="text-base font-semibold">{{ t('newSkill.emptyTitle') }}</h2>
+          <h2 class="text-base font-semibold">
+            {{ props.skill ? t('newSkill.emptyEditTitle') : t('newSkill.emptyTitle') }}
+          </h2>
           <p class="mt-1 max-w-md text-sm leading-6 text-muted-foreground">
-            {{ t('newSkill.emptyHint') }}
+            {{ props.skill ? t('newSkill.emptyEditHint') : t('newSkill.emptyHint') }}
           </p>
           <p v-if="!agentsLoading && availableAgents.length === 0" class="mt-4 text-sm text-destructive">
             {{ t('newSkill.noAgent') }}
@@ -327,17 +347,17 @@ onBeforeUnmount(() => {
                 <div
                   v-for="(activity, index) in message.activities"
                   :key="`${activity}-${index}`"
-                  class="flex min-w-0 items-center gap-2 text-xs text-muted-foreground"
+                  class="flex min-w-0 items-center gap-2 text-sm text-muted-foreground"
                 >
                   <Terminal class="size-3.5 shrink-0" />
                   <span class="truncate font-mono">{{ activity }}</span>
                 </div>
               </div>
-              <div v-if="message.streaming" class="mt-3 flex items-center gap-2 text-xs text-muted-foreground">
+              <div v-if="message.streaming" class="mt-3 flex items-center gap-2 text-sm text-muted-foreground">
                 <LoaderCircle class="size-3.5 animate-spin" />
                 {{ t('newSkill.thinking') }}
               </div>
-              <p v-if="message.error" class="mt-3 break-all text-xs text-destructive">
+              <p v-if="message.error" class="mt-3 break-all text-sm text-destructive">
                 {{ message.error }}
               </p>
             </article>
@@ -351,13 +371,13 @@ onBeforeUnmount(() => {
                   <h3 class="truncate text-sm font-semibold">{{ artifact.skill.name }}</h3>
                   <span
                     v-if="artifactInstalled"
-                    class="flex items-center gap-1 text-xs text-emerald-700 dark:text-emerald-400"
+                    class="flex items-center gap-1 text-sm text-emerald-700 dark:text-emerald-400"
                   >
                     <Check class="size-3.5" />
                     {{ t('newSkill.installed') }}
                   </span>
                 </div>
-                <p class="mt-1 text-xs leading-5 text-muted-foreground">
+                <p class="mt-1 text-sm leading-5 text-muted-foreground">
                   {{ artifact.skill.description }}
                 </p>
               </div>
@@ -369,7 +389,11 @@ onBeforeUnmount(() => {
               />
             </div>
             <div class="flex flex-col gap-3 border-t px-4 py-3">
-              <PlatformTargetPicker v-model:scope="scope" v-model:agents="targetAgents" />
+              <PlatformTargetPicker
+                v-model:scope="scope"
+                v-model:agents="targetAgents"
+                :label="t('team.installTo')"
+              />
               <div class="flex flex-wrap items-center gap-3">
                 <Button
                   size="sm"
@@ -386,7 +410,7 @@ onBeforeUnmount(() => {
                         : t('newSkill.installN', { n: targetAgents.length })
                   }}
                 </Button>
-                <p v-if="installError" class="break-all text-xs text-destructive">
+                <p v-if="installError" class="break-all text-sm text-destructive">
                   {{ installError }}
                 </p>
               </div>
@@ -402,7 +426,7 @@ onBeforeUnmount(() => {
       >
         <div class="flex min-h-14 items-start gap-2 px-5 pb-1 pt-4">
           <span
-            class="inline-flex h-6 shrink-0 items-center gap-1 rounded-full bg-muted px-2 text-xs font-medium leading-none text-foreground/80"
+            class="inline-flex h-6 shrink-0 items-center gap-1 rounded-full bg-muted px-2 text-sm font-medium leading-none text-foreground/80"
           >
             <Hammer class="size-3.5" />
             skillbuddy-skill-creator
@@ -420,7 +444,7 @@ onBeforeUnmount(() => {
           <Select
             v-if="selectedAgent"
             v-model="selectedAgent"
-            class="inline-flex h-7 w-fit min-w-0 self-center border-0 bg-transparent py-0 pl-2 pr-1.5 text-xs leading-none text-muted-foreground shadow-none hover:bg-muted hover:text-foreground focus-visible:ring-0"
+            class="inline-flex h-7 w-fit min-w-0 self-center border-0 bg-transparent py-0 pl-2 pr-1.5 text-sm leading-none text-muted-foreground shadow-none hover:bg-muted hover:text-foreground focus-visible:ring-0"
             :options="agentOptions"
             :disabled="Boolean(conversationId)"
           >
@@ -440,13 +464,12 @@ onBeforeUnmount(() => {
           <div class="flex-1" />
           <Button
             v-if="running"
-            variant="outline"
             size="icon"
-            class="size-7 rounded-full"
+            class="size-7 rounded-full border-0 bg-foreground text-background hover:bg-foreground/90 hover:text-background"
             :title="t('newSkill.stop')"
             @click="cancelGeneration"
           >
-            <CircleStop class="size-4" />
+            <Square class="size-3.5 fill-current" />
           </Button>
           <Button
             v-else
