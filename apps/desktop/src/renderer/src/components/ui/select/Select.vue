@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { HTMLAttributes } from 'vue'
+import { computed, ref, type HTMLAttributes } from 'vue'
 import {
   SelectContent,
   SelectItem,
@@ -22,14 +22,18 @@ export interface SelectOption {
 const props = defineProps<{
   options: SelectOption[]
   placeholder?: string
+  disabled?: boolean
   class?: HTMLAttributes['class']
 }>()
 
 const model = defineModel<string>()
+const open = ref(false)
+
+const selectedOption = computed(() => props.options.find((option) => option.value === model.value))
 </script>
 
 <template>
-  <SelectRoot v-model="model">
+  <SelectRoot v-model="model" v-model:open="open" :disabled="props.disabled">
     <SelectTrigger
       :class="
         cn(
@@ -38,8 +42,15 @@ const model = defineModel<string>()
         )
       "
     >
-      <SelectValue :placeholder="placeholder" />
-      <ChevronDown class="size-3.5 shrink-0 text-muted-foreground" />
+      <SelectValue :placeholder="placeholder">
+        <slot name="value" :option="selectedOption">{{ selectedOption?.label }}</slot>
+      </SelectValue>
+      <ChevronDown
+        :class="[
+          'size-3.5 shrink-0 text-muted-foreground transition-transform duration-150',
+          open && 'rotate-180',
+        ]"
+      />
     </SelectTrigger>
     <SelectPortal>
       <SelectContent

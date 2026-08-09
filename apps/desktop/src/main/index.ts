@@ -1,5 +1,5 @@
 import { app, BrowserWindow, dialog, ipcMain, nativeTheme, safeStorage, shell } from 'electron'
-import { execFile } from 'node:child_process'
+import { execFile, spawn, type ChildProcessWithoutNullStreams } from 'node:child_process'
 import { existsSync, watch, type FSWatcher } from 'node:fs'
 import { promises as fs } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -23,7 +23,13 @@ const execFileAsync = promisify(execFile)
 import { randomUUID } from 'node:crypto'
 import { basename, dirname, isAbsolute, normalize, sep } from 'node:path'
 import { unzipSync } from 'fflate'
-import type { CustomPlatformInput, InstallTarget, RegistryConfig } from '../shared/ipc.js'
+import type {
+  AiConversationContext,
+  AiConversationEventPayload,
+  CustomPlatformInput,
+  InstallTarget,
+  RegistryConfig,
+} from '../shared/ipc.js'
 
 function createWindow(): void {
   const mainWindow = new BrowserWindow({
@@ -315,69 +321,366 @@ function registerIpc(): void {
     join(process.env.HOME ?? '', '.bun/bin'),
   ].join(':')
 
-  interface GeneratorDef {
+  interface LocalAgentDef {
     id: string
     bin: string
-    args: (prompt: string) => string[]
-    /** pull the assistant's text out of raw stdout */
-    extract: (stdout: string) => string
   }
 
-  const GENERATORS: GeneratorDef[] = [
-    {
-      id: 'claude-code',
-      bin: 'claude',
-      args: (prompt) => ['-p', prompt, '--output-format', 'json'],
-      extract: (stdout) => {
-        const parsed = JSON.parse(stdout) as { result?: string }
-        return parsed.result ?? ''
-      },
-    },
-    {
-      id: 'codex',
-      bin: 'codex',
-      args: (prompt) => ['exec', '--skip-git-repo-check', prompt],
-      extract: (stdout) => stdout,
-    },
-    {
-      id: 'gemini-cli',
-      bin: 'gemini',
-      args: (prompt) => ['-p', prompt],
-      extract: (stdout) => stdout,
-    },
+  const LOCAL_AGENTS: LocalAgentDef[] = [
+    { id: 'claude-code', bin: 'claude' },
+    { id: 'codex', bin: 'codex' },
+    { id: 'gemini-cli', bin: 'gemini' },
   ]
 
-  ipcMain.handle('ai:generators', async () => {
-    const results = await Promise.all(
-      GENERATORS.map(async (g) => {
-        try {
-          await execFileAsync('which', [g.bin], { env: { ...process.env, PATH: CLI_PATH } })
-          return { id: g.id, available: true }
-        } catch {
-          return { id: g.id, available: false }
+  /* ---------- stateful AI conversations ---------- */
+
+  interface ConversationState {
+    id: string
+    agentId: string
+    nativeSessionId?: string
+    workspace: string
+    senderId: number
+    child?: ChildProcessWithoutNullStreams
+    cancelled: boolean
+    errorReported: boolean
+  }
+
+  const conversations = new Map<string, ConversationState>()
+  const CONVERSATION_AGENTS = new Set(['claude-code', 'codex'])
+  const SKILLBUDDY_CREATOR_NAME = 'skillbuddy-skill-creator'
+
+  const conversationSystemPrompt = `You are running inside SkillBuddy's Skill creation workspace.
+
+Before responding, read .skillbuddy/skills/skillbuddy-skill-creator/SKILL.md completely and follow it for this entire conversation. Resolve every relative reference from that Skill's directory. The Skill owns the discovery, authoring, portability, validation, and delivery workflow; do not replace it with a generic creation process.`
+
+  function bundledSkillCreatorRoot(): string {
+    const candidates = [
+      join(process.resourcesPath, 'skills', SKILLBUDDY_CREATOR_NAME),
+      join(app.getAppPath(), 'resources', 'skills', SKILLBUDDY_CREATOR_NAME),
+      join(import.meta.dirname, '..', '..', 'resources', 'skills', SKILLBUDDY_CREATOR_NAME),
+    ]
+    const root = candidates.find((candidate) => existsSync(candidate))
+    if (!root) throw new Error(`${SKILLBUDDY_CREATOR_NAME} resource not found`)
+    return root
+  }
+
+  function sendConversationEvent(
+    state: ConversationState,
+    event: AiConversationEventPayload,
+  ): void {
+    const sender = BrowserWindow.getAllWindows()
+      .map((window) => window.webContents)
+      .find((contents) => contents.id === state.senderId)
+    sender?.send('ai:conversation-event', { conversationId: state.id, ...event })
+  }
+
+  function renderConversationContext(context: AiConversationContext): string {
+    const skills = context.skills.length
+      ? context.skills
+          .slice(0, 300)
+          .map(
+            (skill) =>
+              `- ${skill.name} [${skill.agents.join(', ') || 'unknown'}]: ${skill.description}`,
+          )
+          .join('\n')
+      : '- No existing Skills were detected.'
+    const platforms = context.platforms.length
+      ? context.platforms.map((platform) => `- ${platform.displayName} (${platform.id})`).join('\n')
+      : '- No AI agent platforms were detected.'
+    return `# SkillBuddy context
+
+## Existing Skills
+
+${skills}
+
+## Detected platforms
+
+${platforms}
+`
+  }
+
+  function conversationCommand(
+    state: ConversationState,
+    message: string,
+  ): { bin: string; args: string[] } {
+    if (state.agentId === 'codex') {
+      if (state.nativeSessionId) {
+        return {
+          bin: 'codex',
+          args: [
+            'exec',
+            'resume',
+            '--skip-git-repo-check',
+            '--json',
+            state.nativeSessionId,
+            message,
+          ],
         }
-      }),
+      }
+      return {
+        bin: 'codex',
+        args: [
+          'exec',
+          '--skip-git-repo-check',
+          '--json',
+          '--sandbox',
+          'workspace-write',
+          `${conversationSystemPrompt}\n\nUser message:\n${message}`,
+        ],
+      }
+    }
+
+    if (state.agentId === 'claude-code') {
+      const args = [
+        '-p',
+        message,
+        '--output-format',
+        'stream-json',
+        '--include-partial-messages',
+        '--verbose',
+        '--permission-mode',
+        'acceptEdits',
+      ]
+      if (state.nativeSessionId) {
+        args.push('--resume', state.nativeSessionId)
+      } else {
+        args.push('--append-system-prompt', conversationSystemPrompt)
+      }
+      return { bin: 'claude', args }
+    }
+
+    throw new Error(`agent does not support conversations: ${state.agentId}`)
+  }
+
+  function activityLabel(item: Record<string, unknown>): string | null {
+    if (item.type === 'command_execution' && typeof item.command === 'string') {
+      return item.command
+    }
+    if (item.type === 'mcp_tool_call') {
+      const server = typeof item.server === 'string' ? item.server : ''
+      const tool = typeof item.tool === 'string' ? item.tool : ''
+      return [server, tool].filter(Boolean).join('.') || null
+    }
+    if (item.type === 'file_change') {
+      const changes = Array.isArray(item.changes) ? item.changes : []
+      const paths = changes.flatMap((change) => {
+        if (!change || typeof change !== 'object') return []
+        const path = (change as Record<string, unknown>).path
+        return typeof path === 'string' ? [path] : []
+      })
+      return paths.length > 0 ? paths.join(', ') : 'Updating Skill files'
+    }
+    return null
+  }
+
+  function parseConversationLine(state: ConversationState, line: string): void {
+    let entry: Record<string, unknown>
+    try {
+      entry = JSON.parse(line) as Record<string, unknown>
+    } catch {
+      return
+    }
+
+    if (state.agentId === 'codex') {
+      if (entry.type === 'thread.started' && typeof entry.thread_id === 'string') {
+        state.nativeSessionId = entry.thread_id
+        sendConversationEvent(state, { type: 'session', nativeSessionId: entry.thread_id })
+        return
+      }
+      if (entry.type === 'item.started' || entry.type === 'item.completed') {
+        const item = entry.item
+        if (!item || typeof item !== 'object') return
+        const record = item as Record<string, unknown>
+        if (
+          entry.type === 'item.completed' &&
+          record.type === 'agent_message' &&
+          typeof record.text === 'string'
+        ) {
+          sendConversationEvent(state, { type: 'assistant-delta', text: record.text })
+          return
+        }
+        if (entry.type === 'item.started') {
+          const label = activityLabel(record)
+          if (label) sendConversationEvent(state, { type: 'activity', label })
+        }
+        return
+      }
+      if (entry.type === 'error') {
+        const message = typeof entry.message === 'string' ? entry.message : 'Codex conversation failed'
+        state.errorReported = true
+        sendConversationEvent(state, { type: 'error', message })
+      }
+      return
+    }
+
+    if (state.agentId === 'claude-code') {
+      if (
+        entry.type === 'system' &&
+        entry.subtype === 'init' &&
+        typeof entry.session_id === 'string'
+      ) {
+        state.nativeSessionId = entry.session_id
+        sendConversationEvent(state, { type: 'session', nativeSessionId: entry.session_id })
+        return
+      }
+      if (entry.type === 'stream_event') {
+        const event = entry.event
+        if (!event || typeof event !== 'object') return
+        const delta = (event as Record<string, unknown>).delta
+        if (!delta || typeof delta !== 'object') return
+        const record = delta as Record<string, unknown>
+        if (record.type === 'text_delta' && typeof record.text === 'string') {
+          sendConversationEvent(state, { type: 'assistant-delta', text: record.text })
+        }
+        return
+      }
+      if (entry.type === 'assistant') {
+        const message = entry.message
+        if (!message || typeof message !== 'object') return
+        const content = (message as Record<string, unknown>).content
+        if (!Array.isArray(content)) return
+        for (const block of content) {
+          if (!block || typeof block !== 'object') continue
+          const record = block as Record<string, unknown>
+          if (record.type === 'tool_use' && typeof record.name === 'string') {
+            sendConversationEvent(state, { type: 'activity', label: record.name })
+          }
+        }
+        return
+      }
+      if (entry.type === 'result' && entry.is_error === true) {
+        const message = typeof entry.result === 'string' ? entry.result : 'Claude conversation failed'
+        state.errorReported = true
+        sendConversationEvent(state, { type: 'error', message })
+      }
+    }
+  }
+
+  async function emitConversationArtifacts(state: ConversationState): Promise<void> {
+    const items = await findSkills(join(state.workspace, 'output'))
+    if (items.length > 0) sendConversationEvent(state, { type: 'artifact', items })
+  }
+
+  ipcMain.handle('ai:conversation-agents', async () => {
+    const available = await Promise.all(
+      LOCAL_AGENTS.filter((generator) => CONVERSATION_AGENTS.has(generator.id)).map(
+        async (generator) => {
+          try {
+            await execFileAsync('which', [generator.bin], {
+              env: { ...process.env, PATH: CLI_PATH },
+            })
+            return generator.id
+          } catch {
+            return null
+          }
+        },
+      ),
     )
-    return results.filter((r) => r.available).map((r) => r.id)
+    return available.filter((id): id is string => id !== null)
   })
 
-  ipcMain.handle('ai:generate', async (_event, generatorId: string, prompt: string) => {
-    const gen = GENERATORS.find((g) => g.id === generatorId)
-    if (!gen) throw new Error(`unknown generator: ${generatorId}`)
-    try {
-      const { stdout } = await execFileAsync(gen.bin, gen.args(prompt), {
-        env: { ...process.env, PATH: CLI_PATH },
-        timeout: 240_000,
-        maxBuffer: 20 * 1024 * 1024,
-        cwd: tmpdir(),
+  ipcMain.handle(
+    'ai:conversation-create',
+    async (event, agentId: string, context: AiConversationContext) => {
+      if (!CONVERSATION_AGENTS.has(agentId)) {
+        throw new Error(`agent does not support conversations: ${agentId}`)
+      }
+      const id = randomUUID()
+      const workspace = await fs.mkdtemp(join(tmpdir(), 'skillbuddy-ai-'))
+      await fs.mkdir(join(workspace, 'output'), { recursive: true })
+      const creatorRoot = join(
+        workspace,
+        '.skillbuddy',
+        'skills',
+        SKILLBUDDY_CREATOR_NAME,
+      )
+      await fs.mkdir(dirname(creatorRoot), { recursive: true })
+      await fs.cp(bundledSkillCreatorRoot(), creatorRoot, { recursive: true })
+      await fs.writeFile(
+        join(workspace, 'SKILLBUDDY_CONTEXT.md'),
+        renderConversationContext(context),
+        'utf8',
+      )
+      conversations.set(id, {
+        id,
+        agentId,
+        workspace,
+        senderId: event.sender.id,
+        cancelled: false,
+        errorReported: false,
       })
-      return { text: gen.extract(stdout) }
-    } catch (e) {
-      const err = e as Error & { stderr?: string; killed?: boolean }
-      if (err.killed) throw new Error('generation timed out (240s)')
-      const detail = (err.stderr ?? err.message ?? '').slice(0, 500)
-      throw new Error(detail || 'generation failed')
-    }
+      return { conversationId: id }
+    },
+  )
+
+  ipcMain.handle('ai:conversation-send', async (_event, conversationId: string, message: string) => {
+    const state = conversations.get(conversationId)
+    if (!state) throw new Error('conversation not found')
+    if (state.child) throw new Error('conversation is already running')
+    if (!message.trim()) throw new Error('message is empty')
+
+    const command = conversationCommand(state, message.trim())
+    state.cancelled = false
+    state.errorReported = false
+    const child = spawn(command.bin, command.args, {
+      cwd: state.workspace,
+      env: { ...process.env, PATH: CLI_PATH },
+      stdio: 'pipe',
+    })
+    state.child = child
+
+    let stdoutBuffer = ''
+    let stderr = ''
+    child.stdout.setEncoding('utf8')
+    child.stdout.on('data', (chunk: string) => {
+      stdoutBuffer += chunk
+      const lines = stdoutBuffer.split(/\r?\n/)
+      stdoutBuffer = lines.pop() ?? ''
+      for (const line of lines) {
+        if (line.trim()) parseConversationLine(state, line)
+      }
+    })
+    child.stderr.setEncoding('utf8')
+    child.stderr.on('data', (chunk: string) => {
+      stderr = `${stderr}${chunk}`.slice(-4000)
+    })
+    child.on('error', (error) => {
+      state.errorReported = true
+      sendConversationEvent(state, { type: 'error', message: error.message })
+    })
+    child.on('close', (code) => {
+      if (stdoutBuffer.trim()) parseConversationLine(state, stdoutBuffer)
+      state.child = undefined
+      void (async () => {
+        await emitConversationArtifacts(state)
+        if (state.cancelled) {
+          sendConversationEvent(state, { type: 'cancelled' })
+        } else if (code === 0 && !state.errorReported) {
+          sendConversationEvent(state, { type: 'completed' })
+        } else if (!state.errorReported) {
+          sendConversationEvent(state, {
+            type: 'error',
+            message: stderr.trim().slice(-1000) || `agent exited with code ${code ?? 'unknown'}`,
+          })
+        }
+      })()
+    })
+  })
+
+  ipcMain.handle('ai:conversation-cancel', (_event, conversationId: string) => {
+    const state = conversations.get(conversationId)
+    if (!state?.child) return false
+    state.cancelled = true
+    return state.child.kill('SIGTERM')
+  })
+
+  ipcMain.handle('ai:conversation-dispose', async (_event, conversationId: string) => {
+    const state = conversations.get(conversationId)
+    if (!state) return
+    state.cancelled = true
+    state.child?.kill('SIGTERM')
+    conversations.delete(conversationId)
+    await fs.rm(state.workspace, { recursive: true, force: true })
   })
 
   /* ---------- official bundles ---------- */

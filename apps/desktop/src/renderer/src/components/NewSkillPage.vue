@@ -1,237 +1,465 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import SidebarToggle from '@/components/SidebarToggle.vue'
-import { ArrowLeft, Sparkles } from '@lucide/vue'
-import type { Skill } from '@skillbuddy/core'
-import type { InstallTarget } from '../../../shared/ipc.js'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Select } from '@/components/ui/select'
-import { ScrollArea } from '@/components/ui/scroll-area'
-import MarkdownEditor from '@/components/MarkdownEditor.vue'
+import {
+  ArrowLeft,
+  ArrowUp,
+  Check,
+  CircleStop,
+  FileText,
+  Hammer,
+  LoaderCircle,
+  Sparkles,
+  Terminal,
+} from '@lucide/vue'
+import type { FoundSkill } from '@skillbuddy/core'
+import type { AiConversationEvent, InstallTarget } from '../../../shared/ipc.js'
+import MarkdownView from '@/components/MarkdownView.vue'
 import PlatformIcon from '@/components/PlatformIcon.vue'
 import PlatformTargetPicker from '@/components/PlatformTargetPicker.vue'
+import SidebarToggle from '@/components/SidebarToggle.vue'
+import { Button } from '@/components/ui/button'
+import { Select } from '@/components/ui/select'
 import { agentLabel } from '@/lib/agents'
-import { buildSkillPrompt, parseSkillDraft } from '@/lib/skillGen'
 import { useSkills } from '@/composables/useSkills'
+
+interface ChatMessage {
+  id: string
+  role: 'user' | 'assistant'
+  text: string
+  activities: string[]
+  streaming?: boolean
+  error?: string
+}
 
 const props = defineProps<{ inset?: boolean }>()
 const emit = defineEmits<{ close: [] }>()
 
-const { installSkill, skills, detectedPlatforms } = useSkills()
+const { detectedPlatforms, installSkill, skills } = useSkills()
 const { t } = useI18n()
 
-const TEMPLATE = `## When to use
+const agentsLoading = ref(true)
+const availableAgents = ref<string[]>([])
+const selectedAgent = ref('')
+const conversationId = ref<string | null>(null)
+const nativeSessionId = ref<string | null>(null)
+const messages = ref<ChatMessage[]>([])
+const composer = ref(t('newSkill.chatDefault'))
+const running = ref(false)
+const scrollElement = ref<HTMLElement | null>(null)
+const activeAssistantId = ref<string | null>(null)
 
-<!-- Describe when this skill should activate -->
-
-## Instructions
-
-1. ...
-`
-
-const name = ref('')
-const description = ref('')
-const tagsInput = ref('')
-const content = ref(TEMPLATE)
+const artifact = ref<FoundSkill | null>(null)
 const scope = ref('user')
-const agents = ref<string[]>([])
-const busy = ref(false)
-const error = ref<string | null>(null)
+const targetAgents = ref<string[]>([])
+const installing = ref(false)
+const installError = ref<string | null>(null)
+const installedKey = ref<string | null>(null)
 
-/* ---------- AI drafting via local agent CLI ---------- */
-
-const generators = ref<string[]>([])
-const generator = ref('')
-const intent = ref('')
-const generating = ref(false)
-const genError = ref<string | null>(null)
-
-const generatorOptions = computed(() =>
-  generators.value.map((id) => ({ value: id, label: agentLabel(id) })),
+const agentOptions = computed(() =>
+  availableAgents.value.map((id) => ({ value: id, label: agentLabel(id) })),
 )
 
-onMounted(async () => {
-  // create once, share everywhere: preselect every detected platform
-  agents.value = detectedPlatforms.value.map((p) => p.id)
-  try {
-    generators.value = await window.skillsManager.aiGenerators()
-    generator.value = generators.value[0] ?? ''
-  } catch {
-    generators.value = []
-  }
+const artifactRevision = computed(() => {
+  if (!artifact.value) return ''
+  const skill = artifact.value.skill
+  return JSON.stringify({
+    name: skill.name,
+    description: skill.description,
+    content: skill.content,
+    resources: Object.keys(skill.resources ?? {}).sort(),
+  })
 })
 
-async function generate(): Promise<void> {
-  if (!intent.value.trim() || !generator.value || generating.value) return
-  generating.value = true
-  genError.value = null
+const currentInstallKey = computed(() =>
+  JSON.stringify({
+    revision: artifactRevision.value,
+    scope: scope.value,
+    agents: [...targetAgents.value].sort(),
+  }),
+)
+
+const artifactInstalled = computed(
+  () => artifactRevision.value !== '' && currentInstallKey.value === installedKey.value,
+)
+
+function scrollToBottom(): void {
+  void nextTick(() => {
+    const element = scrollElement.value
+    if (element) element.scrollTop = element.scrollHeight
+  })
+}
+
+function currentAssistant(): ChatMessage | undefined {
+  return messages.value.find((message) => message.id === activeAssistantId.value)
+}
+
+function finishAssistant(): void {
+  const assistant = currentAssistant()
+  if (assistant) assistant.streaming = false
+  activeAssistantId.value = null
+  running.value = false
+  scrollToBottom()
+}
+
+function handleConversationEvent(event: AiConversationEvent): void {
+  if (event.conversationId !== conversationId.value) return
+
+  if (event.type === 'session') {
+    nativeSessionId.value = event.nativeSessionId
+    return
+  }
+
+  if (event.type === 'assistant-delta') {
+    const assistant = currentAssistant()
+    if (assistant) assistant.text += event.text
+    scrollToBottom()
+    return
+  }
+
+  if (event.type === 'activity') {
+    const assistant = currentAssistant()
+    if (assistant && assistant.activities.at(-1) !== event.label) {
+      assistant.activities.push(event.label)
+    }
+    scrollToBottom()
+    return
+  }
+
+  if (event.type === 'artifact') {
+    artifact.value = event.items[0] ?? null
+    installError.value = null
+    scrollToBottom()
+    return
+  }
+
+  if (event.type === 'error') {
+    const assistant = currentAssistant()
+    if (assistant) assistant.error = event.message
+    finishAssistant()
+    return
+  }
+
+  if (event.type === 'cancelled') {
+    const assistant = currentAssistant()
+    if (assistant && !assistant.text) assistant.text = t('newSkill.chatCancelled')
+    finishAssistant()
+    return
+  }
+
+  finishAssistant()
+}
+
+async function ensureConversation(): Promise<string> {
+  if (conversationId.value) return conversationId.value
+
+  const context = {
+    skills: skills.value.map((skill) => ({
+      name: skill.name,
+      description: skill.description,
+      agents: [...new Set(skill.installations.map((installation) => installation.agent))],
+    })),
+    platforms: detectedPlatforms.value.map((platform) => ({
+      id: platform.id,
+      displayName: platform.displayName,
+    })),
+  }
+  const result = await window.skillsManager.aiConversationCreate(selectedAgent.value, context)
+  localStorage.setItem('skillbuddy:new-skill-agent', selectedAgent.value)
+  conversationId.value = result.conversationId
+  return result.conversationId
+}
+
+async function sendMessage(): Promise<void> {
+  const text = composer.value.trim()
+  if (!text || running.value || !selectedAgent.value) return
+
+  composer.value = ''
+  const userMessage: ChatMessage = {
+    id: crypto.randomUUID(),
+    role: 'user',
+    text,
+    activities: [],
+  }
+  const assistantMessage: ChatMessage = {
+    id: crypto.randomUUID(),
+    role: 'assistant',
+    text: '',
+    activities: [],
+    streaming: true,
+  }
+  messages.value.push(userMessage, assistantMessage)
+  activeAssistantId.value = assistantMessage.id
+  running.value = true
+  scrollToBottom()
+
   try {
-    const inventory = skills.value.map((s) => ({
-      name: s.name,
-      description: s.description ?? '',
-    }))
-    const prompt = buildSkillPrompt(intent.value.trim(), inventory)
-    const { text } = await window.skillsManager.aiGenerate(generator.value, prompt)
-    const draft = parseSkillDraft(text)
-    name.value = draft.name
-    description.value = draft.description
-    tagsInput.value = draft.tags.join(', ')
-    content.value = draft.content
-  } catch (e) {
-    genError.value = e instanceof Error ? e.message : String(e)
-  } finally {
-    generating.value = false
+    const id = await ensureConversation()
+    await window.skillsManager.aiConversationSend(id, text)
+  } catch (error) {
+    assistantMessage.error = error instanceof Error ? error.message : String(error)
+    finishAssistant()
   }
 }
 
-async function create(): Promise<void> {
-  error.value = null
-  if (!/^[a-z0-9]+(-[a-z0-9]+)*$/.test(name.value)) {
-    error.value = t('newSkill.errName')
-    return
-  }
-  if (agents.value.length === 0) {
-    error.value = t('newSkill.errTargets')
-    return
-  }
-  busy.value = true
+async function cancelGeneration(): Promise<void> {
+  if (!conversationId.value || !running.value) return
+  await window.skillsManager.aiConversationCancel(conversationId.value)
+}
+
+async function installArtifact(): Promise<void> {
+  if (!artifact.value || targetAgents.value.length === 0 || installing.value) return
+  installing.value = true
+  installError.value = null
   try {
-    const skill: Skill = {
-      name: name.value,
-      description: description.value.trim(),
-      tags: tagsInput.value
-        .split(/[,，]/)
-        .map((s) => s.trim())
-        .filter(Boolean),
-      content: content.value,
-    }
-    const targets: InstallTarget[] = agents.value.map((agent) =>
+    const targets: InstallTarget[] = targetAgents.value.map((agent) =>
       scope.value === 'user'
         ? { agent, scope: 'user' }
         : { agent, scope: 'project', projectRoot: scope.value },
     )
-    const results = await installSkill(skill, targets)
-    const failed = results.filter((r) => !r.ok)
+    const results = await installSkill(artifact.value.skill, targets)
+    const failed = results.filter((result) => !result.ok)
     if (failed.length > 0) {
-      error.value = failed.map((f) => `${agentLabel(f.target.agent)}: ${f.error}`).join('；')
+      installError.value = failed
+        .map((result) => `${agentLabel(result.target.agent)}: ${result.error}`)
+        .join('；')
       return
     }
-    emit('close')
+    installedKey.value = currentInstallKey.value
+  } catch (error) {
+    installError.value = error instanceof Error ? error.message : String(error)
   } finally {
-    busy.value = false
+    installing.value = false
   }
 }
+
+function onComposerKeydown(event: KeyboardEvent): void {
+  if (event.key !== 'Enter' || event.shiftKey || event.isComposing) return
+  event.preventDefault()
+  void sendMessage()
+}
+
+onMounted(async () => {
+  targetAgents.value = detectedPlatforms.value.map((platform) => platform.id)
+  window.skillsManager.onAiConversationEvent(handleConversationEvent)
+  try {
+    availableAgents.value = await window.skillsManager.aiConversationAgents()
+    const previous = localStorage.getItem('skillbuddy:new-skill-agent')
+    selectedAgent.value =
+      (previous && availableAgents.value.includes(previous) ? previous : null) ??
+      availableAgents.value[0] ??
+      ''
+  } catch {
+    availableAgents.value = []
+  } finally {
+    agentsLoading.value = false
+  }
+})
+
+onBeforeUnmount(() => {
+  window.skillsManager.removeAiConversationListeners()
+  if (conversationId.value) {
+    void window.skillsManager.aiConversationDispose(conversationId.value).catch(() => undefined)
+  }
+})
 </script>
 
 <template>
-  <div class="flex h-full flex-col">
-    <!-- header -->
-    <header :class="['app-drag relative flex items-center gap-3 border-b px-6 py-3', props.inset && 'pl-[118px]']">
+  <div class="flex h-full min-h-0 flex-col">
+    <header
+      :class="[
+        'app-drag relative flex h-14 shrink-0 items-center gap-3 border-b px-6',
+        props.inset && 'pl-[118px]',
+      ]"
+    >
       <SidebarToggle />
-      <Button variant="ghost" size="icon" class="app-no-drag" @click="emit('close')">
-        <ArrowLeft />
-      </Button>
-      <h1 class="text-base font-semibold tracking-tight">{{ t('newSkill.title') }}</h1>
-      <div class="flex-1" />
-      <Button variant="ghost" size="sm" class="app-no-drag" :disabled="busy" @click="emit('close')">
-        {{ t('common.cancel') }}
-      </Button>
       <Button
-        size="sm"
+        variant="ghost"
+        size="icon"
         class="app-no-drag"
-        :disabled="busy || !name || !description.trim()"
-        @click="create"
+        :title="t('common.cancel')"
+        @click="emit('close')"
       >
-        {{ busy ? t('newSkill.creating') : t('newSkill.create') }}
+        <ArrowLeft class="!size-5 translate-y-px" />
       </Button>
+      <div class="flex h-9 min-w-0 flex-col justify-center">
+        <h1 class="truncate text-sm font-semibold leading-5">{{ t('newSkill.chatTitle') }}</h1>
+        <p v-if="nativeSessionId" class="truncate text-[11px] leading-4 text-muted-foreground">
+          {{ t('newSkill.sessionActive') }}
+        </p>
+      </div>
+      <div class="flex-1" />
     </header>
 
-    <ScrollArea class="flex-1">
-      <div class="mx-auto flex max-w-3xl flex-col gap-5 px-6 py-6">
-        <!-- AI draft: primary path — describe intent, local agent writes the skill -->
-        <section
-          v-if="generators.length > 0"
-          class="flex flex-col gap-3 rounded-xl border bg-muted/20 px-5 py-4"
+    <div ref="scrollElement" class="min-h-0 flex-1 overflow-y-auto">
+      <div class="mx-auto flex min-h-full max-w-3xl flex-col px-6 pb-8 pt-7">
+        <div
+          v-if="messages.length === 0"
+          class="flex flex-1 flex-col items-center justify-center pb-20 text-center"
         >
-          <div class="flex items-center gap-2">
-            <Sparkles class="size-4 text-primary" />
-            <h3 class="text-sm font-semibold">{{ t('newSkill.aiDraft') }}</h3>
-            <div class="flex-1" />
-            <Select
-              v-if="generatorOptions.length > 1"
-              v-model="generator"
-              class="w-fit"
-              :options="generatorOptions"
-            >
-              <template #option="{ option }">
-                <span class="flex items-center gap-2">
-                  <PlatformIcon :id="option.value" :size="14" />
-                  {{ option.label }}
-                </span>
-              </template>
-            </Select>
-            <span v-else class="flex items-center gap-1.5 text-xs text-muted-foreground">
-              <PlatformIcon v-if="generator" :id="generator" :size="13" />
-              {{ generatorOptions[0]?.label }}
-            </span>
+          <div class="mb-4 flex size-10 items-center justify-center rounded-lg border bg-muted/30">
+            <Sparkles class="size-5" />
           </div>
-          <textarea
-            v-model="intent"
-            rows="3"
-            :placeholder="t('newSkill.aiIntentPh')"
-            class="w-full resize-y rounded-md border bg-background px-3 py-2 text-sm outline-none placeholder:text-muted-foreground focus:border-foreground/40"
-            :disabled="generating"
-          />
-          <p v-if="genError" class="break-all text-xs text-destructive">{{ genError }}</p>
-          <div class="flex items-center gap-3">
-            <Button
-              size="sm"
-              class="w-fit"
-              :disabled="generating || !intent.trim()"
-              @click="generate"
-            >
-              <Sparkles class="size-3.5" />
-              {{ generating ? t('newSkill.aiGenerating') : t('newSkill.aiGenerate') }}
-            </Button>
-            <span v-if="generating" class="text-xs text-muted-foreground">
-              {{ t('newSkill.aiGeneratingHint') }}
-            </span>
-          </div>
-        </section>
-
-        <div class="grid grid-cols-2 gap-3">
-          <label class="flex flex-col gap-1.5 text-xs text-muted-foreground">
-            {{ t('newSkill.name') }}
-            <Input v-model="name" class="text-sm" :placeholder="t('newSkill.namePh')" />
-          </label>
-          <label class="flex flex-col gap-1.5 text-xs text-muted-foreground">
-            {{ t('editor.tags') }}
-            <Input v-model="tagsInput" class="text-sm" placeholder="git, style" />
-          </label>
-          <label class="col-span-2 flex flex-col gap-1.5 text-xs text-muted-foreground">
-            {{ t('editor.description') }}
-            <Input
-              v-model="description"
-              class="text-sm"
-              :placeholder="t('editor.descriptionPh')"
-            />
-          </label>
+          <h2 class="text-base font-semibold">{{ t('newSkill.emptyTitle') }}</h2>
+          <p class="mt-1 max-w-md text-sm leading-6 text-muted-foreground">
+            {{ t('newSkill.emptyHint') }}
+          </p>
+          <p v-if="!agentsLoading && availableAgents.length === 0" class="mt-4 text-sm text-destructive">
+            {{ t('newSkill.noAgent') }}
+          </p>
         </div>
 
-        <div class="flex flex-col gap-1.5">
-          <span class="text-xs text-muted-foreground">{{ t('editor.body') }}</span>
-          <MarkdownEditor v-model="content" />
-        </div>
+        <div v-else class="flex flex-col gap-8">
+          <template v-for="message in messages" :key="message.id">
+            <div v-if="message.role === 'user'" class="flex justify-end">
+              <div class="max-w-[82%] whitespace-pre-wrap rounded-lg bg-muted px-4 py-2.5 text-sm leading-6">
+                {{ message.text }}
+              </div>
+            </div>
 
-        <div class="flex flex-col gap-1.5">
-          <span class="text-xs text-muted-foreground">{{ t('newSkill.targets') }}</span>
-          <PlatformTargetPicker v-model:scope="scope" v-model:agents="agents" />
-        </div>
+            <article v-else class="min-w-0">
+              <MarkdownView
+                v-if="message.text"
+                :content="message.text"
+                :preview-id="`ai-message-${message.id}`"
+              />
+              <div v-if="message.activities.length > 0" class="mt-3 flex flex-col gap-1.5">
+                <div
+                  v-for="(activity, index) in message.activities"
+                  :key="`${activity}-${index}`"
+                  class="flex min-w-0 items-center gap-2 text-xs text-muted-foreground"
+                >
+                  <Terminal class="size-3.5 shrink-0" />
+                  <span class="truncate font-mono">{{ activity }}</span>
+                </div>
+              </div>
+              <div v-if="message.streaming" class="mt-3 flex items-center gap-2 text-xs text-muted-foreground">
+                <LoaderCircle class="size-3.5 animate-spin" />
+                {{ t('newSkill.thinking') }}
+              </div>
+              <p v-if="message.error" class="mt-3 break-all text-xs text-destructive">
+                {{ message.error }}
+              </p>
+            </article>
+          </template>
 
-        <p v-if="error" class="text-xs text-destructive">{{ error }}</p>
+          <section v-if="artifact" class="overflow-hidden rounded-lg border">
+            <div class="flex items-start gap-3 border-b bg-muted/20 px-4 py-3">
+              <FileText class="mt-0.5 size-4 shrink-0" />
+              <div class="min-w-0 flex-1">
+                <div class="flex flex-wrap items-center gap-2">
+                  <h3 class="truncate text-sm font-semibold">{{ artifact.skill.name }}</h3>
+                  <span
+                    v-if="artifactInstalled"
+                    class="flex items-center gap-1 text-xs text-emerald-700 dark:text-emerald-400"
+                  >
+                    <Check class="size-3.5" />
+                    {{ t('newSkill.installed') }}
+                  </span>
+                </div>
+                <p class="mt-1 text-xs leading-5 text-muted-foreground">
+                  {{ artifact.skill.description }}
+                </p>
+              </div>
+            </div>
+            <div class="max-h-80 overflow-y-auto px-4 py-3">
+              <MarkdownView
+                :content="artifact.skill.content"
+                preview-id="new-skill-artifact"
+              />
+            </div>
+            <div class="flex flex-col gap-3 border-t px-4 py-3">
+              <PlatformTargetPicker v-model:scope="scope" v-model:agents="targetAgents" />
+              <div class="flex flex-wrap items-center gap-3">
+                <Button
+                  size="sm"
+                  :disabled="installing || targetAgents.length === 0 || artifactInstalled"
+                  @click="installArtifact"
+                >
+                  <LoaderCircle v-if="installing" class="size-3.5 animate-spin" />
+                  <Check v-else class="size-3.5" />
+                  {{
+                    artifactInstalled
+                      ? t('newSkill.installed')
+                      : installing
+                        ? t('newSkill.installing')
+                        : t('newSkill.installN', { n: targetAgents.length })
+                  }}
+                </Button>
+                <p v-if="installError" class="break-all text-xs text-destructive">
+                  {{ installError }}
+                </p>
+              </div>
+            </div>
+          </section>
+        </div>
       </div>
-    </ScrollArea>
+    </div>
+
+    <footer class="shrink-0 bg-background px-6 pb-4 pt-2">
+      <div
+        class="mx-auto flex max-w-3xl flex-col rounded-[22px] border border-foreground/15 bg-background shadow-[0_8px_32px_rgb(0_0_0/0.08)] transition-[border-color,box-shadow] focus-within:border-foreground/25 focus-within:shadow-[0_10px_36px_rgb(0_0_0/0.11)] dark:shadow-[0_8px_32px_rgb(0_0_0/0.28)]"
+      >
+        <div class="flex min-h-14 items-start gap-2 px-5 pb-1 pt-4">
+          <span
+            class="inline-flex h-6 shrink-0 items-center gap-1 rounded-full bg-muted px-2 text-xs font-medium leading-none text-foreground/80"
+          >
+            <Hammer class="size-3.5" />
+            skillbuddy-skill-creator
+          </span>
+          <textarea
+            v-model="composer"
+            rows="2"
+            :placeholder="t('newSkill.chatPlaceholder')"
+            class="min-h-10 min-w-0 flex-1 resize-none bg-transparent p-0 text-sm leading-6 outline-none placeholder:text-muted-foreground/45"
+            :disabled="agentsLoading || availableAgents.length === 0"
+            @keydown="onComposerKeydown"
+          />
+        </div>
+        <div class="flex h-10 items-center px-4 pb-2">
+          <Select
+            v-if="selectedAgent"
+            v-model="selectedAgent"
+            class="inline-flex h-7 w-fit min-w-0 self-center border-0 bg-transparent py-0 pl-2 pr-1.5 text-xs leading-none text-muted-foreground shadow-none hover:bg-muted hover:text-foreground focus-visible:ring-0"
+            :options="agentOptions"
+            :disabled="Boolean(conversationId)"
+          >
+            <template #value="{ option }">
+              <span v-if="option" class="inline-flex h-full items-center gap-1.5">
+                <PlatformIcon :id="option.value" :size="13" class="shrink-0" />
+                <span class="leading-none">{{ option.label }}</span>
+              </span>
+            </template>
+            <template #option="{ option }">
+              <span class="flex items-center gap-2">
+                <PlatformIcon :id="option.value" :size="14" class="shrink-0" />
+                <span class="leading-none">{{ option.label }}</span>
+              </span>
+            </template>
+          </Select>
+          <div class="flex-1" />
+          <Button
+            v-if="running"
+            variant="outline"
+            size="icon"
+            class="size-7 rounded-full"
+            :title="t('newSkill.stop')"
+            @click="cancelGeneration"
+          >
+            <CircleStop class="size-4" />
+          </Button>
+          <Button
+            v-else
+            size="icon"
+            class="size-7 rounded-full"
+            :title="t('newSkill.send')"
+            :disabled="!composer.trim() || !selectedAgent"
+            @click="sendMessage"
+          >
+            <ArrowUp class="size-4" />
+          </Button>
+        </div>
+      </div>
+    </footer>
   </div>
 </template>

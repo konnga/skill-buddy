@@ -8,6 +8,8 @@ import type {
   Skill,
 } from '@skillbuddy/core'
 import type {
+  AiConversationContext,
+  AiConversationEvent,
   CustomPlatformInput,
   InstallTarget,
   RegistryConfig,
@@ -32,9 +34,26 @@ const api = {
     ipcRenderer.invoke('skills:import-git', url),
   cleanupImport: (root: string): Promise<void> =>
     ipcRenderer.invoke('skills:cleanup-import', root),
-  aiGenerators: (): Promise<string[]> => ipcRenderer.invoke('ai:generators'),
-  aiGenerate: (generatorId: string, prompt: string): Promise<{ text: string }> =>
-    ipcRenderer.invoke('ai:generate', generatorId, prompt),
+  aiConversationAgents: (): Promise<string[]> => ipcRenderer.invoke('ai:conversation-agents'),
+  aiConversationCreate: (
+    agentId: string,
+    context: AiConversationContext,
+  ): Promise<{ conversationId: string }> =>
+    ipcRenderer.invoke('ai:conversation-create', agentId, context),
+  aiConversationSend: (conversationId: string, message: string): Promise<void> =>
+    ipcRenderer.invoke('ai:conversation-send', conversationId, message),
+  aiConversationCancel: (conversationId: string): Promise<boolean> =>
+    ipcRenderer.invoke('ai:conversation-cancel', conversationId),
+  aiConversationDispose: (conversationId: string): Promise<void> =>
+    ipcRenderer.invoke('ai:conversation-dispose', conversationId),
+  onAiConversationEvent: (callback: (event: AiConversationEvent) => void): void => {
+    ipcRenderer.on('ai:conversation-event', (_event, payload: AiConversationEvent) => {
+      callback(payload)
+    })
+  },
+  removeAiConversationListeners: (): void => {
+    ipcRenderer.removeAllListeners('ai:conversation-event')
+  },
   marketSearch: (
     q: string,
   ): Promise<{ id: string; skillId: string; name: string; installs: number; source: string }[]> =>

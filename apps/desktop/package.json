@@ -5,6 +5,14 @@
   "type": "module",
   "description": "SkillBuddy desktop app (Electron + Vue 3)",
   "main": "./out/main/index.js",
+  "build": {
+    "extraResources": [
+      {
+        "from": "resources/skills",
+        "to": "skills"
+      }
+    ]
+  },
   "scripts": {
     "predev": "pnpm --filter @skillbuddy/core build",
     "dev": "node scripts/dev.mjs",
