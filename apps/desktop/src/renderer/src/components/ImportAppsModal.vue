@@ -133,10 +133,10 @@ async function runImport(): Promise<void> {
     <DialogPortal>
       <DialogOverlay class="fixed inset-0 z-40 bg-black/40" />
       <DialogContent
-        class="fixed left-1/2 top-1/2 z-50 flex max-h-[85vh] w-[560px] max-w-[94vw] -translate-x-1/2 -translate-y-1/2 flex-col overflow-hidden rounded-2xl border bg-background outline-none"
+        class="fixed left-1/2 top-1/2 z-50 flex h-[min(760px,85vh)] w-[560px] max-w-[94vw] -translate-x-1/2 -translate-y-1/2 flex-col overflow-hidden rounded-2xl border bg-background outline-none"
         @open-auto-focus.prevent
       >
-        <header class="flex items-center justify-between px-7 pt-6">
+        <header class="flex shrink-0 items-center justify-between px-7 pt-6">
           <DialogTitle class="text-2xl font-bold tracking-tight">
             {{ t('importApps.title') }}
           </DialogTitle>
@@ -177,7 +177,7 @@ async function runImport(): Promise<void> {
             <div class="mt-5 flex items-start justify-between gap-6">
               <div class="min-w-0">
                 <p class="text-sm font-medium">{{ t('importApps.keepSync') }}</p>
-                <p class="mt-0.5 text-xs text-muted-foreground">
+                <p class="mt-0.5 text-sm text-muted-foreground">
                   {{ t('importApps.keepSyncDesc') }}
                 </p>
               </div>
@@ -198,8 +198,11 @@ async function runImport(): Promise<void> {
               <ArrowLeft class="size-4" />
               {{ t('importApps.back') }}
             </button>
-            <p class="mb-3 text-sm text-muted-foreground">{{ t('importApps.targetsTitle') }}</p>
-            <PlatformTargetPicker v-model:scope="targetScope" v-model:agents="targetAgents" />
+            <PlatformTargetPicker
+              v-model:scope="targetScope"
+              v-model:agents="targetAgents"
+              :label="t('importApps.targetsTitle')"
+            />
             <p
               v-if="message"
               class="mt-4 text-sm"
@@ -211,9 +214,9 @@ async function runImport(): Promise<void> {
           </div>
         </ScrollArea>
 
-        <footer class="flex items-center gap-3 px-7 pb-6">
+        <footer class="flex shrink-0 items-center gap-3 px-7 pb-6">
           <button
-            class="text-xs text-muted-foreground underline-offset-2 hover:underline"
+            class="text-sm text-muted-foreground underline-offset-2 hover:underline"
             @click="emit('advanced')"
           >
             {{ t('importApps.advanced') }}

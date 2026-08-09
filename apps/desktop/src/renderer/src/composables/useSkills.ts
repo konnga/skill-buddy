@@ -16,6 +16,8 @@ const projectFilter = ref<string | null>(null)
 const driftOnly = ref(false)
 /** active group name filter (sidebar) */
 const groupFilter = ref<string | null>(null)
+/** null = all; managed = editable installs; agent = read-only installs */
+const ownershipFilter = ref<'managed' | 'agent' | null>(null)
 const sortBy = ref<'name' | 'recent'>('name')
 
 const lastModified = (s: AggregatedSkill): number =>
@@ -71,6 +73,16 @@ const filtered = computed(() => {
       const group = groups.value.find((g) => g.name === groupFilter.value)
       if (!group || !group.skills.includes(s.name)) return []
     }
+    if (
+      ownershipFilter.value === 'managed' &&
+      !s.installations.some((installation) => !installation.readOnly)
+    )
+      return []
+    if (
+      ownershipFilter.value === 'agent' &&
+      !s.installations.some((installation) => installation.readOnly)
+    )
+      return []
     if (driftOnly.value && !s.hasDrift) return []
     const score = q ? searchScore(s, q, tokens) : 0
     return score === null ? [] : [{ skill: s, score }]
@@ -171,6 +183,16 @@ async function uninstall(name: string, targets: InstallTarget[]): Promise<Target
   return results
 }
 
+async function setEnabled(
+  name: string,
+  targets: InstallTarget[],
+  enabled: boolean,
+): Promise<TargetResult[]> {
+  const results = await window.skillsManager.setSkillEnabled(name, targets, enabled)
+  await refresh()
+  return results
+}
+
 export function useSkills() {
   return {
     skills,
@@ -185,11 +207,13 @@ export function useSkills() {
     countByProject,
     driftOnly,
     groupFilter,
+    ownershipFilter,
     sortBy,
     filtered,
     refresh,
     install,
     installSkill,
     uninstall,
+    setEnabled,
   }
 }

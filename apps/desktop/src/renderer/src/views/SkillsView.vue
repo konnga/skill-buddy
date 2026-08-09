@@ -1,6 +1,14 @@
 <script setup lang="ts">
-import { computed } from 'vue'
-import { useI18n } from 'vue-i18n'
+import { computed, ref } from 'vue'
+import { I18nT, useI18n } from 'vue-i18n'
+import {
+  DialogContent,
+  DialogDescription,
+  DialogOverlay,
+  DialogPortal,
+  DialogRoot,
+  DialogTitle,
+} from 'reka-ui'
 import {
   CloudDownload,
   FolderOpen,
@@ -20,10 +28,13 @@ import { Select } from '@/components/ui/select'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { useGroups } from '@/composables/useGroups'
 import { useSkills } from '@/composables/useSkills'
+import { showToast } from '@/composables/useToast'
+import { agentLabel } from '@/lib/agents'
 
 const props = defineProps<{ inset?: boolean }>()
 const emit = defineEmits<{
   openSkill: [skill: AggregatedSkill]
+  editSkill: [skill: AggregatedSkill]
   newSkill: []
   importSkills: []
 }>()
@@ -35,11 +46,35 @@ const {
   error,
   search,
   driftOnly,
+  platformFilter,
+  ownershipFilter,
   sortBy,
   filtered,
   skills,
   refresh,
+  setEnabled,
 } = useSkills()
+const removing = ref<Set<string>>(new Set())
+const toggling = ref<Set<string>>(new Set())
+const pendingUninstall = ref<{ skill: AggregatedSkill; platformId: string | null } | null>(null)
+const pendingToggle = ref<{
+  skill: AggregatedSkill
+  platformId: string | null
+  enabled: boolean
+  count: number
+} | null>(null)
+const pendingUninstallInstallations = computed(() => {
+  const request = pendingUninstall.value
+  if (!request) return []
+  return request.skill.installations.filter(
+    (installation) =>
+      !installation.readOnly &&
+      (request.platformId === null || installation.agent === request.platformId),
+  )
+})
+const pendingUninstallCount = computed(
+  () => pendingUninstallInstallations.value.length,
+)
 const {
   groupFilter,
   groupApplyOpen,
@@ -58,6 +93,158 @@ const sortOptions = computed(() => [
   { value: 'name', label: t('sort.name') },
   { value: 'recent', label: t('sort.recent') },
 ])
+
+const ownershipModel = computed({
+  get: () => ownershipFilter.value ?? 'all',
+  set: (value: string) => {
+    ownershipFilter.value = value === 'managed' || value === 'agent' ? value : null
+  },
+})
+
+const ownershipOptions = computed(() => [
+  { value: 'all', label: t('app.allSources') },
+  { value: 'managed', label: t('app.managedByMe') },
+  { value: 'agent', label: t('app.managedByAgent') },
+])
+
+async function uninstallSkill(skill: AggregatedSkill, platformId: string | null): Promise<void> {
+  if (removing.value.has(skill.name)) return
+  const paths = skill.installations
+    .filter(
+      (installation) =>
+        !installation.readOnly &&
+        (platformId === null || installation.agent === platformId),
+    )
+    .map((installation) => installation.path)
+  if (paths.length === 0) return
+
+  removing.value = new Set([...removing.value, skill.name])
+  try {
+    const { token, results } = await window.skillsManager.trashUndoable(paths)
+    const completed = results.filter((result) => result.ok).length
+    const failed = results.length - completed
+    if (completed > 0) {
+      await refresh({ silent: true })
+      showToast({
+        message:
+          failed > 0
+            ? t('card.uninstallPartial', { completed, failed })
+            : t('common.trashedN', { n: completed }),
+        actionLabel: t('common.undo'),
+        onAction: async () => {
+          if (await window.skillsManager.undoTrash(token)) {
+            await refresh({ silent: true })
+            showToast({ message: t('common.restored') })
+          }
+        },
+      })
+    } else {
+      showToast({ message: t('card.uninstallFailed') })
+    }
+  } catch {
+    showToast({ message: t('card.uninstallFailed') })
+  } finally {
+    const next = new Set(removing.value)
+    next.delete(skill.name)
+    removing.value = next
+  }
+}
+
+async function confirmUninstall(): Promise<void> {
+  const request = pendingUninstall.value
+  if (!request) return
+  await uninstallSkill(request.skill, request.platformId)
+  pendingUninstall.value = null
+}
+
+function requestUninstall(skill: AggregatedSkill, platformId: string | null): void {
+  pendingUninstall.value = { skill, platformId }
+}
+
+function updateUninstallDialog(open: boolean): void {
+  if (
+    !open &&
+    pendingUninstall.value &&
+    !removing.value.has(pendingUninstall.value.skill.name)
+  ) {
+    pendingUninstall.value = null
+  }
+}
+
+async function toggleSkill(
+  skill: AggregatedSkill,
+  platformId: string | null,
+  enabled: boolean,
+): Promise<void> {
+  if (toggling.value.has(skill.name)) return
+  const targets = skill.installations.filter(
+    (installation) =>
+      !installation.readOnly &&
+      (platformId === null || installation.agent === platformId),
+  )
+  if (targets.length === 0) return
+
+  toggling.value = new Set([...toggling.value, skill.name])
+  try {
+    const results = await setEnabled(
+      skill.name,
+      targets.map((installation) => ({
+        agent: installation.agent,
+        scope: installation.scope,
+        projectRoot: installation.projectRoot,
+      })),
+      enabled,
+    )
+    const failed = results.filter((result) => !result.ok)
+    const completed = results.length - failed.length
+    if (completed > 0) {
+      showToast({
+        message: platformId
+          ? t(enabled ? 'card.enabledOnPlatform' : 'card.disabledOnPlatform', {
+              platform: agentLabel(platformId),
+              n: completed,
+            })
+          : t(enabled ? 'card.enabledN' : 'card.disabledN', { n: completed }),
+      })
+    }
+    if (failed.length > 0) {
+      showToast({ message: failed.map((result) => result.error).join('；') })
+    }
+  } finally {
+    const next = new Set(toggling.value)
+    next.delete(skill.name)
+    toggling.value = next
+  }
+}
+
+function requestToggle(skill: AggregatedSkill): void {
+  const platformId = platformFilter.value
+  const targets = skill.installations.filter(
+    (installation) =>
+      !installation.readOnly &&
+      (platformId === null || installation.agent === platformId),
+  )
+  if (targets.length === 0) return
+  const enabled = targets.every((installation) => installation.enabled === false)
+  if (platformId === null) {
+    pendingToggle.value = { skill, platformId, enabled, count: targets.length }
+    return
+  }
+  void toggleSkill(skill, platformId, enabled)
+}
+
+async function confirmToggle(): Promise<void> {
+  const request = pendingToggle.value
+  if (!request) return
+  pendingToggle.value = null
+  await toggleSkill(request.skill, request.platformId, request.enabled)
+}
+
+function updateToggleDialog(open: boolean): void {
+  if (!open && pendingToggle.value && !toggling.value.has(pendingToggle.value.skill.name)) {
+    pendingToggle.value = null
+  }
+}
 </script>
 
 <template>
@@ -75,10 +262,11 @@ const sortOptions = computed(() => [
         />
         <Input v-model="search" :placeholder="t('app.searchPlaceholder')" class="pl-8" />
       </div>
+      <Select v-model="ownershipModel" class="app-no-drag" :options="ownershipOptions" />
       <button
         type="button"
         :class="[
-          'app-no-drag flex items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-xs transition-colors',
+          'app-no-drag flex items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-sm transition-colors',
           driftOnly
             ? 'border-amber-500/50 bg-amber-500/10 text-amber-700 dark:text-amber-400'
             : 'text-muted-foreground hover:border-primary/40',
@@ -123,10 +311,10 @@ const sortOptions = computed(() => [
         v-if="groupFilter && groupApplyOpen"
         class="mb-4 flex flex-col gap-2 rounded-lg border px-4 py-3"
       >
-        <span class="text-xs text-muted-foreground">{{ t('groups.applyTitle') }}</span>
         <PlatformTargetPicker
           v-model:scope="groupApplyScope"
           v-model:agents="groupApplyAgents"
+          :label="t('groups.applyTitle')"
         />
         <div class="flex items-center gap-2">
           <Button
@@ -149,8 +337,8 @@ const sortOptions = computed(() => [
             {{ t('groups.applyTemp') }}
           </Button>
         </div>
-        <p class="text-xs text-muted-foreground">{{ t('groups.tempHint') }}</p>
-        <p v-if="groupApplyNote" class="text-xs text-amber-600 dark:text-amber-400">
+        <p class="text-sm text-muted-foreground">{{ t('groups.tempHint') }}</p>
+        <p v-if="groupApplyNote" class="text-sm text-amber-600 dark:text-amber-400">
           {{ groupApplyNote }}
         </p>
       </div>
@@ -159,7 +347,7 @@ const sortOptions = computed(() => [
         v-if="groupFilter && activeTemp"
         class="mb-4 flex items-center justify-between gap-3 rounded-lg border border-sky-500/30 bg-sky-500/5 px-4 py-2.5"
       >
-        <span class="text-xs text-sky-700 dark:text-sky-400">
+        <span class="text-sm text-sky-700 dark:text-sky-400">
           {{ t('groups.tempActive', { n: activeTemp.installed.length }) }}
         </span>
         <Button
@@ -183,21 +371,129 @@ const sortOptions = computed(() => [
       >
         <FolderOpen class="size-10" />
         <p class="text-sm">{{ t('app.empty') }}</p>
-        <p class="max-w-sm text-center text-xs">
+        <p class="max-w-sm text-center text-sm">
           {{ t('app.emptyHint', { n: detectedPlatforms.length }) }}
         </p>
       </div>
       <div v-else-if="filtered.length === 0" class="py-24 text-center text-sm text-muted-foreground">
         {{ t('app.noMatch', { q: search }) }}
       </div>
-      <div v-else class="grid grid-cols-1 gap-3 lg:grid-cols-2 2xl:grid-cols-3">
+      <div v-else class="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
         <SkillCard
           v-for="skill in filtered"
           :key="skill.name"
           :skill="skill"
+          :busy="removing.has(skill.name) || toggling.has(skill.name)"
+          :current-platform="platformFilter ?? undefined"
           @open="emit('openSkill', skill)"
+          @edit="emit('editSkill', skill)"
+          @toggle-enabled="requestToggle(skill)"
+          @uninstall-current="requestUninstall(skill, platformFilter)"
+          @uninstall-all="requestUninstall(skill, null)"
         />
       </div>
     </ScrollArea>
+
+    <DialogRoot
+      :open="Boolean(pendingUninstall)"
+      @update:open="updateUninstallDialog"
+    >
+      <DialogPortal>
+        <DialogOverlay class="fixed inset-0 z-40 bg-black/40" />
+        <DialogContent
+          class="fixed left-1/2 top-1/2 z-50 w-[380px] -translate-x-1/2 -translate-y-1/2 rounded-xl border bg-background p-5 shadow-xl outline-none"
+        >
+          <DialogTitle class="text-base font-semibold">
+            {{
+              pendingUninstall?.platformId
+                ? t('card.uninstallCurrentTitle')
+                : t('card.uninstallAllTitle')
+            }}
+          </DialogTitle>
+          <DialogDescription class="mt-2 text-sm leading-6 text-muted-foreground">
+            <I18nT
+              :keypath="
+                pendingUninstall?.platformId
+                  ? 'card.uninstallCurrentConfirm'
+                  : 'card.uninstallAllConfirm'
+              "
+              tag="span"
+            >
+              <template #name>
+                <strong class="font-semibold text-foreground">
+                  {{ pendingUninstall?.skill.name }}
+                </strong>
+              </template>
+              <template #platform>
+                <strong class="font-semibold text-foreground">
+                  {{ pendingUninstall?.platformId ? agentLabel(pendingUninstall.platformId) : '' }}
+                </strong>
+              </template>
+              <template #n>{{ pendingUninstallCount }}</template>
+            </I18nT>
+          </DialogDescription>
+          <div class="mt-5 flex justify-end gap-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              :disabled="Boolean(pendingUninstall && removing.has(pendingUninstall.skill.name))"
+              @click="pendingUninstall = null"
+            >
+              {{ t('common.cancel') }}
+            </Button>
+            <Button
+              variant="destructive"
+              size="sm"
+              :disabled="Boolean(pendingUninstall && removing.has(pendingUninstall.skill.name))"
+              @click="confirmUninstall"
+            >
+              {{
+                pendingUninstall?.platformId
+                  ? t('card.uninstallCurrentAction')
+                  : t('card.uninstallAllAction')
+              }}
+            </Button>
+          </div>
+        </DialogContent>
+      </DialogPortal>
+    </DialogRoot>
+
+    <DialogRoot :open="Boolean(pendingToggle)" @update:open="updateToggleDialog">
+      <DialogPortal>
+        <DialogOverlay class="fixed inset-0 z-40 bg-black/40" />
+        <DialogContent
+          class="fixed left-1/2 top-1/2 z-50 w-[380px] -translate-x-1/2 -translate-y-1/2 rounded-xl border bg-background p-5 shadow-xl outline-none"
+        >
+          <DialogTitle class="text-base font-semibold">
+            {{
+              pendingToggle?.enabled
+                ? t('card.enableAllTitle')
+                : t('card.disableAllTitle')
+            }}
+          </DialogTitle>
+          <DialogDescription class="mt-2 text-sm leading-6 text-muted-foreground">
+            {{
+              t(
+                pendingToggle?.enabled
+                  ? 'card.enableAllConfirm'
+                  : 'card.disableAllConfirm',
+                {
+                  name: pendingToggle?.skill.name ?? '',
+                  n: pendingToggle?.count ?? 0,
+                },
+              )
+            }}
+          </DialogDescription>
+          <div class="mt-5 flex justify-end gap-2">
+            <Button variant="ghost" size="sm" @click="pendingToggle = null">
+              {{ t('common.cancel') }}
+            </Button>
+            <Button size="sm" @click="confirmToggle">
+              {{ pendingToggle?.enabled ? t('card.enableAction') : t('card.disableAction') }}
+            </Button>
+          </div>
+        </DialogContent>
+      </DialogPortal>
+    </DialogRoot>
   </div>
 </template>

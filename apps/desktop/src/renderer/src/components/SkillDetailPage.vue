@@ -22,10 +22,15 @@ import { useSkills } from '@/composables/useSkills'
 import { showToast } from '@/composables/useToast'
 import type { SkillFocus } from '@/lib/navigation'
 
-const props = defineProps<{ skill: AggregatedSkill; inset?: boolean; focus?: SkillFocus }>()
+const props = defineProps<{
+  skill: AggregatedSkill
+  inset?: boolean
+  focus?: SkillFocus
+  initialMode?: 'view' | 'edit'
+}>()
 const emit = defineEmits<{ close: [] }>()
 
-const { detectedPlatforms, install, installSkill, refresh } = useSkills()
+const { detectedPlatforms, install, installSkill, refresh, setEnabled } = useSkills()
 const { projectRoots, registryUrl, registryToken, groups } = useSettings()
 
 const driftSection = useTemplateRef<HTMLElement>('driftSection')
@@ -47,6 +52,9 @@ watch(() => props.focus, () => void nextTick(focusSection))
 function inGroup(name: string): boolean {
   return groups.value.find((g) => g.name === name)?.skills.includes(props.skill.name) ?? false
 }
+
+const memberGroups = computed(() => groups.value.filter((group) => inGroup(group.name)))
+const availableGroups = computed(() => groups.value.filter((group) => !inGroup(group.name)))
 
 const newGroupOpen = ref(false)
 const newGroupName = ref('')
@@ -80,7 +88,7 @@ function toggleGroup(name: string): void {
 }
 const { t } = useI18n()
 
-const mode = ref<'view' | 'edit'>('view')
+const mode = ref<'view' | 'edit'>(props.initialMode ?? 'view')
 
 const writableInstallations = computed(() =>
   props.skill.installations.filter((installation) => !installation.readOnly),
@@ -90,6 +98,10 @@ const primaryInstallation = computed(
 )
 const canEdit = computed(() => writableInstallations.value.length > 0)
 const skillContent = computed(() => primaryInstallation.value.skill.content)
+
+function installationEnabled(installation: Installation): boolean {
+  return installation.enabled !== false
+}
 
 function originLabel(installation: Installation): string {
   switch (installation.origin) {
@@ -106,6 +118,19 @@ function originLabel(installation: Installation): string {
     default:
       return t('detail.scopeUser')
   }
+}
+
+function installationLocationLabel(installation: Installation): string {
+  const scopeLabel =
+    installation.scope === 'project'
+      ? t('detail.projectScope', {
+          root:
+            installation.projectRoot?.split(/[\\/]/).filter(Boolean).pop() ??
+            installation.projectRoot ??
+            '',
+        })
+      : t('detail.userScope')
+  return `${agentLabel(installation.agent)} · ${scopeLabel}`
 }
 
 /* ---------- publish to registry ---------- */
@@ -349,6 +374,31 @@ async function removeInstallation(path: string): Promise<void> {
   }
 }
 
+async function toggleInstallation(installation: Installation): Promise<void> {
+  if (installation.readOnly || busy.value) return
+  busy.value = true
+  actionError.value = null
+  try {
+    const results = await setEnabled(
+      props.skill.name,
+      [
+        {
+          agent: installation.agent,
+          scope: installation.scope,
+          projectRoot: installation.projectRoot,
+        },
+      ],
+      !installationEnabled(installation),
+    )
+    const failed = results.filter((result) => !result.ok)
+    if (failed.length > 0) {
+      actionError.value = failed.map((result) => result.error).join('；')
+    }
+  } finally {
+    busy.value = false
+  }
+}
+
 async function runUninstall(): Promise<void> {
   if (writableInstallations.value.length === 0) return
   const removesAllInstallations =
@@ -409,31 +459,45 @@ async function runUninstall(): Promise<void> {
           {{ skill.description || t('card.noDescription') }}
         </p>
 
-        <div v-if="!props.focus" class="mb-6 flex flex-wrap items-center gap-2">
-          <span class="text-xs text-muted-foreground">{{ t('groups.membership') }}</span>
-          <button
-            v-for="g in groups"
-            :key="g.name"
-            type="button"
-            :class="[
-              'rounded-full border px-2.5 py-0.5 text-xs transition-colors',
-              inGroup(g.name)
-                ? 'border-foreground bg-foreground text-background'
-                : 'text-muted-foreground hover:border-foreground/40',
-            ]"
-            @click="toggleGroup(g.name)"
-          >
-            {{ g.name }}
-          </button>
-          <button
-            type="button"
-            class="flex items-center gap-1 rounded-full border border-dashed px-2.5 py-0.5 text-xs text-muted-foreground transition-colors hover:border-foreground/40 hover:text-foreground"
-            @click.stop="openNewGroup"
-          >
-            <Plus class="size-3" />
-            {{ t('groups.createTitle') }}
-          </button>
-        </div>
+        <section v-if="!props.focus" class="mb-6 rounded-lg border p-4">
+          <div class="mb-3 flex items-center justify-between gap-3">
+            <h3 class="text-sm font-medium">{{ t('groups.membership') }}</h3>
+            <button
+              type="button"
+              class="flex shrink-0 cursor-pointer items-center gap-1 rounded-md border border-dashed px-2.5 py-1 text-sm text-muted-foreground transition-colors hover:border-foreground/40 hover:text-foreground"
+              @click.stop="openNewGroup"
+            >
+              <Plus class="size-3.5" />
+              {{ t('groups.createTitle') }}
+            </button>
+          </div>
+          <div v-if="memberGroups.length > 0" class="flex flex-wrap gap-2">
+            <button
+              v-for="group in memberGroups"
+              :key="group.name"
+              type="button"
+              class="cursor-pointer rounded-full border border-foreground bg-foreground px-2.5 py-0.5 text-sm text-background transition-colors hover:bg-foreground/85"
+              @click="toggleGroup(group.name)"
+            >
+              {{ group.name }}
+            </button>
+          </div>
+          <p v-else class="text-sm text-muted-foreground">{{ t('groups.noneAssigned') }}</p>
+          <div v-if="availableGroups.length > 0" class="mt-3 border-t pt-3">
+            <p class="mb-2 text-sm text-muted-foreground">{{ t('groups.available') }}</p>
+            <div class="flex flex-wrap gap-2">
+              <button
+                v-for="group in availableGroups"
+                :key="group.name"
+                type="button"
+                class="cursor-pointer rounded-full border px-2.5 py-0.5 text-sm text-muted-foreground transition-colors hover:border-foreground/40 hover:text-foreground"
+                @click="toggleGroup(group.name)"
+              >
+                {{ group.name }}
+              </button>
+            </div>
+          </div>
+        </section>
 
         <DialogRoot
           v-if="!props.focus && newGroupOpen"
@@ -476,7 +540,7 @@ async function runUninstall(): Promise<void> {
 
         <!-- installations -->
         <section class="mb-8">
-          <h3 class="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+          <h3 class="mb-2 text-sm font-medium uppercase tracking-wide text-muted-foreground">
             {{ t('detail.installedLocations') }}
           </h3>
           <ul class="flex flex-col gap-2">
@@ -488,10 +552,26 @@ async function runUninstall(): Promise<void> {
               <div class="flex min-w-0 items-center gap-2">
                 <PlatformIcon :id="inst.agent" :size="15" />
                 <span class="shrink-0 text-sm">{{ agentLabel(inst.agent) }}</span>
-                <Badge variant="outline">
+                <Badge
+                  variant="secondary"
+                  class="shrink-0 whitespace-nowrap rounded-md px-2 py-0.5 font-normal"
+                >
                   {{ originLabel(inst) }}
                 </Badge>
-                <code class="select-text truncate text-xs text-muted-foreground/70">{{
+                <Badge
+                  variant="outline"
+                  :class="[
+                    'shrink-0 whitespace-nowrap rounded-md px-2 py-0.5 font-normal',
+                    !installationEnabled(inst) && 'border-amber-500/40 text-amber-600 dark:text-amber-400',
+                  ]"
+                >
+                  {{
+                    installationEnabled(inst)
+                      ? t('detail.enabled')
+                      : t('detail.disabled')
+                  }}
+                </Badge>
+                <code class="select-text truncate text-sm text-muted-foreground/70">{{
                   inst.path
                 }}</code>
               </div>
@@ -522,6 +602,29 @@ async function runUninstall(): Promise<void> {
                   class="mx-1.5 size-3.5 text-muted-foreground"
                   :title="t('detail.readOnly')"
                 />
+                <button
+                  v-if="!inst.readOnly"
+                  type="button"
+                  role="switch"
+                  :aria-checked="installationEnabled(inst)"
+                  :aria-label="
+                    t(installationEnabled(inst) ? 'detail.disable' : 'detail.enable')
+                  "
+                  :title="t(installationEnabled(inst) ? 'detail.disable' : 'detail.enable')"
+                  :disabled="busy"
+                  class="relative inline-flex h-5 w-9 shrink-0 cursor-pointer items-center rounded-full transition-all disabled:cursor-not-allowed disabled:opacity-50"
+                  :class="
+                    installationEnabled(inst)
+                      ? 'bg-emerald-500 shadow-sm ring-2 ring-emerald-500/20'
+                      : 'bg-muted-foreground/25'
+                  "
+                  @click="toggleInstallation(inst)"
+                >
+                  <span
+                    class="size-3.5 rounded-full bg-white shadow-sm transition-transform"
+                    :class="installationEnabled(inst) ? 'translate-x-[18px]' : 'translate-x-[3px]'"
+                  />
+                </button>
               </span>
             </li>
           </ul>
@@ -538,12 +641,12 @@ async function runUninstall(): Promise<void> {
           ]"
         >
           <h3
-            class="mb-2 flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-amber-600 dark:text-amber-400"
+            class="mb-2 flex items-center gap-1.5 text-sm font-medium uppercase tracking-wide text-amber-600 dark:text-amber-400"
           >
             <TriangleAlert class="size-3.5" />
             {{ t('detail.drift') }}
           </h3>
-          <p class="mb-3 text-xs text-muted-foreground">{{ t('detail.driftHint') }}</p>
+          <p class="mb-3 text-sm text-muted-foreground">{{ t('detail.driftHint') }}</p>
           <div class="mb-3 flex flex-wrap gap-2">
             <button
               v-for="inst in skill.installations"
@@ -570,10 +673,27 @@ async function runUninstall(): Promise<void> {
             </button>
           </div>
           <div v-for="other in driftOthers" :key="other.path" class="mb-3">
-            <p class="mb-1 flex items-center gap-1.5 text-xs text-muted-foreground">
-              {{ t('detail.diffWith', { agent: agentLabel(other.agent) }) }}
+            <p class="mb-1 flex items-center gap-1.5 text-sm text-muted-foreground">
+              <span>{{ t('detail.diffWith', { agent: installationLocationLabel(other) }) }}</span>
+              <Badge v-if="other.readOnly" variant="secondary">
+                {{ t('card.readOnly') }}
+              </Badge>
             </p>
             <DiffView :base="other.skill.content" :other="baseInstallation?.skill.content ?? ''" />
+          </div>
+          <div v-if="writableDriftOthers.length > 0" class="mb-3">
+            <p class="mb-2 text-sm font-medium">{{ t('detail.syncTargets') }}</p>
+            <div class="flex flex-wrap gap-2">
+              <span
+                v-for="target in writableDriftOthers"
+                :key="target.path"
+                class="flex max-w-full items-center gap-1.5 rounded-md border bg-muted/40 px-2.5 py-1 text-sm"
+                :title="target.path"
+              >
+                <PlatformIcon :id="target.agent" :size="14" />
+                <span class="truncate">{{ installationLocationLabel(target) }}</span>
+              </span>
+            </div>
           </div>
           <Button
             size="sm"
@@ -597,11 +717,16 @@ async function runUninstall(): Promise<void> {
             props.focus === 'install' && 'border-l-2 border-foreground/30 pl-4',
           ]"
         >
-          <h3 class="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-            {{ t('detail.installTo') }}
-          </h3>
-          <div v-if="projectRoots.length > 0" class="mb-2">
-            <Select v-model="installScope" class="max-w-full" :options="scopeOptions" />
+          <div class="mb-2 flex items-center justify-between gap-4">
+            <h3 class="text-sm font-medium uppercase tracking-wide text-muted-foreground">
+              {{ t('detail.installTo') }}
+            </h3>
+            <Select
+              v-if="projectRoots.length > 0"
+              v-model="installScope"
+              class="max-w-[60%] shrink-0"
+              :options="scopeOptions"
+            />
           </div>
           <div v-if="installableTargets.length > 0" class="flex flex-wrap gap-2">
             <button
@@ -620,7 +745,7 @@ async function runUninstall(): Promise<void> {
               {{ p.displayName }}
             </button>
           </div>
-          <p v-else class="text-xs text-muted-foreground">{{ t('detail.allInstalled') }}</p>
+          <p v-else class="text-sm text-muted-foreground">{{ t('detail.allInstalled') }}</p>
           <Button
             v-if="installableTargets.length > 0"
             class="mt-3"
@@ -630,12 +755,12 @@ async function runUninstall(): Promise<void> {
           >
             {{ busy ? t('detail.installing') : t('detail.installN', { n: selectedTargets.size }) }}
           </Button>
-          <p v-if="actionError" class="mt-2 text-xs text-destructive">{{ actionError }}</p>
+          <p v-if="actionError" class="mt-2 text-sm text-destructive">{{ actionError }}</p>
         </section>
 
         <!-- publish -->
         <section v-if="registryConfigured" class="mb-8">
-          <h3 class="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+          <h3 class="mb-2 text-sm font-medium uppercase tracking-wide text-muted-foreground">
             {{ t('team.publish') }}
           </h3>
           <div class="flex flex-wrap items-center gap-2">
@@ -655,55 +780,67 @@ async function runUninstall(): Promise<void> {
             >
               {{ t('team.publish') }}
             </Button>
-            <span v-if="latestPublished" class="text-xs text-muted-foreground">
+            <span v-if="latestPublished" class="text-sm text-muted-foreground">
               {{ t('team.suggestedVersion', { v: latestPublished }) }}
             </span>
           </div>
-          <p v-if="publishMessage" class="mt-2 text-xs text-emerald-600 dark:text-emerald-400">
+          <p v-if="publishMessage" class="mt-2 text-sm text-emerald-600 dark:text-emerald-400">
             {{ publishMessage }}
           </p>
-          <p v-if="publishError" class="mt-2 text-xs text-destructive">{{ publishError }}</p>
+          <p v-if="publishError" class="mt-2 text-sm text-destructive">{{ publishError }}</p>
         </section>
 
         <!-- resources -->
         <section v-if="resourceList.length > 0" class="mb-8">
-          <h3 class="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+          <h3 class="mb-2 text-sm font-medium uppercase tracking-wide text-muted-foreground">
             {{ t('detail.resources') }}
           </h3>
           <div
             v-if="containsScripts"
-            class="mb-2 flex items-center gap-2 rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-700 dark:text-amber-400"
+            class="mb-2 flex items-center gap-2 rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm text-amber-700 dark:text-amber-400"
           >
             <TriangleAlert class="size-3.5 shrink-0" />
             {{ t('detail.scriptWarning') }}
           </div>
-          <ul class="flex flex-col gap-1.5">
-            <li v-for="[rel, abs] in resourceList" :key="rel">
-              <button
-                class="flex w-full items-center justify-between gap-2 rounded-md border px-3 py-1.5 text-left transition-colors hover:border-foreground/30"
-                @click="toggleResource(rel, abs)"
-              >
-                <code class="select-text truncate text-xs">{{ rel }}</code>
-                <span class="text-xs text-muted-foreground">{{
-                  openResource === rel ? '−' : '+'
-                }}</span>
-              </button>
-              <ScrollArea
-                v-if="openResource === rel"
-                orientation="both"
-                class="mt-1 max-h-56 rounded-md border bg-muted text-xs"
-                viewport-class="max-h-56"
-              >
-                <pre class="px-3 py-2"><code class="select-text">{{ resourcePreview }}</code><span v-if="resourceTruncated" class="text-muted-foreground">
+          <ScrollArea class="max-h-96" viewport-class="max-h-96 pr-2">
+            <ul class="flex flex-col gap-1.5">
+              <li v-for="[rel, abs] in resourceList" :key="rel">
+                <button
+                  type="button"
+                  class="flex w-full cursor-pointer items-center justify-between gap-2 rounded-md border px-3 py-1.5 text-left transition-colors hover:border-foreground/30"
+                  :aria-expanded="openResource === rel"
+                  :aria-controls="`resource-preview-${rel.replace(/[^a-zA-Z0-9_-]/g, '-')}`"
+                  :aria-label="
+                    t(openResource === rel ? 'detail.collapseResource' : 'detail.expandResource')
+                  "
+                  :title="
+                    t(openResource === rel ? 'detail.collapseResource' : 'detail.expandResource')
+                  "
+                  @click="toggleResource(rel, abs)"
+                >
+                  <code class="select-text truncate text-sm">{{ rel }}</code>
+                  <span class="text-sm text-muted-foreground">{{
+                    openResource === rel ? '−' : '+'
+                  }}</span>
+                </button>
+                <ScrollArea
+                  v-if="openResource === rel"
+                  :id="`resource-preview-${rel.replace(/[^a-zA-Z0-9_-]/g, '-')}`"
+                  orientation="both"
+                  class="mt-1 max-h-56 rounded-md border bg-muted text-sm"
+                  viewport-class="max-h-56"
+                >
+                  <pre class="px-3 py-2"><code class="select-text">{{ resourcePreview }}</code><span v-if="resourceTruncated" class="text-muted-foreground">
 {{ t('detail.truncated') }}</span></pre>
-              </ScrollArea>
-            </li>
-          </ul>
+                </ScrollArea>
+              </li>
+            </ul>
+          </ScrollArea>
         </section>
 
         <!-- content -->
         <section class="mb-8">
-          <h3 class="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+          <h3 class="mb-2 text-sm font-medium uppercase tracking-wide text-muted-foreground">
             SKILL.md
           </h3>
           <MarkdownView :content="skillContent" preview-id="skill-detail" class="select-text" />
@@ -714,12 +851,12 @@ async function runUninstall(): Promise<void> {
           v-if="writableInstallations.length > 0"
           class="flex items-center justify-between rounded-md border px-4 py-3"
         >
-          <p class="text-xs text-muted-foreground">
+          <p class="text-sm text-muted-foreground">
             {{ t('detail.manageableCount', { n: writableInstallations.length }) }}
           </p>
           <div class="flex items-center gap-2">
             <template v-if="confirmUninstall">
-              <span class="text-xs text-muted-foreground">
+              <span class="text-sm text-muted-foreground">
                 {{ t('detail.deleteConfirm', { n: writableInstallations.length }) }}
               </span>
               <Button variant="destructive" size="sm" :disabled="busy" @click="runUninstall">

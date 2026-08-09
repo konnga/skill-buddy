@@ -26,6 +26,11 @@ const api = {
     ipcRenderer.invoke('skills:install', skill, targets),
   uninstallSkill: (name: string, targets: InstallTarget[]): Promise<TargetResult[]> =>
     ipcRenderer.invoke('skills:uninstall', name, targets),
+  setSkillEnabled: (
+    name: string,
+    targets: InstallTarget[],
+    enabled: boolean,
+  ): Promise<TargetResult[]> => ipcRenderer.invoke('skills:set-enabled', name, targets, enabled),
   revealInFolder: (path: string): Promise<void> => ipcRenderer.invoke('skills:reveal', path),
   pickDirectory: (): Promise<string | null> => ipcRenderer.invoke('dialog:pick-directory'),
   findSkillsInDir: (root: string): Promise<FoundSkill[]> =>
