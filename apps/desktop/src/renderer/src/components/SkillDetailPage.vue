@@ -369,13 +369,13 @@ async function runUninstall(): Promise<void> {
 <template>
   <div class="flex h-full flex-col">
     <!-- header -->
-    <header :class="['app-drag relative flex items-center gap-3 border-b px-6 py-3', props.inset && 'pl-[118px]']">
+    <header :class="['app-drag relative flex h-14 shrink-0 items-center gap-3 border-b px-6', props.inset && 'pl-[118px]']">
       <SidebarToggle />
       <Button variant="ghost" size="icon" class="app-no-drag" @click="emit('close')">
-        <ArrowLeft />
+        <ArrowLeft class="!size-5 translate-y-px" />
       </Button>
-      <div class="flex min-w-0 items-center gap-2">
-        <h1 class="select-text truncate text-base font-semibold tracking-tight">
+      <div class="flex h-9 min-w-0 items-center gap-2">
+        <h1 class="select-text truncate text-base font-semibold leading-5 tracking-tight">
           {{ skill.name }}
         </h1>
         <CopyButton :text="skill.name" class="app-no-drag" />

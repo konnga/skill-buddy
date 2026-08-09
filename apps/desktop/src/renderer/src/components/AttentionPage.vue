@@ -101,12 +101,12 @@ async function runInstallRequired(item: (typeof missingRequired.value)[number]):
 <template>
   <div class="flex h-full flex-col">
     <!-- header -->
-    <header :class="['app-drag relative flex items-center gap-3 border-b px-6 py-3', props.inset && 'pl-[118px]']">
+    <header :class="['app-drag relative flex h-14 shrink-0 items-center gap-3 border-b px-6', props.inset && 'pl-[118px]']">
       <SidebarToggle />
       <Button variant="ghost" size="icon" class="app-no-drag" @click="emit('close')">
-        <ArrowLeft />
+        <ArrowLeft class="!size-5 translate-y-px" />
       </Button>
-      <h1 class="text-base font-semibold tracking-tight">{{ t('dashboard.todo') }}</h1>
+      <h1 class="text-base font-semibold leading-5 tracking-tight">{{ t('dashboard.todo') }}</h1>
       <Badge v-if="todoCount > 0" variant="secondary" class="text-[10px]">{{ todoCount }}</Badge>
     </header>
 

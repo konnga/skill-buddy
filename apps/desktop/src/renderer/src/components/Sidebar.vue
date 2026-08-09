@@ -64,10 +64,10 @@ function selectGroup(name: string): void {
   <aside
     :class="[
       'sidebar-surface flex shrink-0 flex-col overflow-hidden transition-[width] duration-200',
-      sidebarCollapsed ? 'w-0' : 'w-56',
+      sidebarCollapsed ? 'w-0' : 'w-[276px]',
     ]"
   >
-    <div class="flex h-full w-56 shrink-0 flex-col">
+    <div class="flex h-full w-[276px] shrink-0 flex-col">
       <div class="app-drag flex h-10 shrink-0 items-center">
         <button
           type="button"

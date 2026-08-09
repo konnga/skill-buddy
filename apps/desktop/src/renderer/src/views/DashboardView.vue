@@ -43,7 +43,7 @@ const todoCount = computed(() => {
   <div class="flex h-full flex-col">
     <header
       :class="[
-        'app-drag relative flex items-center gap-3 px-6 py-3',
+        'app-drag relative flex h-14 shrink-0 items-center gap-3 px-6',
         props.inset && 'pl-[118px]',
       ]"
     >

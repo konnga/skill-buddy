@@ -136,7 +136,7 @@ async function removeCustomPlatform(id: string): Promise<void> {
 <template>
   <div class="flex h-screen">
     <!-- settings sidebar -->
-    <aside class="sidebar-surface flex w-56 shrink-0 flex-col">
+    <aside class="sidebar-surface flex w-[276px] shrink-0 flex-col">
       <div class="app-drag px-4 pb-2 pt-10">
         <button
           type="button"

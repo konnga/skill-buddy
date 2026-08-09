@@ -171,12 +171,12 @@ async function install(): Promise<void> {
 <template>
   <div class="flex h-full flex-col">
     <!-- header -->
-    <header :class="['app-drag relative flex items-center gap-3 border-b px-6 py-3', props.inset && 'pl-[118px]']">
+    <header :class="['app-drag relative flex h-14 shrink-0 items-center gap-3 border-b px-6', props.inset && 'pl-[118px]']">
       <SidebarToggle />
       <Button variant="ghost" size="icon" class="app-no-drag" @click="emit('close')">
-        <ArrowLeft />
+        <ArrowLeft class="!size-5 translate-y-px" />
       </Button>
-      <h1 class="text-base font-semibold tracking-tight">{{ bundleText(bundle.name, locale) }}</h1>
+      <h1 class="text-base font-semibold leading-5 tracking-tight">{{ bundleText(bundle.name, locale) }}</h1>
       <div class="flex-1" />
       <Button
         size="sm"
