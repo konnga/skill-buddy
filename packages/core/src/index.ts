@@ -26,3 +26,5 @@ export {
   type RegistrySkillSummary,
 } from './registry-client.js'
 export { planAdditiveInstall, planImportSync, targetKey, type AdditivePlan, type SyncAction, type SyncPairLike, type TargetRef } from './planners.js'
+export { compareSemver } from './semver.js'
+export { resolveResourcePath } from './resource-path.js'

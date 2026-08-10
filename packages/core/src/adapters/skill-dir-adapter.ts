@@ -1,6 +1,7 @@
 import { promises as fs } from 'node:fs'
 import { dirname, join } from 'node:path'
 import matter from 'gray-matter'
+import { resolveResourcePath } from '../resource-path.js'
 import type { AgentAdapter, AgentId, InstallScope, InstalledSkill, Skill } from '../types.js'
 import {
   DISABLED_SKILL_FILE_NAME,
@@ -60,8 +61,9 @@ export abstract class SkillDirAdapter implements AgentAdapter {
     const dir = this.skillsDir(scope, projectRoot)
     if (!dir) throw new Error(`${this.agent}: no skills directory for scope "${scope}"`)
     const skillPath = join(dir, skill.name)
-    await fs.mkdir(skillPath, { recursive: true })
-    await fs.rm(join(skillPath, DISABLED_SKILL_FILE_NAME), { force: true })
+    await fs.mkdir(dir, { recursive: true })
+    const stagingPath = await fs.mkdtemp(join(dir, '.skillbuddy-install-'))
+    const backupPath = `${stagingPath}-previous`
     const frontmatter: Record<string, unknown> = {
       name: skill.name,
       description: skill.description,
@@ -69,18 +71,33 @@ export abstract class SkillDirAdapter implements AgentAdapter {
     if (skill.version) frontmatter.version = skill.version
     if (skill.tags?.length) frontmatter.tags = skill.tags
     const raw = matter.stringify(`\n${skill.content}\n`, frontmatter)
-    await fs.writeFile(join(skillPath, SKILL_FILE_NAME), raw, 'utf8')
-    if (skill.resources) {
-      for (const [rel, src] of Object.entries(skill.resources)) {
-        const dest = join(skillPath, rel)
-        await fs.mkdir(dirname(dest), { recursive: true })
-        await fs.copyFile(src, dest)
+    try {
+      if (skill.resources) {
+        for (const [rel, src] of Object.entries(skill.resources)) {
+          const dest = resolveResourcePath(stagingPath, rel)
+          await fs.mkdir(dirname(dest), { recursive: true })
+          await fs.copyFile(src, dest)
+        }
       }
+      await fs.writeFile(join(stagingPath, SKILL_FILE_NAME), raw, 'utf8')
+      const hadPrevious = await exists(skillPath)
+      if (hadPrevious) await fs.rename(skillPath, backupPath)
+      try {
+        await fs.rename(stagingPath, skillPath)
+      } catch (error) {
+        if (hadPrevious) await fs.rename(backupPath, skillPath)
+        throw error
+      }
+      if (hadPrevious) await fs.rm(backupPath, { recursive: true, force: true }).catch(() => undefined)
+    } catch (error) {
+      await fs.rm(stagingPath, { recursive: true, force: true })
+      throw error
     }
     return skillPath
   }
 
   async uninstall(name: string, scope: InstallScope, projectRoot?: string): Promise<void> {
+    if (!isKebabCase(name)) throw new Error(`skill name must be kebab-case, got "${name}"`)
     const dir = this.skillsDir(scope, projectRoot)
     if (!dir) return
     await fs.rm(join(dir, name), { recursive: true, force: true })

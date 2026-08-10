@@ -131,6 +131,22 @@ describe.each(cases)('PlatformAdapter($id)', (def) => {
     await expect(adapter.install({ ...sample, name: 'Bad Name' }, 'user')).rejects.toThrow(
       /kebab-case/,
     )
+    await expect(adapter.uninstall('../outside', 'user')).rejects.toThrow(/kebab-case/)
+  })
+
+  it('rejects resource paths outside the Skill directory', async () => {
+    const source = join(home, 'payload.txt')
+    await fs.writeFile(source, 'payload', 'utf8')
+    await expect(
+      adapter.install(
+        {
+          ...sample,
+          resources: { '../escaped.txt': source },
+        },
+        'user',
+      ),
+    ).rejects.toThrow(/resource path/)
+    await expect(fs.stat(join(at(home, def.userSkillsDir!), 'escaped.txt'))).rejects.toThrow()
   })
 
   it('ignores directories without SKILL.md', async () => {

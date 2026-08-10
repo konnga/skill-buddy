@@ -87,7 +87,7 @@ program
   .option('--json', 'machine-readable output')
   .action(async (opts: { project?: string[]; json?: boolean }) => {
     const items = await scanInstalledSkills((opts.project ?? []).map((p) => resolve(p)))
-    const aggregated = aggregateSkills(items)
+    const aggregated = await aggregateSkills(items)
     if (opts.json) {
       console.log(JSON.stringify(aggregated, null, 2))
       return

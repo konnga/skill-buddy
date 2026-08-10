@@ -13,6 +13,10 @@
     "./planners": {
       "types": "./dist/planners.d.ts",
       "import": "./dist/planners.js"
+    },
+    "./semver": {
+      "types": "./dist/semver.d.ts",
+      "import": "./dist/semver.js"
     }
   },
   "scripts": {

@@ -1,6 +1,7 @@
 import { promises as fs } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
+import { resolveResourcePath } from './resource-path.js'
 import type { Skill } from './types.js'
 
 export interface RegistrySkillSummary {
@@ -123,11 +124,16 @@ export async function toSkill(remote: RegistrySkill): Promise<Skill> {
   if (remote.resources && Object.keys(remote.resources).length > 0) {
     const root = await fs.mkdtemp(join(tmpdir(), 'skm-registry-'))
     resources = {}
-    for (const [rel, content] of Object.entries(remote.resources)) {
-      const abs = join(root, rel)
-      await fs.mkdir(dirname(abs), { recursive: true })
-      await fs.writeFile(abs, content, 'utf8')
-      resources[rel] = abs
+    try {
+      for (const [rel, content] of Object.entries(remote.resources)) {
+        const abs = resolveResourcePath(root, rel)
+        await fs.mkdir(dirname(abs), { recursive: true })
+        await fs.writeFile(abs, content, 'utf8')
+        resources[rel] = abs
+      }
+    } catch (error) {
+      await fs.rm(root, { recursive: true, force: true })
+      throw error
     }
   }
   return {
