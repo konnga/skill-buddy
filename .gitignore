@@ -9,6 +9,8 @@ release/
 
 # electron-builder
 apps/desktop/build/
+apps/desktop/playwright-report/
+apps/desktop/test-results/
 
 # logs
 *.log

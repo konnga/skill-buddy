@@ -48,5 +48,7 @@ pnpm dev       # 构建内核并启动桌面端（electron-vite dev）
 
 ```bash
 pnpm build       # 构建所有包
+pnpm test        # Core、Registry 与桌面主进程单元测试
+pnpm test:e2e    # 构建并运行 Electron 主流程测试
 pnpm typecheck   # 全仓库类型检查
 ```

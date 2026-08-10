@@ -1,4 +1,5 @@
 import { computed, ref, watch } from 'vue'
+import { compareSemver } from '@skillbuddy/core/semver'
 import type { InstallTarget, TargetResult } from '../../../shared/ipc.js'
 import { useSettings } from './useSettings.js'
 import { useSkills } from './useSkills.js'
@@ -19,16 +20,9 @@ const updates = ref<UpdateItem[]>([])
 const missingRequired = ref<MissingRequired[]>([])
 const checking = ref(false)
 
-/** true when a is strictly older than b (loose semver, numeric parts) */
+/** 当两个版本都是项目支持的严格 x.y.z 且 a 更旧时返回 true。 */
 function versionLt(a: string, b: string): boolean {
-  const pa = a.split('.').map((n) => Number.parseInt(n, 10) || 0)
-  const pb = b.split('.').map((n) => Number.parseInt(n, 10) || 0)
-  for (let i = 0; i < Math.max(pa.length, pb.length); i++) {
-    const da = pa[i] ?? 0
-    const db = pb[i] ?? 0
-    if (da !== db) return da < db
-  }
-  return false
+  return (compareSemver(a, b) ?? 0) < 0
 }
 
 /**

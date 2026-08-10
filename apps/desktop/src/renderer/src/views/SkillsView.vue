@@ -263,19 +263,22 @@ function updateToggleDialog(open: boolean): void {
         <Input v-model="search" :placeholder="t('app.searchPlaceholder')" class="pl-8" />
       </div>
       <Select v-model="ownershipModel" class="app-no-drag" :options="ownershipOptions" />
-      <button
+      <Button
         type="button"
+        variant="outline"
+        size="sm"
+        :aria-pressed="driftOnly"
         :class="[
-          'app-no-drag flex items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-sm transition-colors',
+          'app-no-drag cursor-pointer gap-1.5 px-2.5 font-normal [&_svg]:size-3.5',
           driftOnly
-            ? 'border-amber-500/50 bg-amber-500/10 text-amber-700 dark:text-amber-400'
-            : 'text-muted-foreground hover:border-primary/40',
+            ? 'border-amber-500/50 bg-amber-500/10 text-amber-700 hover:border-amber-500/60 hover:bg-amber-500/15 hover:text-amber-700 dark:text-amber-400 dark:hover:text-amber-400'
+            : 'text-foreground hover:border-foreground/40 hover:bg-background',
         ]"
         @click="driftOnly = !driftOnly"
       >
         <TriangleAlert class="size-3.5" />
         {{ t('app.driftOnly') }}
-      </button>
+      </Button>
       <Select v-model="sortBy" class="app-no-drag" :options="sortOptions" />
       <Button
         v-if="groupFilter"

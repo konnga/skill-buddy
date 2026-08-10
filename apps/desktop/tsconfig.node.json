@@ -5,5 +5,13 @@
     "types": ["node"],
     "noEmit": true
   },
-  "include": ["electron.vite.config.ts", "src/main/**/*", "src/preload/**/*", "src/shared/**/*"]
+  "include": [
+    "electron.vite.config.ts",
+    "playwright.config.ts",
+    "vitest.config.ts",
+    "e2e/**/*.ts",
+    "src/main/**/*",
+    "src/preload/**/*",
+    "src/shared/**/*"
+  ]
 }
