@@ -1,13 +1,20 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref, shallowRef } from 'vue'
 import { useI18n } from 'vue-i18n'
-import SidebarToggle from '@/components/SidebarToggle.vue'
-import { ArrowLeft, ChevronRight } from '@lucide/vue'
+import { ArrowLeft, ChevronRight, Sparkles } from '@lucide/vue'
+import type { McpServerDefinition, McpTarget } from '@skillbuddy/core'
 import type { InstallTarget } from '../../../shared/ipc.js'
+import BundleMcpSection from '@/components/bundles/BundleMcpSection.vue'
+import McpPlanDialog from '@/components/mcp/McpPlanDialog.vue'
+import PlatformTargetPicker from '@/components/PlatformTargetPicker.vue'
+import SidebarToggle from '@/components/SidebarToggle.vue'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import PlatformTargetPicker from '@/components/PlatformTargetPicker.vue'
+import { useMcpServers } from '@/composables/useMcpServers'
+import { useSettings } from '@/composables/useSettings'
+import { useSkills } from '@/composables/useSkills'
+import { showToast } from '@/composables/useToast'
 import { agentLabel } from '@/lib/agents'
 import {
   bundleGradient,
@@ -18,50 +25,70 @@ import {
   type SkillBundle,
 } from '@/lib/bundles'
 import { marketIconColor, marketIconGlyph, type MarketItem } from '@/lib/market'
-import { useSettings } from '@/composables/useSettings'
-import { useSkills } from '@/composables/useSkills'
 
 const props = defineProps<{ bundle: SkillBundle; inset?: boolean }>()
 const emit = defineEmits<{ close: []; openSkill: [item: MarketItem] }>()
 
 const { t, locale } = useI18n()
-const { skills, detectedPlatforms, installSkill, refresh } = useSkills()
-const { groups } = useSettings()
+const { skills, detectedPlatforms, installSkill, refresh: refreshSkills } = useSkills()
+const { groups, projectRoots } = useSettings()
+const {
+  servers: localMcpServers,
+  platforms: mcpPlatforms,
+  planning,
+  applying,
+  error: mcpError,
+  currentPlan,
+  refresh: refreshMcp,
+  planUpsert,
+  applyPlan,
+  restore,
+  closePlan,
+} = useMcpServers()
 
-const selected = ref<Set<string>>(new Set(props.bundle.skills.map((s) => s.name)))
-const scope = ref('user')
+const selectedSkills = ref(new Set(props.bundle.skills.map((skill) => skill.name)))
+const selectedMcp = ref(new Set(props.bundle.mcpServers.map((server) => server.name)))
+const scope = shallowRef('user')
 const agents = ref<string[]>([])
-const busy = ref(false)
-const error = ref<string | null>(null)
-const note = ref<string | null>(null)
+const mcpTargets = ref<McpTarget[]>([])
+const busy = shallowRef(false)
+const error = shallowRef<string | null>(null)
+const note = shallowRef<string | null>(null)
 const progress = ref<{ n: number; total: number } | null>(null)
+const pendingSkills = ref<BundleSkillRef[]>([])
+const mcpQueue = ref<McpServerDefinition[]>([])
+const mcpOperationIds = ref<string[]>([])
+const appliedMcpCount = shallowRef(0)
+
+const selectedCount = computed(() => selectedSkills.value.size + selectedMcp.value.size)
+const installedMcpNames = computed(() => localMcpServers.value.map((server) => server.name))
+const installDisabled = computed(
+  () =>
+    busy.value ||
+    selectedCount.value === 0 ||
+    (selectedSkills.value.size > 0 && agents.value.length === 0) ||
+    (selectedMcp.value.size > 0 && mcpTargets.value.length === 0),
+)
 
 onMounted(() => {
-  // create once, share everywhere: preselect every detected platform
-  agents.value = detectedPlatforms.value.map((p) => p.id)
+  agents.value = detectedPlatforms.value.map((platform) => platform.id)
+  if (props.bundle.mcpServers.length > 0) void refreshMcp({ silent: true })
 })
 
-function toggle(name: string): void {
-  const next = new Set(selected.value)
+function toggleSkill(name: string): void {
+  if (busy.value) return
+  const next = new Set(selectedSkills.value)
   if (next.has(name)) next.delete(name)
   else next.add(name)
-  selected.value = next
+  selectedSkills.value = next
 }
 
-const isLocal = (name: string): boolean => skills.value.some((s) => s.name === name)
+const isLocalSkill = (name: string): boolean => skills.value.some((skill) => skill.name === name)
 
-const refSourceLabel = (r: BundleSkillRef): string =>
-  r.source === 'skills-sh' ? r.repo : `SkillHub · ${r.namespace}/${r.slug}`
+const refSourceLabel = (ref: BundleSkillRef): string =>
+  ref.source === 'skills-sh' ? ref.repo : `SkillHub · ${ref.namespace}/${ref.slug}`
 
-async function install(): Promise<void> {
-  const bundle = props.bundle
-  if (busy.value) return
-  const chosen = bundle.skills.filter((s) => selected.value.has(s.name))
-  if (chosen.length === 0 || agents.value.length === 0) return
-
-  error.value = null
-  note.value = null
-  busy.value = true
+async function installSelectedSkills(chosen: BundleSkillRef[]): Promise<boolean> {
   const targets: InstallTarget[] = agents.value.map((agent) =>
     scope.value === 'user'
       ? { agent, scope: 'user' }
@@ -70,40 +97,47 @@ async function install(): Promise<void> {
   const failures: string[] = []
   const installedNames: string[] = []
   const roots: string[] = []
-  const fetchCache = new Map<string, Awaited<ReturnType<typeof window.skillsManager.importFromGit>>>()
+  const fetchCache = new Map<
+    string,
+    Awaited<ReturnType<typeof window.skillsManager.importFromGit>>
+  >()
 
   try {
-    for (const [i, skillRef] of chosen.entries()) {
-      progress.value = { n: i + 1, total: chosen.length }
+    for (const [index, skillRef] of chosen.entries()) {
+      progress.value = { n: index + 1, total: chosen.length }
       try {
-        const local = skills.value.find((s) => s.name === skillRef.name)
+        const local = skills.value.find((skill) => skill.name === skillRef.name)
         if (local) {
-          // Install the local copy to targets it's missing from — never
-          // re-download over local edits (drift detection owns that story).
-          const need = targets.filter(
-            (tg) =>
+          const missingTargets = targets.filter(
+            (target) =>
               !local.installations.some(
-                (inst) =>
-                  inst.agent === tg.agent &&
-                  inst.scope === tg.scope &&
-                  (inst.projectRoot ?? '') === (tg.projectRoot ?? ''),
+                (installation) =>
+                  installation.agent === target.agent &&
+                  installation.scope === target.scope &&
+                  (installation.projectRoot ?? '') === (target.projectRoot ?? ''),
               ),
           )
-          if (need.length > 0) {
-            const results = await installSkill(local.installations[0]!.skill, need, {
+          if (missingTargets.length > 0) {
+            const results = await installSkill(local.installations[0]!.skill, missingTargets, {
               refresh: false,
             })
             failures.push(
               ...results
-                .filter((r) => !r.ok)
-                .map((r) => `${skillRef.name} → ${agentLabel(r.target.agent)}: ${r.error}`),
+                .filter((result) => !result.ok)
+                .map(
+                  (result) =>
+                    `${skillRef.name} → ${agentLabel(result.target.agent)}: ${result.error}`,
+                ),
             )
           }
           installedNames.push(skillRef.name)
           continue
         }
 
-        let fetched: { root: string; items: Awaited<ReturnType<typeof window.skillsManager.findSkillsInDir>> }
+        let fetched: {
+          root: string
+          items: Awaited<ReturnType<typeof window.skillsManager.findSkillsInDir>>
+        }
         if (skillRef.source === 'skills-sh') {
           const cached = fetchCache.get(skillRef.repo)
           if (cached) fetched = cached
@@ -128,80 +162,187 @@ async function install(): Promise<void> {
         const results = await installSkill(found.skill, targets, { refresh: false })
         failures.push(
           ...results
-            .filter((r) => !r.ok)
-            .map((r) => `${skillRef.name} → ${agentLabel(r.target.agent)}: ${r.error}`),
+            .filter((result) => !result.ok)
+            .map(
+              (result) =>
+                `${skillRef.name} → ${agentLabel(result.target.agent)}: ${result.error}`,
+            ),
         )
-        if (results.some((r) => r.ok)) installedNames.push(skillRef.name)
-      } catch (e) {
-        failures.push(`${skillRef.name}: ${e instanceof Error ? e.message : String(e)}`)
+        if (results.some((result) => result.ok)) installedNames.push(skillRef.name)
+      } catch (cause) {
+        failures.push(`${skillRef.name}: ${cause instanceof Error ? cause.message : String(cause)}`)
       }
     }
   } finally {
-    // resources reference absolute paths under the temp roots — clean up
-    // only after every install has copied them.
-    await Promise.allSettled(roots.map((r) => window.skillsManager.cleanupImport(r)))
-    busy.value = false
+    await Promise.allSettled(roots.map((root) => window.skillsManager.cleanupImport(root)))
     progress.value = null
   }
 
-  const groupName = bundleText(bundle.name, locale.value)
+  const groupName = bundleText(props.bundle.name, locale.value)
   if (installedNames.length > 0) {
-    const existing = groups.value.find((g) => g.name === groupName)
+    const existing = groups.value.find((group) => group.name === groupName)
     groups.value = existing
-      ? groups.value.map((g) =>
-          g.name === groupName
-            ? { ...g, skills: [...new Set([...g.skills, ...installedNames])] }
-            : g,
+      ? groups.value.map((group) =>
+          group.name === groupName
+            ? { ...group, skills: [...new Set([...group.skills, ...installedNames])] }
+            : group,
         )
       : [...groups.value, { name: groupName, skills: installedNames }]
   }
-  await refresh()
+  await refreshSkills()
 
-  if (failures.length > 0) {
-    error.value = failures.join('；')
-    if (installedNames.length > 0) {
-      note.value = t('bundles.partial', { n: installedNames.length, group: groupName })
-    }
+  if (failures.length === 0) return true
+  error.value = failures.join('；')
+  if (installedNames.length > 0) {
+    note.value = t('bundles.partial', { n: installedNames.length, group: groupName })
+  }
+  return false
+}
+
+function offerMcpUndo(): void {
+  const operationIds = [...mcpOperationIds.value]
+  if (operationIds.length === 0) return
+  showToast(
+    {
+      message: t('bundles.mcpApplied', { n: appliedMcpCount.value }),
+      actionLabel: t('common.undo'),
+      onAction: async () => {
+        const outcomes: boolean[] = []
+        for (const operationId of operationIds.reverse()) {
+          outcomes.push(await restore(operationId))
+        }
+        showToast({
+          message: outcomes.every(Boolean) ? t('common.restored') : t('mcp.restoreFailed'),
+        })
+      },
+    },
+    60_000,
+  )
+  mcpOperationIds.value = []
+}
+
+async function finishInstallation(): Promise<void> {
+  const skillSuccess =
+    pendingSkills.value.length === 0 || (await installSelectedSkills(pendingSkills.value))
+  pendingSkills.value = []
+  mcpQueue.value = []
+  offerMcpUndo()
+  busy.value = false
+  if (skillSuccess) emit('close')
+}
+
+async function prepareNextMcpPlan(): Promise<void> {
+  const definition = mcpQueue.value[0]
+  if (!definition) {
+    await finishInstallation()
     return
   }
-  emit('close')
+  const plan = await planUpsert(definition, mcpTargets.value)
+  if (!plan) {
+    error.value = mcpError.value ?? t('bundles.mcpPlanFailed')
+    mcpQueue.value = []
+    offerMcpUndo()
+    busy.value = false
+    return
+  }
+  if (!plan.canApply && plan.blockers.length === 0) {
+    closePlan()
+    mcpQueue.value = mcpQueue.value.slice(1)
+    await prepareNextMcpPlan()
+  }
+}
+
+async function beginInstall(): Promise<void> {
+  if (installDisabled.value) return
+  error.value = null
+  note.value = null
+  busy.value = true
+  appliedMcpCount.value = 0
+  mcpOperationIds.value = []
+  pendingSkills.value = props.bundle.skills.filter((skill) => selectedSkills.value.has(skill.name))
+  mcpQueue.value = props.bundle.mcpServers.filter((server) => selectedMcp.value.has(server.name))
+  await prepareNextMcpPlan()
+}
+
+async function executeMcpPlan(): Promise<void> {
+  const result = await applyPlan()
+  if (!result) {
+    error.value = mcpError.value ?? t('bundles.mcpPlanFailed')
+    mcpQueue.value = []
+    offerMcpUndo()
+    busy.value = false
+    return
+  }
+
+  const succeeded = result.results.filter((item) => item.ok)
+  const failed = result.results.filter((item) => !item.ok)
+  if (succeeded.length > 0) {
+    mcpOperationIds.value = [...mcpOperationIds.value, result.operationId]
+    appliedMcpCount.value += 1
+  }
+  if (failed.length > 0) {
+    error.value = failed.map((item) => item.error).filter(Boolean).join('；')
+    mcpQueue.value = []
+    offerMcpUndo()
+    busy.value = false
+    return
+  }
+
+  mcpQueue.value = mcpQueue.value.slice(1)
+  await prepareNextMcpPlan()
+}
+
+function cancelMcpPlans(): void {
+  if (applying.value) return
+  closePlan()
+  mcpQueue.value = []
+  pendingSkills.value = []
+  offerMcpUndo()
+  busy.value = false
 }
 </script>
 
 <template>
   <div class="flex h-full flex-col">
-    <!-- header -->
-    <header :class="['app-drag relative flex h-14 shrink-0 items-center gap-3 border-b px-6', props.inset && 'pl-[118px]']">
+    <header
+      :class="[
+        'app-drag relative flex h-14 shrink-0 items-center gap-3 border-b px-6',
+        props.inset && 'pl-[118px]',
+      ]"
+    >
       <SidebarToggle />
       <Button variant="ghost" size="icon" class="app-no-drag" @click="emit('close')">
         <ArrowLeft class="!size-5 translate-y-px" />
       </Button>
-      <h1 class="text-base font-semibold leading-5 tracking-tight">{{ bundleText(bundle.name, locale) }}</h1>
+      <h1 class="text-base font-semibold leading-5 tracking-tight">
+        {{ bundleText(bundle.name, locale) }}
+      </h1>
       <div class="flex-1" />
       <Button
         size="sm"
         class="app-no-drag"
-        :disabled="busy || selected.size === 0 || agents.length === 0"
-        @click="install"
+        :disabled="installDisabled"
+        @click="beginInstall"
       >
-        {{
-          busy && progress
-            ? t('bundles.installing', { n: progress.n, total: progress.total })
-            : t('bundles.install', { n: selected.size })
-        }}
+        <template v-if="busy && progress">
+          {{ t('bundles.installing', { n: progress.n, total: progress.total }) }}
+        </template>
+        <template v-else-if="busy">
+          {{ planning ? t('bundles.preparingPlan') : t('bundles.reviewingMcp') }}
+        </template>
+        <template v-else>{{ t('bundles.installResources', { n: selectedCount }) }}</template>
       </Button>
     </header>
 
     <ScrollArea class="flex-1">
       <div class="mx-auto flex max-w-3xl flex-col gap-6 px-6 py-6">
-        <!-- hero -->
         <div
-          class="flex items-start gap-4 rounded-2xl border bg-card px-5 py-5"
+          class="flex items-start gap-4 rounded-lg border bg-card px-5 py-5"
           :style="{ backgroundImage: bundleGradient(bundle.id) }"
         >
           <span
             :class="[
-              'flex size-12 shrink-0 items-center justify-center rounded-xl text-lg font-semibold text-white',
+              'flex size-12 shrink-0 items-center justify-center rounded-lg text-lg font-semibold text-white',
               marketIconColor(bundle.id),
             ]"
           >
@@ -213,55 +354,82 @@ async function install(): Promise<void> {
               {{ bundleText(bundle.description, locale) }}
             </p>
             <span class="text-sm text-muted-foreground">
-              {{ t('bundles.skillCount', { n: bundle.skills.length }) }}
+              {{ t('bundles.resourceCount', { skills: bundle.skills.length, mcp: bundle.mcpServers.length }) }}
             </span>
           </div>
         </div>
 
-        <!-- members: checkbox selects, row opens the skill's detail page -->
-        <div class="flex flex-col gap-2">
-          <div
-            v-for="s in bundle.skills"
-            :key="s.name"
-            class="flex cursor-pointer items-center gap-2.5 rounded-md border px-3 py-2.5 transition-colors hover:border-foreground/25"
-            role="button"
-            tabindex="0"
-            @click="emit('openSkill', bundleRefToMarketItem(s))"
-            @keydown.enter="emit('openSkill', bundleRefToMarketItem(s))"
-          >
-            <input
-              type="checkbox"
-              class="accent-foreground"
-              :checked="selected.has(s.name)"
-              @click.stop
-              @change="toggle(s.name)"
-            />
-            <span class="flex min-w-0 flex-1 flex-col gap-0.5">
-              <span class="flex items-center gap-2 text-sm font-medium">
-                {{ s.name }}
-                <Badge v-if="isLocal(s.name)" variant="success">
-                  {{ t('bundles.installedBadge') }}
-                </Badge>
-              </span>
-              <span class="line-clamp-1 text-sm text-muted-foreground">
-                {{ refSourceLabel(s) }}
-              </span>
-            </span>
-            <ChevronRight class="size-4 shrink-0 text-muted-foreground" />
+        <section v-if="bundle.skills.length" class="flex flex-col gap-3">
+          <div class="flex items-center gap-2">
+            <Sparkles class="size-4 text-muted-foreground" />
+            <h3 class="text-sm font-semibold">{{ t('bundles.skillsSection') }}</h3>
+            <Badge variant="secondary">{{ bundle.skills.length }}</Badge>
           </div>
-        </div>
-
-        <!-- install targets -->
-        <section class="flex flex-col gap-2 rounded-xl border bg-muted/20 px-5 py-4">
+          <div class="flex flex-col gap-2">
+            <div
+              v-for="skill in bundle.skills"
+              :key="skill.name"
+              :class="[
+                'flex items-center gap-2.5 rounded-md border px-3 py-2.5 transition-colors',
+                busy ? 'cursor-not-allowed opacity-60' : 'cursor-pointer hover:border-foreground/25',
+              ]"
+              role="button"
+              tabindex="0"
+              @click="!busy && emit('openSkill', bundleRefToMarketItem(skill))"
+              @keydown.enter="!busy && emit('openSkill', bundleRefToMarketItem(skill))"
+            >
+              <input
+                type="checkbox"
+                class="size-4 accent-foreground"
+                :checked="selectedSkills.has(skill.name)"
+                :disabled="busy"
+                @click.stop
+                @change="toggleSkill(skill.name)"
+              />
+              <span class="flex min-w-0 flex-1 flex-col gap-0.5">
+                <span class="flex flex-wrap items-center gap-2 text-sm font-medium">
+                  {{ skill.name }}
+                  <Badge v-if="isLocalSkill(skill.name)" variant="success">
+                    {{ t('bundles.installedBadge') }}
+                  </Badge>
+                </span>
+                <span class="line-clamp-1 text-sm text-muted-foreground">
+                  {{ refSourceLabel(skill) }}
+                </span>
+              </span>
+              <ChevronRight class="size-4 shrink-0 text-muted-foreground" />
+            </div>
+          </div>
           <PlatformTargetPicker
             v-model:scope="scope"
             v-model:agents="agents"
-            :label="t('team.installTo')"
+            :label="t('bundles.skillTargets')"
           />
+        </section>
+
+        <BundleMcpSection
+          v-if="bundle.mcpServers.length"
+          v-model:selected="selectedMcp"
+          v-model:targets="mcpTargets"
+          :servers="bundle.mcpServers"
+          :platforms="mcpPlatforms"
+          :project-roots="projectRoots"
+          :installed-names="installedMcpNames"
+          :disabled="busy"
+        />
+
+        <div v-if="note || error" class="flex flex-col gap-2 border-t pt-4">
           <p v-if="note" class="text-sm text-amber-600 dark:text-amber-400">{{ note }}</p>
           <p v-if="error" class="break-all text-sm text-destructive">{{ error }}</p>
-        </section>
+        </div>
       </div>
     </ScrollArea>
+
+    <McpPlanDialog
+      :plan="currentPlan"
+      :applying="applying"
+      @close="cancelMcpPlans"
+      @apply="executeMcpPlan"
+    />
   </div>
 </template>

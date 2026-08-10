@@ -13,6 +13,7 @@ import type { MarketItem } from '@/lib/market'
 import type { SkillFocus, WorkspaceView as WorkspaceViewName } from '@/lib/navigation'
 import DashboardView from '@/views/DashboardView.vue'
 import SkillsView from '@/views/SkillsView.vue'
+import McpServersView from '@/views/McpServersView.vue'
 import TeamView from '@/views/TeamView.vue'
 
 const props = defineProps<{
@@ -141,6 +142,7 @@ watch(skills, (value) => {
       :inset="props.inset"
       @open-settings="emit('openSettings')"
     />
+    <McpServersView v-else-if="props.view === 'mcp'" :inset="props.inset" />
     <SkillsView
       v-else
       :inset="props.inset"

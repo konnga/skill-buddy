@@ -1,4 +1,9 @@
-import type { AgentId, InstallScope } from '@skillbuddy/core'
+import type {
+  AgentId,
+  InstallScope,
+  McpServerDefinition,
+  McpTarget,
+} from '@skillbuddy/core'
 
 /** Minimal existing-skill context exposed to a local AI agent. */
 export interface AiSkillContextItem {
@@ -59,4 +64,20 @@ export interface TargetResult {
   target: InstallTarget
   ok: boolean
   error?: string
+}
+
+export interface McpUpsertPlanRequest {
+  projectRoots: string[]
+  sourceInstallationId?: string
+  definition?: McpServerDefinition
+  targets: McpTarget[]
+}
+
+export interface McpRemovePlanRequest {
+  projectRoots: string[]
+  installationIds: string[]
+}
+
+export interface McpTogglePlanRequest extends McpRemovePlanRequest {
+  enabled: boolean
 }

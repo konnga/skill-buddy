@@ -1,8 +1,16 @@
 import { contextBridge, ipcRenderer } from 'electron'
 import type {
   AggregatedSkill,
+  McpOperationPlanView,
+  McpOperationRequestResult,
+  McpScanResult,
+  McpServerDefinition,
   FoundSkill,
   PlatformStatus,
+  RegistryBundle,
+  RegistryBundleSummary,
+  RegistryMcpServer,
+  RegistryMcpServerSummary,
   RegistrySkill,
   RegistrySkillSummary,
   Skill,
@@ -12,11 +20,32 @@ import type {
   AiConversationEvent,
   CustomPlatformInput,
   InstallTarget,
+  McpRemovePlanRequest,
+  McpTogglePlanRequest,
+  McpUpsertPlanRequest,
   RegistryConfig,
   TargetResult,
 } from '../shared/ipc.js'
 
 const api = {
+  scanMcpServers: (projectRoots: string[] = []): Promise<McpScanResult> =>
+    ipcRenderer.invoke('mcp:scan', projectRoots),
+  createMcpUpsertPlan: (request: McpUpsertPlanRequest): Promise<McpOperationPlanView> =>
+    ipcRenderer.invoke('mcp:plan-upsert', request),
+  createMcpRemovePlan: (request: McpRemovePlanRequest): Promise<McpOperationPlanView> =>
+    ipcRenderer.invoke('mcp:plan-remove', request),
+  createMcpTogglePlan: (request: McpTogglePlanRequest): Promise<McpOperationPlanView> =>
+    ipcRenderer.invoke('mcp:plan-toggle', request),
+  applyMcpPlan: (planId: string): Promise<McpOperationRequestResult> =>
+    ipcRenderer.invoke('mcp:apply-plan', planId),
+  restoreMcpOperation: (
+    operationId: string,
+  ): Promise<{ path: string; ok: boolean; error?: string }[]> =>
+    ipcRenderer.invoke('mcp:restore', operationId),
+  watchMcpStart: (): Promise<number> => ipcRenderer.invoke('mcp:watch-start'),
+  onMcpChanged: (callback: () => void): void => {
+    ipcRenderer.on('mcp:changed', () => callback())
+  },
   scanSkills: (projectRoots: string[] = []): Promise<AggregatedSkill[]> =>
     ipcRenderer.invoke('skills:scan', projectRoots),
   listPlatforms: (): Promise<PlatformStatus[]> => ipcRenderer.invoke('platforms:list'),
@@ -144,6 +173,42 @@ const api = {
     name: string,
   ): Promise<{ version: string; publishedBy: string; createdAt: number }[]> =>
     ipcRenderer.invoke('registry:versions', cfg, org, name),
+  registryMcpSearch: (
+    cfg: RegistryConfig,
+    q?: string,
+  ): Promise<RegistryMcpServerSummary[]> => ipcRenderer.invoke('registry:mcp-search', cfg, q),
+  registryMcpGet: (
+    cfg: RegistryConfig,
+    org: string,
+    name: string,
+    version?: string,
+  ): Promise<RegistryMcpServer> => ipcRenderer.invoke('registry:mcp-get', cfg, org, name, version),
+  registryMcpVersions: (
+    cfg: RegistryConfig,
+    org: string,
+    name: string,
+  ): Promise<{ version: string; publishedBy: string; createdAt: number }[]> =>
+    ipcRenderer.invoke('registry:mcp-versions', cfg, org, name),
+  registryMcpPublish: (
+    cfg: RegistryConfig,
+    org: string,
+    definition: McpServerDefinition,
+    version: string,
+    description?: string,
+  ): Promise<void> =>
+    ipcRenderer.invoke('registry:mcp-publish', cfg, org, definition, version, description),
+  registryRequiredMcp: (cfg: RegistryConfig, org: string): Promise<string[]> =>
+    ipcRenderer.invoke('registry:required-mcp', cfg, org),
+  registrySetRequiredMcp: (cfg: RegistryConfig, org: string, names: string[]): Promise<void> =>
+    ipcRenderer.invoke('registry:set-required-mcp', cfg, org, names),
+  registryBundles: (cfg: RegistryConfig): Promise<RegistryBundleSummary[]> =>
+    ipcRenderer.invoke('registry:bundles', cfg),
+  registryBundleGet: (
+    cfg: RegistryConfig,
+    org: string,
+    name: string,
+    version?: string,
+  ): Promise<RegistryBundle> => ipcRenderer.invoke('registry:bundle-get', cfg, org, name, version),
   watchStart: (projectRoots: string[]): Promise<number> =>
     ipcRenderer.invoke('watch:start', projectRoots),
   secureGet: (key: string): Promise<string> => ipcRenderer.invoke('secure:get', key),

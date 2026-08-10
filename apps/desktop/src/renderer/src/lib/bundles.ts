@@ -1,4 +1,4 @@
-import type { FoundSkill } from '@skillbuddy/core'
+import type { FoundSkill, McpServerDefinition, McpValueRef } from '@skillbuddy/core'
 import type { MarketItem, MarketSourceId } from '@/lib/market'
 
 export interface LocalizedText {
@@ -16,6 +16,7 @@ export interface SkillBundle {
   name: LocalizedText
   description: LocalizedText
   skills: BundleSkillRef[]
+  mcpServers: McpServerDefinition[]
 }
 
 /** When set, fetched at startup (via main process — renderer CSP blocks remote
@@ -44,6 +45,7 @@ export const BUILT_IN_BUNDLES: SkillBundle[] = [
       sh('wshobson/agents', 'nextjs-app-router-patterns'),
       sh('anthropics/skills', 'webapp-testing'),
     ],
+    mcpServers: [],
   },
   {
     id: 'design',
@@ -58,6 +60,7 @@ export const BUILT_IN_BUNDLES: SkillBundle[] = [
       sh('leonxlnx/taste-skill', 'design-taste-frontend'),
       sh('leonxlnx/taste-skill', 'high-end-visual-design'),
     ],
+    mcpServers: [],
   },
   {
     id: 'backend',
@@ -72,6 +75,7 @@ export const BUILT_IN_BUNDLES: SkillBundle[] = [
       sh('mattpocock/skills', 'code-review'),
       sh('affaan-m/everything-claude-code', 'backend-patterns'),
     ],
+    mcpServers: [],
   },
   {
     id: 'documents',
@@ -86,6 +90,7 @@ export const BUILT_IN_BUNDLES: SkillBundle[] = [
       sh('anthropics/skills', 'xlsx'),
       sh('anthropics/skills', 'pdf'),
     ],
+    mcpServers: [],
   },
 ]
 
@@ -166,6 +171,74 @@ function isSkillRef(v: unknown): v is BundleSkillRef {
   return false
 }
 
+function isMcpValueRef(value: unknown): value is McpValueRef {
+  if (typeof value !== 'object' || value === null) return false
+  const ref = value as Record<string, unknown>
+  if (ref.kind === 'env') {
+    return (
+      Object.keys(ref).every((key) => ['kind', 'name'].includes(key)) &&
+      typeof ref.name === 'string' &&
+      ref.name.length > 0
+    )
+  }
+  if (ref.kind !== 'secret') return false
+  return (
+    Object.keys(ref).every((key) => ['kind', 'key', 'state'].includes(key)) &&
+    typeof ref.key === 'string' &&
+    ref.key.length > 0 &&
+    ['configured', 'missing', 'unknown'].includes(String(ref.state))
+  )
+}
+
+function isRefRecord(value: unknown): value is Record<string, McpValueRef> {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    Object.values(value).every(isMcpValueRef)
+  )
+}
+
+function isMcpServerDefinition(value: unknown): value is McpServerDefinition {
+  if (typeof value !== 'object' || value === null) return false
+  const definition = value as Record<string, unknown>
+  if (
+    Object.keys(definition).some(
+      (key) => !['name', 'description', 'transport', 'requiredSecrets'].includes(key),
+    )
+  ) return false
+  if (typeof definition.name !== 'string' || definition.name.length === 0) return false
+  if (
+    definition.description !== undefined &&
+    typeof definition.description !== 'string'
+  ) return false
+  if (
+    !Array.isArray(definition.requiredSecrets) ||
+    !definition.requiredSecrets.every((secret) => typeof secret === 'string' && secret.length > 0)
+  ) return false
+  if (typeof definition.transport !== 'object' || definition.transport === null) return false
+
+  const transport = definition.transport as Record<string, unknown>
+  if (transport.kind === 'stdio') {
+    return (
+      Object.keys(transport).every((key) =>
+        ['kind', 'command', 'args', 'cwd', 'env'].includes(key),
+      ) &&
+      typeof transport.command === 'string' &&
+      transport.command.length > 0 &&
+      Array.isArray(transport.args) &&
+      transport.args.every((arg) => typeof arg === 'string') &&
+      isRefRecord(transport.env)
+    )
+  }
+  return (
+    Object.keys(transport).every((key) => ['kind', 'url', 'headers'].includes(key)) &&
+    ['streamable-http', 'sse', 'websocket'].includes(String(transport.kind)) &&
+    typeof transport.url === 'string' &&
+    /^https?:\/\//.test(transport.url) &&
+    isRefRecord(transport.headers)
+  )
+}
+
 /** Validate a remote manifest payload; invalid entries are dropped. */
 export function parseBundlesManifest(raw: unknown): SkillBundle[] {
   if (!Array.isArray(raw)) return []
@@ -174,10 +247,12 @@ export function parseBundlesManifest(raw: unknown): SkillBundle[] {
     if (typeof entry !== 'object' || entry === null) continue
     const b = entry as Record<string, unknown>
     if (typeof b.id !== 'string' || !isLocalized(b.name) || !isLocalized(b.description)) continue
-    if (!Array.isArray(b.skills)) continue
-    const skills = b.skills.filter(isSkillRef)
-    if (skills.length === 0) continue
-    out.push({ id: b.id, name: b.name, description: b.description, skills })
+    const skills = Array.isArray(b.skills) ? b.skills.filter(isSkillRef) : []
+    const mcpServers = Array.isArray(b.mcpServers)
+      ? b.mcpServers.filter(isMcpServerDefinition)
+      : []
+    if (skills.length + mcpServers.length === 0) continue
+    out.push({ id: b.id, name: b.name, description: b.description, skills, mcpServers })
   }
   return out
 }

@@ -15,6 +15,7 @@ import {
   LayoutDashboard,
   PanelLeft,
   Plus,
+  ServerCog,
   Settings,
   Trash2,
   Users,
@@ -162,6 +163,19 @@ function createGroup(): void {
             {{ t('dashboard.skillsNav') }}
           </span>
           <span class="text-sm tabular-nums text-muted-foreground">{{ skills.length }}</span>
+        </button>
+        <button
+          type="button"
+          :class="[
+            'flex items-center justify-between rounded-md px-3 py-1.5 text-sm transition-colors',
+            props.view === 'mcp' ? 'nav-active' : 'hover:bg-accent/60',
+          ]"
+          @click="emit('navigate', 'mcp')"
+        >
+          <span class="flex items-center gap-2">
+            <ServerCog class="size-4 text-foreground/70" />
+            {{ t('mcp.title') }}
+          </span>
         </button>
         <button
           type="button"

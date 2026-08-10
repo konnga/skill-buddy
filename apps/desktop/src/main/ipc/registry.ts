@@ -1,5 +1,5 @@
 import { ipcMain } from 'electron'
-import { RegistryClient, toSkill, type Skill } from '@skillbuddy/core'
+import { RegistryClient, toSkill, type McpServerDefinition, type Skill } from '@skillbuddy/core'
 import type { InstallTarget, RegistryConfig } from '../../shared/ipc.js'
 import type { PathAccessPolicy } from '../path-policy.js'
 import { installTarget, runTargets } from './targets.js'
@@ -46,6 +46,54 @@ export function registerRegistryIpc(pathPolicy: PathAccessPolicy): void {
     'registry:versions',
     (_event, config: RegistryConfig, org: string, name: string) =>
       clientOf(config).listVersions(org, name),
+  )
+
+  ipcMain.handle('registry:mcp-search', (_event, config: RegistryConfig, query?: string) =>
+    clientOf(config).searchMcpServers(query),
+  )
+
+  ipcMain.handle(
+    'registry:mcp-get',
+    (_event, config: RegistryConfig, org: string, name: string, version?: string) =>
+      clientOf(config).getMcpServer(org, name, version),
+  )
+
+  ipcMain.handle(
+    'registry:mcp-versions',
+    (_event, config: RegistryConfig, org: string, name: string) =>
+      clientOf(config).listMcpVersions(org, name),
+  )
+
+  ipcMain.handle(
+    'registry:mcp-publish',
+    (
+      _event,
+      config: RegistryConfig,
+      org: string,
+      definition: McpServerDefinition,
+      version: string,
+      description?: string,
+    ) => clientOf(config).publishMcpServer(org, definition, version, description),
+  )
+
+  ipcMain.handle('registry:required-mcp', (_event, config: RegistryConfig, org: string) =>
+    clientOf(config).requiredMcpServers(org),
+  )
+
+  ipcMain.handle(
+    'registry:set-required-mcp',
+    (_event, config: RegistryConfig, org: string, names: string[]) =>
+      clientOf(config).setRequiredMcpServers(org, names),
+  )
+
+  ipcMain.handle('registry:bundles', (_event, config: RegistryConfig) =>
+    clientOf(config).listBundles(),
+  )
+
+  ipcMain.handle(
+    'registry:bundle-get',
+    (_event, config: RegistryConfig, org: string, name: string, version?: string) =>
+      clientOf(config).getBundle(org, name, version),
   )
 
   ipcMain.handle(

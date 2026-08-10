@@ -1,18 +1,22 @@
 import { app, BrowserWindow } from 'electron'
 import { registerAiConversationIpc } from './ai-conversations.js'
 import { registerMarketIpc } from './ipc/market.js'
+import { registerMcpIpc } from './ipc/mcp.js'
 import { registerRegistryIpc } from './ipc/registry.js'
 import { registerSkillsIpc } from './ipc/skills.js'
 import { PathAccessPolicy } from './path-policy.js'
 import { createWindow } from './window.js'
 
 const pathPolicy = new PathAccessPolicy()
+let disposeMcp: (() => void) | undefined
 
 function registerIpc(): void {
   registerSkillsIpc(pathPolicy)
   registerAiConversationIpc(pathPolicy)
   registerMarketIpc(pathPolicy)
   registerRegistryIpc(pathPolicy)
+  const mcpService = registerMcpIpc()
+  disposeMcp = () => mcpService.dispose()
 }
 
 app.whenReady().then(() => {
@@ -27,3 +31,5 @@ app.whenReady().then(() => {
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit()
 })
+
+app.on('before-quit', () => disposeMcp?.())
