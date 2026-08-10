@@ -5,14 +5,20 @@ import { join, resolve } from 'node:path'
 import { Command } from 'commander'
 import {
   aggregateSkills,
+  allMcpAdapters,
   findSkills,
   getAdapter,
+  getMcpAdapter,
   listPlatformStatus,
   readSkillDir,
+  rebaseMcpMutation,
   RegistryClient,
   scanInstalledSkills,
+  transactionalWriteMcpConfig,
   toSkill,
   type InstallScope,
+  type McpServerDefinition,
+  type McpTarget,
   type Skill,
 } from '@skillbuddy/core'
 
@@ -61,6 +67,69 @@ async function installToAgents(
     const path = await getAdapter(agent).install(skill, scope, projectRoot)
     console.log(`installed ${skill.name} -> ${agent} (${path})`)
   }
+}
+
+function parseMcpTargets(value: string, projectRoot?: string): McpTarget[] {
+  const targets = value
+    .split(',')
+    .map((entry) => entry.trim())
+    .filter(Boolean)
+    .map((entry) => {
+      const [agent, surface] = entry.split(':')
+      if (!agent) fail(`invalid MCP target: ${entry}`)
+      const adapter = surface
+        ? getMcpAdapter(agent, surface)
+        : allMcpAdapters().find((candidate) => candidate.agent === agent)
+      if (!adapter) fail(`MCP surface required for ${entry}`)
+      return {
+        agent,
+        surface: adapter.surface,
+        scope: projectRoot ? ('project' as const) : ('user' as const),
+        ...(projectRoot ? { projectRoot: resolve(projectRoot) } : {}),
+      }
+    })
+  if (targets.length === 0) fail('at least one MCP target is required')
+  return targets
+}
+
+async function installMcpToTargets(
+  definition: McpServerDefinition,
+  targets: McpTarget[],
+): Promise<void> {
+  const mutations = new Map<string, { path: string; content: string; expectedHash: string | null }>()
+  for (const target of targets) {
+    const adapter = getMcpAdapter(target.agent, target.surface)
+    const mutation = await adapter.prepareUpsert(definition, target)
+    if (mutation.projection?.blockers.length) {
+      fail(mutation.projection.blockers.map((issue) => issue.message).join('; '))
+    }
+    const path = mutation.source.configPath
+    const existing = mutations.get(path)
+    if (existing) {
+      mutations.set(path, {
+        path,
+        content: rebaseMcpMutation(mutation, existing.content),
+        expectedHash: existing.expectedHash,
+      })
+    } else {
+      mutations.set(path, {
+        path,
+        content: mutation.afterText,
+        expectedHash: mutation.beforeHash,
+      })
+    }
+  }
+  for (const mutation of mutations.values()) {
+    await transactionalWriteMcpConfig(mutation)
+    console.log(`installed MCP ${definition.name} -> ${mutation.path}`)
+  }
+}
+
+async function loadMcpDefinition(client: RegistryClient, ref: string): Promise<McpServerDefinition> {
+  const match = /^([a-z0-9-]+)\/([a-z0-9-]+)(?:@(.+))?$/.exec(ref)
+  if (!match) fail('MCP ref must be org/name or org/name@version')
+  const remote = await client.getMcpServer(match[1]!, match[2]!, match[3])
+  return remote.definition
 }
 
 const program = new Command()
@@ -158,6 +227,95 @@ program
     const client = await clientFrom(program.opts())
     for (const s of await client.search(query)) {
       console.log(`${s.org}/${s.name}@${s.version} — ${s.description}`)
+    }
+  })
+
+const mcp = program.command('mcp').description('Manage MCP servers in the registry and local agents')
+
+mcp
+  .command('search [query]')
+  .description('Search MCP servers on the registry')
+  .action(async (query?: string) => {
+    const client = await clientFrom(program.opts())
+    for (const server of await client.searchMcpServers(query)) {
+      console.log(
+        `${server.org}/${server.name}@${server.version} — ${server.transport} — ${server.description}`,
+      )
+    }
+  })
+
+mcp
+  .command('publish <source>')
+  .description('Publish a redacted canonical MCP definition JSON')
+  .requiredOption('--org <org>', 'organization')
+  .requiredOption('--server-version <semver>', 'MCP server version')
+  .action(async (source: string, opts: { org: string; serverVersion: string }) => {
+    const raw = await fs.readFile(resolve(source), 'utf8')
+    const definition = JSON.parse(raw) as McpServerDefinition
+    const client = await clientFrom(program.opts())
+    await client.publishMcpServer(opts.org, definition, opts.serverVersion, definition.description)
+    console.log(`published MCP ${opts.org}/${definition.name}@${opts.serverVersion}`)
+  })
+
+mcp
+  .command('install <ref>')
+  .description('Install an MCP server from the registry into local agent config')
+  .requiredOption('--targets <list>', 'comma-separated agent:surface targets')
+  .option('--project <path>', 'install into a project instead of user scope')
+  .action(async (ref: string, opts: { targets: string; project?: string }) => {
+    const client = await clientFrom(program.opts())
+    const definition = await loadMcpDefinition(client, ref)
+    await installMcpToTargets(definition, parseMcpTargets(opts.targets, opts.project))
+  })
+
+mcp
+  .command('sync')
+  .description('Install an organization’s required MCP servers')
+  .requiredOption('--org <org>', 'organization')
+  .requiredOption('--targets <list>', 'comma-separated agent:surface targets')
+  .option('--project <path>', 'install into a project instead of user scope')
+  .action(async (opts: { org: string; targets: string; project?: string }) => {
+    const client = await clientFrom(program.opts())
+    const required = await client.requiredMcpServers(opts.org)
+    for (const name of required) {
+      const definition = await loadMcpDefinition(client, `${opts.org}/${name}`)
+      await installMcpToTargets(definition, parseMcpTargets(opts.targets, opts.project))
+    }
+    console.log(`synced ${required.length} required MCP server(s) for ${opts.org}`)
+  })
+
+const bundle = program.command('bundle').description('Manage mixed Skill and MCP bundles')
+
+bundle
+  .command('install <ref>')
+  .description('Install all Skills and MCP servers referenced by a bundle')
+  .requiredOption('--agents <list>', 'comma-separated Skill agent ids')
+  .option('--mcp-targets <list>', 'comma-separated MCP agent:surface targets')
+  .option('--project <path>', 'install into a project instead of user scope')
+  .action(async (ref: string, opts: { agents: string; mcpTargets?: string; project?: string }) => {
+    const match = /^([a-z0-9-]+)\/([a-z0-9-]+)(?:@(.+))?$/.exec(ref)
+    if (!match) fail('bundle ref must be org/name or org/name@version')
+    const client = await clientFrom(program.opts())
+    const bundleRemote = await client.getBundle(match[1]!, match[2]!, match[3])
+    const scope: InstallScope = opts.project ? 'project' : 'user'
+    for (const skillRef of bundleRemote.skills) {
+      const remote = await client.getSkill(match[1]!, skillRef.name, skillRef.version)
+      await installToAgents(
+        await toSkill(remote),
+        parseAgents(opts.agents),
+        scope,
+        opts.project && resolve(opts.project),
+      )
+    }
+    if (bundleRemote.mcpServers.length > 0 && !opts.mcpTargets) {
+      fail('bundle contains MCP servers; --mcp-targets is required')
+    }
+    for (const mcpRef of bundleRemote.mcpServers) {
+      const definition = await loadMcpDefinition(
+        client,
+        `${match[1]}/${mcpRef.name}${mcpRef.version ? `@${mcpRef.version}` : ''}`,
+      )
+      await installMcpToTargets(definition, parseMcpTargets(opts.mcpTargets!, opts.project))
     }
   })
 
