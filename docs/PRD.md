@@ -105,8 +105,8 @@ MVP 服务 P0 并为 P1 打地基；Phase 2 交付 P1；Phase 3 覆盖 P2。
 - 不做 agent 本身、不做模型调用、不做 prompt 评测
 - MVP 不做账号系统（Phase 2 随 registry 引入）
 - 不追 16 平台的覆盖广度，先做 3-5 个平台的极致可靠 + 自定义路径兜底
-- MVP 聚焦 skills 资产；MCP / plugins / agents 管理是已被验证的用户需求
-  （竞品 #353），架构留扩展口（adapter 声明资产类型），Phase 2 后评估
+- plugins / agents 管理暂不进入范围；MCP 管理已确认采用与 Skills 并列的独立
+  资源域，具体边界与实现见 [MCP 管理技术设计](./mcp-technical-design.md)
 
 ## 7. 成功指标
 
@@ -129,5 +129,6 @@ MVP 服务 P0 并为 P1 打地基；Phase 2 交付 P1；Phase 3 覆盖 P2。
 ## 9. 相关文档
 
 - [MVP 功能规格](./mvp-spec.md) — 页面结构、交互流程、验收标准
+- [MCP 管理技术设计](./mcp-technical-design.md) — MCP 领域模型、平台适配、事务写入与安全边界
 - [竞品分析](./competitive-analysis.md) — xingkongliang/skills-manager 及生态
 - [README](../README.md) — 技术架构与开发指南
