@@ -38,6 +38,41 @@ export function openDb(path: string): Db {
       skill_name TEXT NOT NULL,
       PRIMARY KEY (org, skill_name)
     );
+    CREATE TABLE IF NOT EXISTS mcp_servers (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      org TEXT NOT NULL REFERENCES orgs(name),
+      name TEXT NOT NULL,
+      created_at INTEGER NOT NULL,
+      UNIQUE (org, name)
+    );
+    CREATE TABLE IF NOT EXISTS mcp_server_versions (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      server_id INTEGER NOT NULL REFERENCES mcp_servers(id),
+      version TEXT NOT NULL,
+      description TEXT NOT NULL DEFAULT '',
+      definition TEXT NOT NULL,
+      required_secrets TEXT NOT NULL DEFAULT '[]',
+      published_by TEXT NOT NULL,
+      created_at INTEGER NOT NULL,
+      UNIQUE (server_id, version)
+    );
+    CREATE TABLE IF NOT EXISTS required_mcp_servers (
+      org TEXT NOT NULL REFERENCES orgs(name),
+      mcp_server_name TEXT NOT NULL,
+      PRIMARY KEY (org, mcp_server_name)
+    );
+    CREATE TABLE IF NOT EXISTS bundles (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      org TEXT NOT NULL REFERENCES orgs(name),
+      name TEXT NOT NULL,
+      version TEXT NOT NULL,
+      description TEXT NOT NULL DEFAULT '',
+      skills TEXT NOT NULL DEFAULT '[]',
+      mcp_servers TEXT NOT NULL DEFAULT '[]',
+      published_by TEXT NOT NULL,
+      created_at INTEGER NOT NULL,
+      UNIQUE (org, name, version)
+    );
     CREATE TABLE IF NOT EXISTS audit (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       at INTEGER NOT NULL,
@@ -48,6 +83,9 @@ export function openDb(path: string): Db {
       detail TEXT
     );
     CREATE INDEX IF NOT EXISTS idx_skills_org_name ON skills(org, name);
+    CREATE INDEX IF NOT EXISTS idx_mcp_servers_org_name ON mcp_servers(org, name);
+    CREATE INDEX IF NOT EXISTS idx_mcp_versions_server ON mcp_server_versions(server_id);
+    CREATE INDEX IF NOT EXISTS idx_bundles_org_name ON bundles(org, name);
     CREATE INDEX IF NOT EXISTS idx_audit_org ON audit(org, at);
   `)
   return db

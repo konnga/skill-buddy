@@ -3,6 +3,7 @@ import { audit, openDb, type Db } from './db.js'
 import { authenticate, canPublish, canReadOrg, issueToken, type Actor } from './auth.js'
 import { isSafeResourcePath } from './resources.js'
 import { compareSemver, isSemver } from './versions.js'
+import { sanitizeMcpDefinition } from './mcp.js'
 
 export interface ServerOptions {
   dbPath: string
@@ -16,6 +17,70 @@ interface PublishBody {
   tags?: string[]
   content: string
   resources?: Record<string, string>
+}
+
+interface PublishMcpBody {
+  version: string
+  description?: string
+  definition: unknown
+}
+
+interface BundleRef {
+  name: string
+  version?: string
+}
+
+interface PublishBundleBody {
+  version: string
+  description?: string
+  skills?: BundleRef[]
+  mcpServers?: BundleRef[]
+}
+
+function bundleRefs(value: unknown, label: string): BundleRef[] {
+  if (value === undefined) return []
+  if (!Array.isArray(value)) throw new Error(`${label} must be an array`)
+  return value.map((entry) => {
+    if (typeof entry !== 'object' || entry === null || Array.isArray(entry)) {
+      throw new Error(`${label} entries must be objects`)
+    }
+    const candidate = entry as Record<string, unknown>
+    if (
+      Object.keys(candidate).some((key) => !['name', 'version'].includes(key)) ||
+      typeof candidate.name !== 'string' ||
+      !NAME_RE.test(candidate.name) ||
+      (candidate.version !== undefined &&
+        (typeof candidate.version !== 'string' || !isSemver(candidate.version)))
+    ) {
+      throw new Error(`${label} contains an invalid reference`)
+    }
+    return {
+      name: candidate.name,
+      ...(candidate.version ? { version: candidate.version as string } : {}),
+    }
+  })
+}
+
+function bundleSkillExists(db: Db, org: string, reference: BundleRef): boolean {
+  return Boolean(
+    reference.version
+      ? db
+          .prepare('SELECT 1 FROM skills WHERE org = ? AND name = ? AND version = ?')
+          .get(org, reference.name, reference.version)
+      : db.prepare('SELECT 1 FROM skills WHERE org = ? AND name = ?').get(org, reference.name),
+  )
+}
+
+function bundleMcpServerExists(db: Db, org: string, reference: BundleRef): boolean {
+  const base = `SELECT 1
+    FROM mcp_servers AS server
+    JOIN mcp_server_versions AS version ON version.server_id = server.id
+    WHERE server.org = ? AND server.name = ?`
+  return Boolean(
+    reference.version
+      ? db.prepare(`${base} AND version.version = ?`).get(org, reference.name, reference.version)
+      : db.prepare(base).get(org, reference.name),
+  )
 }
 
 export function buildServer(options: ServerOptions): FastifyInstance & { db: Db } {
@@ -223,6 +288,296 @@ export function buildServer(options: ServerOptions): FastifyInstance & { db: Db 
     return reply.code(201).send({ org, name, version: body.version })
   })
 
+  /* ---------- MCP servers ---------- */
+
+  app.get('/api/mcp-servers', async (req, reply) => {
+    const actor = actorOf(req)
+    if (!actor) return reply.code(401).send({ error: 'unauthorized' })
+    const { q } = req.query as { q?: string }
+    const rows = db
+      .prepare(
+        `SELECT s.org, s.name, v.version, v.description, v.definition,
+                v.required_secrets AS requiredSecrets, v.created_at AS createdAt
+         FROM mcp_servers s
+         JOIN mcp_server_versions v ON v.server_id = s.id
+         ORDER BY s.org, s.name`,
+      )
+      .all() as {
+        org: string
+        name: string
+        version: string
+        description: string
+        definition: string
+        requiredSecrets: string
+        createdAt: number
+      }[]
+    const latest = new Map<string, (typeof rows)[number]>()
+    for (const row of rows) {
+      if (!canReadOrg(actor, row.org)) continue
+      const key = `${row.org}/${row.name}`
+      const current = latest.get(key)
+      if (!current || compareSemver(row.version, current.version) > 0) latest.set(key, row)
+    }
+    const needle = q?.trim().toLowerCase()
+    return [...latest.values()]
+      .filter(
+        (row) =>
+          !needle ||
+          row.name.includes(needle) ||
+          row.description.toLowerCase().includes(needle),
+      )
+      .map((row) => ({
+        org: row.org,
+        name: row.name,
+        version: row.version,
+        description: row.description,
+        transport: (
+          JSON.parse(row.definition) as { transport: { kind: string } }
+        ).transport.kind,
+        requiredSecrets: JSON.parse(row.requiredSecrets) as string[],
+        createdAt: row.createdAt,
+      }))
+  })
+
+  app.get('/api/mcp-servers/:org/:name', async (req, reply) => {
+    const actor = actorOf(req)
+    const { org, name } = req.params as { org: string; name: string }
+    if (!actor || !canReadOrg(actor, org)) return reply.code(403).send({ error: 'forbidden' })
+    const { version } = req.query as { version?: string }
+    type McpRow = {
+      org: string
+      name: string
+      version: string
+      description: string
+      definition: string
+      required_secrets: string
+      published_by: string
+      created_at: number
+    }
+    const rows = db
+      .prepare(
+        `SELECT s.org, s.name, v.version, v.description, v.definition, v.required_secrets,
+                v.published_by, v.created_at
+         FROM mcp_servers s JOIN mcp_server_versions v ON v.server_id = s.id
+         WHERE s.org = ? AND s.name = ?`,
+      )
+      .all(org, name) as McpRow[]
+    const row = version
+      ? rows.find((candidate) => candidate.version === version)
+      : rows.sort((left, right) => compareSemver(right.version, left.version))[0]
+    if (!row) return reply.code(404).send({ error: 'not found' })
+    audit(db, {
+      actor: actor.name,
+      org,
+      action: 'mcp.download',
+      subject: `${org}/${name}@${row.version}`,
+    })
+    return {
+      org: row.org,
+      name: row.name,
+      version: row.version,
+      description: row.description,
+      definition: JSON.parse(row.definition),
+      requiredSecrets: JSON.parse(row.required_secrets),
+      publishedBy: row.published_by,
+      createdAt: row.created_at,
+    }
+  })
+
+  app.get('/api/mcp-servers/:org/:name/versions', async (req, reply) => {
+    const actor = actorOf(req)
+    const { org, name } = req.params as { org: string; name: string }
+    if (!actor || !canReadOrg(actor, org)) return reply.code(403).send({ error: 'forbidden' })
+    const rows = db
+      .prepare(
+        `SELECT v.version, v.published_by AS publishedBy, v.created_at AS createdAt
+         FROM mcp_servers s JOIN mcp_server_versions v ON v.server_id = s.id
+         WHERE s.org = ? AND s.name = ?`,
+      )
+      .all(org, name) as { version: string; publishedBy: string; createdAt: number }[]
+    return rows.sort((left, right) => compareSemver(right.version, left.version))
+  })
+
+  app.post('/api/mcp-servers/:org/:name', async (req, reply) => {
+    const actor = actorOf(req)
+    const { org, name } = req.params as { org: string; name: string }
+    if (!actor || !canPublish(actor, org)) return reply.code(403).send({ error: 'forbidden' })
+    if (!NAME_RE.test(name)) return reply.code(400).send({ error: 'invalid MCP server name' })
+    if (!db.prepare('SELECT 1 FROM orgs WHERE name = ?').get(org)) {
+      return reply.code(404).send({ error: 'org not found' })
+    }
+    const body = req.body as PublishMcpBody
+    if (!body?.version || !isSemver(body.version)) {
+      return reply.code(400).send({ error: 'semver version required (x.y.z)' })
+    }
+    let definition
+    try {
+      definition = sanitizeMcpDefinition(body.definition, name)
+    } catch (error) {
+      return reply.code(400).send({ error: error instanceof Error ? error.message : String(error) })
+    }
+    const createdAt = Date.now()
+    try {
+      db.transaction(() => {
+        db.prepare(
+          'INSERT OR IGNORE INTO mcp_servers (org, name, created_at) VALUES (?, ?, ?)',
+        ).run(org, name, createdAt)
+        const server = db
+          .prepare('SELECT id FROM mcp_servers WHERE org = ? AND name = ?')
+          .get(org, name) as { id: number }
+        db.prepare(
+          `INSERT INTO mcp_server_versions
+           (server_id, version, description, definition, required_secrets, published_by, created_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        ).run(
+          server.id,
+          body.version,
+          body.description ?? definition.description ?? '',
+          JSON.stringify(definition),
+          JSON.stringify(definition.requiredSecrets),
+          actor.name,
+          createdAt,
+        )
+      })()
+    } catch {
+      return reply.code(409).send({ error: `version ${body.version} already published` })
+    }
+    audit(db, {
+      actor: actor.name,
+      org,
+      action: 'mcp.publish',
+      subject: `${org}/${name}@${body.version}`,
+    })
+    return reply.code(201).send({ org, name, version: body.version })
+  })
+
+  /* ---------- bundles ---------- */
+
+  app.get('/api/bundles', async (req, reply) => {
+    const actor = actorOf(req)
+    if (!actor) return reply.code(401).send({ error: 'unauthorized' })
+    const rows = db.prepare('SELECT * FROM bundles ORDER BY org, name').all() as {
+      org: string
+      name: string
+      version: string
+      description: string
+      skills: string
+      mcp_servers: string
+      published_by: string
+      created_at: number
+    }[]
+    const latest = new Map<string, (typeof rows)[number]>()
+    for (const row of rows) {
+      if (!canReadOrg(actor, row.org)) continue
+      const key = `${row.org}/${row.name}`
+      const current = latest.get(key)
+      if (!current || compareSemver(row.version, current.version) > 0) latest.set(key, row)
+    }
+    return [...latest.values()].map((row) => ({
+      org: row.org,
+      name: row.name,
+      version: row.version,
+      description: row.description,
+      skills: JSON.parse(row.skills),
+      mcpServers: JSON.parse(row.mcp_servers),
+      publishedBy: row.published_by,
+      createdAt: row.created_at,
+    }))
+  })
+
+  app.get('/api/bundles/:org/:name', async (req, reply) => {
+    const actor = actorOf(req)
+    const { org, name } = req.params as { org: string; name: string }
+    if (!actor || !canReadOrg(actor, org)) return reply.code(403).send({ error: 'forbidden' })
+    const { version } = req.query as { version?: string }
+    const rows = db.prepare('SELECT * FROM bundles WHERE org = ? AND name = ?').all(org, name) as {
+      org: string
+      name: string
+      version: string
+      description: string
+      skills: string
+      mcp_servers: string
+      published_by: string
+      created_at: number
+    }[]
+    const row = version
+      ? rows.find((candidate) => candidate.version === version)
+      : rows.sort((left, right) => compareSemver(right.version, left.version))[0]
+    if (!row) return reply.code(404).send({ error: 'not found' })
+    return {
+      org: row.org,
+      name: row.name,
+      version: row.version,
+      description: row.description,
+      skills: JSON.parse(row.skills),
+      mcpServers: JSON.parse(row.mcp_servers),
+      publishedBy: row.published_by,
+      createdAt: row.created_at,
+    }
+  })
+
+  app.post('/api/bundles/:org/:name', async (req, reply) => {
+    const actor = actorOf(req)
+    const { org, name } = req.params as { org: string; name: string }
+    if (!actor || !canPublish(actor, org)) return reply.code(403).send({ error: 'forbidden' })
+    if (!NAME_RE.test(name)) return reply.code(400).send({ error: 'invalid bundle name' })
+    if (!db.prepare('SELECT 1 FROM orgs WHERE name = ?').get(org)) {
+      return reply.code(404).send({ error: 'org not found' })
+    }
+    const body = req.body as PublishBundleBody
+    if (!body?.version || !isSemver(body.version)) {
+      return reply.code(400).send({ error: 'semver version required (x.y.z)' })
+    }
+    let skills: BundleRef[]
+    let mcpServers: BundleRef[]
+    try {
+      skills = bundleRefs(body.skills, 'skills')
+      mcpServers = bundleRefs(body.mcpServers, 'mcpServers')
+      if (skills.length + mcpServers.length === 0) throw new Error('bundle cannot be empty')
+    } catch (error) {
+      return reply.code(400).send({ error: error instanceof Error ? error.message : String(error) })
+    }
+    const missingSkill = skills.find((reference) => !bundleSkillExists(db, org, reference))
+    if (missingSkill) {
+      return reply.code(400).send({
+        error: `skill reference not found: ${missingSkill.name}${missingSkill.version ? `@${missingSkill.version}` : ''}`,
+      })
+    }
+    const missingMcpServer = mcpServers.find(
+      (reference) => !bundleMcpServerExists(db, org, reference),
+    )
+    if (missingMcpServer) {
+      return reply.code(400).send({
+        error: `MCP server reference not found: ${missingMcpServer.name}${missingMcpServer.version ? `@${missingMcpServer.version}` : ''}`,
+      })
+    }
+    try {
+      db.prepare(
+        `INSERT INTO bundles
+         (org, name, version, description, skills, mcp_servers, published_by, created_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      ).run(
+        org,
+        name,
+        body.version,
+        body.description ?? '',
+        JSON.stringify(skills),
+        JSON.stringify(mcpServers),
+        actor.name,
+        Date.now(),
+      )
+    } catch {
+      return reply.code(409).send({ error: `version ${body.version} already published` })
+    }
+    audit(db, {
+      actor: actor.name,
+      org,
+      action: 'bundle.publish',
+      subject: `${org}/${name}@${body.version}`,
+    })
+    return reply.code(201).send({ org, name, version: body.version })
+  })
+
   /* ---------- policy (required skills) ---------- */
 
   app.get('/api/orgs/:org/required', async (req, reply) => {
@@ -249,6 +604,44 @@ export function buildServer(options: ServerOptions): FastifyInstance & { db: Db 
     })()
     audit(db, { actor: actor.name, org, action: 'policy.required.set', subject: skills.join(',') })
     return { org, skills }
+  })
+
+  app.get('/api/orgs/:org/required-mcp-servers', async (req, reply) => {
+    const actor = actorOf(req)
+    const { org } = req.params as { org: string }
+    if (!actor || !canReadOrg(actor, org)) return reply.code(403).send({ error: 'forbidden' })
+    const rows = db
+      .prepare('SELECT mcp_server_name AS name FROM required_mcp_servers WHERE org = ?')
+      .all(org) as { name: string }[]
+    return rows.map((row) => row.name)
+  })
+
+  app.put('/api/orgs/:org/required-mcp-servers', async (req, reply) => {
+    const actor = actorOf(req)
+    const { org } = req.params as { org: string }
+    if (!actor || !canPublish(actor, org)) return reply.code(403).send({ error: 'forbidden' })
+    const { mcpServers } = req.body as { mcpServers?: string[] }
+    if (
+      !Array.isArray(mcpServers) ||
+      mcpServers.some((name) => typeof name !== 'string' || !NAME_RE.test(name))
+    ) {
+      return reply.code(400).send({ error: 'mcpServers must contain valid names' })
+    }
+    const del = db.prepare('DELETE FROM required_mcp_servers WHERE org = ?')
+    const insert = db.prepare(
+      'INSERT INTO required_mcp_servers (org, mcp_server_name) VALUES (?, ?)',
+    )
+    db.transaction(() => {
+      del.run(org)
+      for (const name of mcpServers) insert.run(org, name)
+    })()
+    audit(db, {
+      actor: actor.name,
+      org,
+      action: 'policy.required-mcp.set',
+      subject: mcpServers.join(','),
+    })
+    return { org, mcpServers }
   })
 
   /* ---------- audit ---------- */
