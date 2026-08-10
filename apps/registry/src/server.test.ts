@@ -88,7 +88,7 @@ describe('registry server', () => {
     expect(got.json().version).toBe('1.0.0')
   })
 
-  it('versions are immutable; latest wins; history listed', async () => {
+  it('versions are immutable; semantic latest wins even when published out of order', async () => {
     const { owner } = await setupOrgWithTokens()
     const publish = (version: string, content: string) =>
       app.inject({
@@ -99,14 +99,15 @@ describe('registry server', () => {
       })
     expect((await publish('1.0.0', 'v1')).statusCode).toBe(201)
     expect((await publish('1.0.0', 'dup')).statusCode).toBe(409)
-    expect((await publish('1.1.0', 'v2')).statusCode).toBe(201)
+    expect((await publish('10.0.0', 'v10')).statusCode).toBe(201)
+    expect((await publish('2.0.0', 'v2')).statusCode).toBe(201)
 
     const latest = await app.inject({
       method: 'GET',
       url: '/api/skills/acme/s',
       headers: auth(owner),
     })
-    expect(latest.json().version).toBe('1.1.0')
+    expect(latest.json().version).toBe('10.0.0')
 
     const pinned = await app.inject({
       method: 'GET',
@@ -120,7 +121,14 @@ describe('registry server', () => {
       url: '/api/skills/acme/s/versions',
       headers: auth(owner),
     })
-    expect(versions.json().map((v: { version: string }) => v.version)).toEqual(['1.1.0', '1.0.0'])
+    expect(versions.json().map((v: { version: string }) => v.version)).toEqual([
+      '10.0.0',
+      '2.0.0',
+      '1.0.0',
+    ])
+
+    const search = await app.inject({ method: 'GET', url: '/api/skills', headers: auth(owner) })
+    expect(search.json()[0].version).toBe('10.0.0')
   })
 
   it('org isolation: tokens cannot read other orgs', async () => {
@@ -173,6 +181,34 @@ describe('registry server', () => {
     })
     const res = await app.inject({ method: 'GET', url: '/api/skills?q=git', headers: auth(owner) })
     expect(res.json().map((s: { name: string }) => s.name)).toEqual(['commit-style'])
+  })
+
+  it('rejects resource paths that can escape or replace the Skill package', async () => {
+    const { owner } = await setupOrgWithTokens()
+    for (const resourcePath of ['../secret.txt', '/tmp/secret.txt', 'SKILL.md']) {
+      const response = await app.inject({
+        method: 'POST',
+        url: '/api/skills/acme/unsafe-resources',
+        headers: auth(owner),
+        payload: {
+          version: '1.0.0',
+          content: 'x',
+          resources: { [resourcePath]: 'unsafe' },
+        },
+      })
+      expect(response.statusCode).toBe(400)
+    }
+  })
+
+  it('rejects versions with leading zeroes', async () => {
+    const { owner } = await setupOrgWithTokens()
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/skills/acme/invalid-version',
+      headers: auth(owner),
+      payload: { version: '01.0.0', content: 'x' },
+    })
+    expect(response.statusCode).toBe(400)
   })
 
   it('required-skills policy round-trips; member can read but not set', async () => {

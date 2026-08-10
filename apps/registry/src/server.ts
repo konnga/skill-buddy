@@ -1,6 +1,8 @@
 import Fastify, { type FastifyInstance, type FastifyRequest } from 'fastify'
 import { audit, openDb, type Db } from './db.js'
 import { authenticate, canPublish, canReadOrg, issueToken, type Actor } from './auth.js'
+import { isSafeResourcePath } from './resources.js'
+import { compareSemver, isSemver } from './versions.js'
 
 export interface ServerOptions {
   dbPath: string
@@ -8,8 +10,6 @@ export interface ServerOptions {
 }
 
 const NAME_RE = /^[a-z0-9]+(-[a-z0-9]+)*$/
-const VERSION_RE = /^\d+\.\d+\.\d+$/
-
 interface PublishBody {
   version: string
   description?: string
@@ -80,14 +80,29 @@ export function buildServer(options: ServerOptions): FastifyInstance & { db: Db 
     const { q } = req.query as { q?: string }
     const rows = db
       .prepare(
-        `SELECT s.org, s.name, s.description, s.tags, s.version, s.created_at AS createdAt
-         FROM skills s
-         JOIN (SELECT org, name, MAX(id) AS id FROM skills GROUP BY org, name) latest
-           ON s.id = latest.id
-         ORDER BY s.org, s.name`,
+        `SELECT id, org, name, description, tags, version, created_at AS createdAt
+         FROM skills
+         ORDER BY org, name`,
       )
-      .all() as { org: string; name: string; description: string; tags: string }[]
-    const visible = rows.filter((r) => canReadOrg(actor, r.org))
+      .all() as {
+        id: number
+        org: string
+        name: string
+        description: string
+        tags: string
+        version: string
+        createdAt: number
+      }[]
+    const latestBySkill = new Map<string, (typeof rows)[number]>()
+    for (const row of rows) {
+      if (!canReadOrg(actor, row.org)) continue
+      const key = `${row.org}/${row.name}`
+      const current = latestBySkill.get(key)
+      if (!current || compareSemver(row.version, current.version) > 0) {
+        latestBySkill.set(key, row)
+      }
+    }
+    const visible = [...latestBySkill.values()]
     const needle = q?.toLowerCase().trim()
     const result = needle
       ? visible.filter(
@@ -105,27 +120,24 @@ export function buildServer(options: ServerOptions): FastifyInstance & { db: Db 
     const { org, name } = req.params as { org: string; name: string }
     if (!actor || !canReadOrg(actor, org)) return reply.code(403).send({ error: 'forbidden' })
     const { version } = req.query as { version?: string }
-    const row = (
-      version
-        ? db
-            .prepare('SELECT * FROM skills WHERE org = ? AND name = ? AND version = ?')
-            .get(org, name, version)
-        : db
-            .prepare('SELECT * FROM skills WHERE org = ? AND name = ? ORDER BY id DESC LIMIT 1')
-            .get(org, name)
-    ) as
-      | {
-          org: string
-          name: string
-          version: string
-          description: string
-          tags: string
-          content: string
-          resources: string | null
-          published_by: string
-          created_at: number
-        }
-      | undefined
+    type SkillRow = {
+      id: number
+      org: string
+      name: string
+      version: string
+      description: string
+      tags: string
+      content: string
+      resources: string | null
+      published_by: string
+      created_at: number
+    }
+    const row = version
+      ? (db
+          .prepare('SELECT * FROM skills WHERE org = ? AND name = ? AND version = ?')
+          .get(org, name, version) as SkillRow | undefined)
+      : (db.prepare('SELECT * FROM skills WHERE org = ? AND name = ?').all(org, name) as SkillRow[])
+          .sort((left, right) => compareSemver(right.version, left.version))[0]
     if (!row) return reply.code(404).send({ error: 'not found' })
     audit(db, {
       actor: actor.name,
@@ -150,11 +162,12 @@ export function buildServer(options: ServerOptions): FastifyInstance & { db: Db 
     const actor = actorOf(req)
     const { org, name } = req.params as { org: string; name: string }
     if (!actor || !canReadOrg(actor, org)) return reply.code(403).send({ error: 'forbidden' })
-    return db
+    const versions = db
       .prepare(
         'SELECT version, published_by AS publishedBy, created_at AS createdAt FROM skills WHERE org = ? AND name = ? ORDER BY id DESC',
       )
-      .all(org, name)
+      .all(org, name) as { version: string; publishedBy: string; createdAt: number }[]
+    return versions.sort((left, right) => compareSemver(right.version, left.version))
   })
 
   app.post('/api/skills/:org/:name', async (req, reply) => {
@@ -165,11 +178,23 @@ export function buildServer(options: ServerOptions): FastifyInstance & { db: Db 
     const orgExists = db.prepare('SELECT 1 FROM orgs WHERE name = ?').get(org)
     if (!orgExists) return reply.code(404).send({ error: 'org not found' })
     const body = req.body as PublishBody
-    if (!body?.version || !VERSION_RE.test(body.version)) {
+    if (!body?.version || !isSemver(body.version)) {
       return reply.code(400).send({ error: 'semver version required (x.y.z)' })
     }
     if (typeof body.content !== 'string' || body.content.length === 0) {
       return reply.code(400).send({ error: 'content required' })
+    }
+    const invalidResources =
+      body.resources !== undefined &&
+      (typeof body.resources !== 'object' ||
+        body.resources === null ||
+        Array.isArray(body.resources) ||
+        Object.entries(body.resources).some(
+          ([resourcePath, content]) =>
+            !isSafeResourcePath(resourcePath) || typeof content !== 'string',
+        ))
+    if (invalidResources) {
+      return reply.code(400).send({ error: 'invalid resource path' })
     }
     try {
       db.prepare(
