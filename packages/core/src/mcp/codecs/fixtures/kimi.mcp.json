@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "database": {
+      "command": "uvx",
+      "args": ["database-mcp"],
+      "env": { "DATABASE_URL": "plain-secret-value" }
+    }
+  }
+}

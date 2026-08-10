@@ -1,0 +1,14 @@
+{
+  // OpenCode 的其他设置不能被 MCP 编辑重写。
+  "theme": "system",
+  "mcp": {
+    "local-tools": {
+      "type": "local",
+      "command": ["npx", "-y", "@example/local-tools"], // 保留 Server 内部注释
+      "enabled": true
+    },
+  },
+  "permissions": {
+    "bash": "ask"
+  }
+}

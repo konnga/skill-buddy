@@ -24,7 +24,22 @@ export {
   toSkill,
   type RegistrySkill,
   type RegistrySkillSummary,
+  type RegistryMcpServer,
+  type RegistryMcpServerSummary,
+  type RegistryBundle,
+  type RegistryBundleSummary,
+  type RegistryRef,
 } from './registry-client.js'
 export { planAdditiveInstall, planImportSync, targetKey, type AdditivePlan, type SyncAction, type SyncPairLike, type TargetRef } from './planners.js'
 export { compareSemver } from './semver.js'
 export { resolveResourcePath } from './resource-path.js'
+export * from './mcp/codecs/index.js'
+export * from './mcp/types.js'
+export * from './mcp/capabilities.js'
+export * from './mcp/catalog.js'
+export * from './mcp/normalize.js'
+export * from './mcp/adapters/index.js'
+export * from './mcp/aggregate.js'
+export * from './mcp/scanner.js'
+export * from './mcp/operations.js'
+export * from './mcp/transaction.js'

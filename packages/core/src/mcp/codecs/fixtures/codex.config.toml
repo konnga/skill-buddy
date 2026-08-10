@@ -1,0 +1,15 @@
+# Codex 的非 MCP 设置必须逐字保留。
+model = "gpt-5"
+approval_policy = "on-request"
+
+# 已有子表会让 mcp_servers 成为隐式父表。
+[mcp_servers.filesystem]
+command = "npx" # 保留行尾注释
+args = ["-y", "@modelcontextprotocol/server-filesystem", "/tmp"]
+enabled = true
+
+[mcp_servers.filesystem.env]
+FIXTURE_TOKEN = "${FIXTURE_TOKEN}"
+
+[projects."/tmp/example"]
+trust_level = "trusted"

@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "calendar": {
+      "command": "node",
+      "args": ["calendar.js"]
+    }
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "general": { "previewFeatures": true },
+  "mcpServers": {
+    "github": {
+      "command": "docker",
+      "args": ["run", "github-mcp"],
+      "env": { "GITHUB_TOKEN": "${GITHUB_TOKEN}" }
+    }
+  }
+}

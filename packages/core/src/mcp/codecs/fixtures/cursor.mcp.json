@@ -1,0 +1,10 @@
+{
+  "mcpServers": {
+    "docs": {
+      "url": "https://example.invalid/mcp"
+    }
+  },
+  "skillBuddyFixture": {
+    "preserve": true
+  }
+}

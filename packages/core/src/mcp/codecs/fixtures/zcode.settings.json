@@ -1,0 +1,11 @@
+{
+  "theme": "system",
+  "mcp": {
+    "servers": {
+      "docs": {
+        "type": "sse",
+        "url": "https://mcp.example.com/docs"
+      }
+    }
+  }
+}

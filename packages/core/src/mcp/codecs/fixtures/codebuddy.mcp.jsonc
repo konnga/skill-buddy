@@ -1,0 +1,11 @@
+{
+  // CodeBuddy user/project MCP config
+  "mcpServers": {
+    "filesystem": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-filesystem"],
+      "env": { "ROOT_PATH": "${ROOT_PATH}" },
+      "vendorFlag": true
+    }
+  }
+}

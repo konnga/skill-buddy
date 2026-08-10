@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "issues": {
+      "type": "http",
+      "url": "https://mcp.example.com/issues",
+      "headers": { "Authorization": "${GITHUB_TOKEN}" }
+    }
+  }
+}
