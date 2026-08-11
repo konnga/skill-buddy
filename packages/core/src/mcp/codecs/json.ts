@@ -25,7 +25,8 @@ import { McpConfigCodecError } from './types.js'
 
 function formattingOptions(text: string): FormattingOptions {
   const eol = text.includes('\r\n') ? '\r\n' : '\n'
-  const indentation = text.match(/^(\s+)["}]/m)?.[1] ?? '  '
+  // 只匹配行内空白：\s 会吞掉空行的换行符（及 CR），导致 tabSize 被算大并重排未修改的行。
+  const indentation = text.match(/^([ \t]+)["}]/m)?.[1] ?? '  '
   return {
     eol,
     insertSpaces: !indentation.includes('\t'),

@@ -32,7 +32,7 @@ describe('normalizeNativeMcpServer', () => {
     expect(result.authState).toBe('missing-secrets')
   })
 
-  it('redacts remote headers, URL query values and credentials', () => {
+  it('redacts remote headers, sensitive URL query values and credentials', () => {
     const result = normalizeNativeMcpServer(
       'remote',
       {
@@ -45,15 +45,58 @@ describe('normalizeNativeMcpServer', () => {
     )
     const serialized = JSON.stringify(result)
 
-    for (const secret of ['user', 'pass', 'url-token', 'acme', 'header-token', 'fragment']) {
+    for (const secret of ['user', 'pass', 'url-token', 'header-token', 'fragment']) {
       expect(serialized).not.toContain(secret)
     }
+    // 非敏感查询参数必须原样保留，否则会破坏 URL 并触发虚假漂移。
+    expect(
+      result.definition.transport.kind !== 'stdio' && result.definition.transport.url,
+    ).toContain('tenant=acme')
     expect(result.definition.requiredSecrets).toEqual([
       'Authorization',
       'URL_CREDENTIALS',
-      'URL_QUERY_TENANT',
       'URL_QUERY_TOKEN',
     ])
+  })
+
+  it('keeps benign flags, bare arguments, and boolean switches untouched', () => {
+    const result = normalizeNativeMcpServer(
+      'benign',
+      {
+        command: 'npx',
+        args: ['-y', '@acme/token-mcp', '--no-token-cache', '--port', '3000'],
+        env: {},
+      },
+      'standard',
+      {},
+    )
+
+    expect(result.definition.transport).toMatchObject({
+      kind: 'stdio',
+      args: ['-y', '@acme/token-mcp', '--no-token-cache', '--port', '3000'],
+    })
+    expect(result.definition.requiredSecrets).toEqual([])
+    expect(result.definition.metadata).toBeUndefined()
+  })
+
+  it('reads Codex env_vars back as env references', () => {
+    const result = normalizeNativeMcpServer(
+      'codex-server',
+      {
+        command: 'npx',
+        args: ['server'],
+        env_vars: ['DATABASE_URL'],
+      },
+      'codex',
+      { DATABASE_URL: 'present' },
+    )
+
+    expect(result.definition.transport).toMatchObject({
+      kind: 'stdio',
+      env: { DATABASE_URL: { kind: 'env', name: 'DATABASE_URL' } },
+    })
+    expect(result.definition.requiredSecrets).toEqual(['DATABASE_URL'])
+    expect(result.platformMetadata.extensionKeys).toEqual([])
   })
 
   it('normalizes OpenCode command arrays and native enabled state', () => {

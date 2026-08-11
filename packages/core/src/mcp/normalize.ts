@@ -7,10 +7,13 @@ import type {
   McpValueRef,
 } from './types.js'
 import type { McpNativeSchema } from './catalog.js'
+import { nativeKnownKeys } from './operations.js'
+import {
+  SENSITIVE_MCP_ARGUMENT as SENSITIVE_ARGUMENT,
+  SENSITIVE_MCP_URL_KEY as SENSITIVE_URL_KEY,
+} from './validate.js'
 
 const ENV_REFERENCE_PATTERNS = [/^\$\{([A-Za-z_][A-Za-z0-9_]*)\}$/, /^\{env:([A-Za-z_][A-Za-z0-9_]*)\}$/]
-const SENSITIVE_ARGUMENT = /(token|secret|password|passwd|api[-_]?key|authorization)/i
-const SENSITIVE_URL_KEY = /(token|secret|password|passwd|api[-_]?key|auth|signature)/i
 
 interface NormalizedNativeServer {
   definition: McpServerDefinition
@@ -57,23 +60,38 @@ function referenceRequirement(ref: McpValueRef): string | undefined {
   return undefined
 }
 
+function argumentSecretKey(flag: string): string {
+  const key = flag
+    .replace(/^-+/, '')
+    .replaceAll(/[^A-Za-z0-9_]/g, '_')
+    .toUpperCase()
+  return /^[A-Z_][A-Z0-9_]*$/.test(key) ? key : 'ARGUMENT_SECRET'
+}
+
 function redactArgs(args: string[]): { args: string[]; secretKeys: string[] } {
   const secretKeys: string[] = []
-  let redactNext = false
-  const redacted = args.map((argument) => {
-    if (redactNext) {
-      redactNext = false
-      return '[redacted]'
-    }
+  const redacted = [...args]
+  for (let index = 0; index < args.length; index += 1) {
+    const argument = args[index]!
     const equalIndex = argument.indexOf('=')
     const flag = equalIndex >= 0 ? argument.slice(0, equalIndex) : argument
-    if (!SENSITIVE_ARGUMENT.test(flag)) return argument
-    const key = flag.replace(/^-+/, '').replaceAll('-', '_').toUpperCase() || 'ARGUMENT_SECRET'
-    secretKeys.push(key)
-    if (equalIndex >= 0) return `${flag}=[redacted]`
-    redactNext = true
-    return argument
-  })
+    // 仅处理 flag（-x/--xx）或 KEY=VALUE 形式；裸参数（如包名 @acme/token-mcp）不视为凭据。
+    if (!flag.startsWith('-') && equalIndex < 0) continue
+    if (!SENSITIVE_ARGUMENT.test(flag)) continue
+    if (equalIndex >= 0) {
+      if (argument.length > equalIndex + 1) {
+        redacted[index] = `${flag}=[redacted]`
+        secretKeys.push(argumentSecretKey(flag))
+      }
+      continue
+    }
+    const next = args[index + 1]
+    // 下一项若是另一个 flag，说明当前是布尔开关（如 --no-token-cache），没有值可脱敏。
+    if (next === undefined || next.startsWith('-')) continue
+    redacted[index + 1] = '[redacted]'
+    secretKeys.push(argumentSecretKey(flag))
+    index += 1
+  }
   return { args: redacted, secretKeys }
 }
 
@@ -88,7 +106,7 @@ function redactUrl(value: string): { url: string; secretKeys: string[] } {
     }
     for (const key of [...url.searchParams.keys()]) {
       const secretKey = `URL_QUERY_${key.replaceAll('-', '_').toUpperCase()}`
-      if (SENSITIVE_URL_KEY.test(key) || url.searchParams.get(key)) {
+      if (SENSITIVE_URL_KEY.test(key) && url.searchParams.get(key)) {
         url.searchParams.set(key, '[redacted]')
         secretKeys.push(secretKey)
       }
@@ -118,22 +136,7 @@ function nativeTransport(
 }
 
 function metadataFor(schema: McpNativeSchema, value: McpConfigObject): Record<string, unknown> {
-  const known = new Set(
-    schema === 'opencode'
-      ? ['type', 'command', 'environment', 'url', 'headers', 'enabled', 'oauth']
-      : schema === 'codex'
-        ? [
-            'command',
-            'args',
-            'cwd',
-            'env',
-            'url',
-            'http_headers',
-            'env_http_headers',
-            'enabled',
-          ]
-        : ['type', 'command', 'args', 'cwd', 'env', 'url', 'headers', 'enabled', 'disabled'],
-  )
+  const known = nativeKnownKeys(schema)
   return {
     schema,
     nativeKeys: Object.keys(value),
@@ -175,6 +178,11 @@ export function normalizeNativeMcpServer(
 
   if (command) {
     const env = referenceMap(rawEnv)
+    if (schema === 'codex') {
+      for (const envName of stringArray(value.env_vars)) {
+        env[envName] = { kind: 'env', name: envName }
+      }
+    }
     const { args, secretKeys } = redactArgs(rawArgs)
     const requiredSecrets = new Set([
       ...Object.values(env).flatMap((ref) => referenceRequirement(ref) ?? []),

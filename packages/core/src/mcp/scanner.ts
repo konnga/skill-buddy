@@ -26,7 +26,6 @@ export async function scanMcpServers(
   adapters: readonly McpAdapter[] = allMcpAdapters(),
   environment: NodeJS.ProcessEnv = process.env,
 ): Promise<McpScanResult> {
-  const installations: McpInstallation[] = []
   const errors: McpScanError[] = []
 
   const platforms: McpPlatformStatus[] = await Promise.all(
@@ -52,27 +51,32 @@ export async function scanMcpServers(
     }),
   )
 
-  await Promise.all(
+  // Promise.all 结果按输入顺序收集，保证 installations 顺序由 adapter 与来源顺序决定，
+  // 而不是各文件读取的完成顺序（否则 installations[0] 等依赖顺序的行为不可复现）。
+  const installationGroups = await Promise.all(
     adapters.map(async (adapter) => {
       let sources
       try {
         sources = await adapter.configSources(projectRoots)
       } catch (error) {
         errors.push(scanError(error, adapter))
-        return
+        return []
       }
-      await Promise.all(
+      const groups = await Promise.all(
         sources.map(async (source) => {
-          if (!source.exists) return
+          if (!source.exists) return []
           try {
-            installations.push(...(await adapter.read(source, environment)))
+            return await adapter.read(source, environment)
           } catch (error) {
             errors.push(scanError(error, adapter, source.id))
+            return []
           }
         }),
       )
+      return groups.flat()
     }),
   )
+  const installations: McpInstallation[] = installationGroups.flat()
 
   return {
     installations,

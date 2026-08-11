@@ -12,6 +12,7 @@ import {
   defaultMcpHome,
   sourceIdentity,
   type McpPlatformProfile,
+  type McpSourceTemplate,
 } from '../catalog.js'
 import {
   hashMcpDefinition,
@@ -42,6 +43,8 @@ async function exists(path: string): Promise<boolean> {
     return false
   }
 }
+
+const PRESERVED_STATE_KEYS = new Set(['enabled', 'disabled', 'oauth'])
 
 function codecFor(source: McpConfigSource): McpConfigCodec {
   if (source.format === 'toml') return tomlMcpConfigCodec
@@ -76,7 +79,7 @@ export class PlatformMcpAdapter implements McpAdapter {
   async configSources(projectRoots: string[] = []): Promise<McpConfigSource[]> {
     const templates = this.profile.sourceTemplates(this.#homeDir, projectRoots)
     const seen = new Set<string>()
-    const sources: McpConfigSource[] = []
+    const entries: { template: McpSourceTemplate; source: McpConfigSource }[] = []
     for (const template of templates) {
       const sourceWithoutId: Omit<McpConfigSource, 'id'> = {
         agent: this.agent,
@@ -93,22 +96,20 @@ export class PlatformMcpAdapter implements McpAdapter {
       const identity = sourceIdentity(sourceWithoutId)
       if (seen.has(identity)) continue
       seen.add(identity)
-      sources.push({ ...sourceWithoutId, id: stableMcpId(identity) })
+      entries.push({ template, source: { ...sourceWithoutId, id: stableMcpId(identity) } })
     }
     const fallbackChoices = new Map<string, McpConfigSource>()
-    for (let index = 0; index < templates.length; index += 1) {
-      const group = templates[index]?.fallbackGroup
-      if (!group) continue
-      const candidate = sources[index]
-      if (!candidate) continue
-      const current = fallbackChoices.get(group)
-      if (!current || (!current.exists && candidate.exists)) fallbackChoices.set(group, candidate)
+    for (const { template, source } of entries) {
+      if (!template.fallbackGroup) continue
+      const current = fallbackChoices.get(template.fallbackGroup)
+      if (!current || (!current.exists && source.exists)) {
+        fallbackChoices.set(template.fallbackGroup, source)
+      }
     }
     const fallbackIds = new Set([...fallbackChoices.values()].map((source) => source.id))
-    return sources.filter((source, index) => {
-      const group = templates[index]?.fallbackGroup
-      return !group || fallbackIds.has(source.id)
-    })
+    return entries
+      .filter(({ template, source }) => !template.fallbackGroup || fallbackIds.has(source.id))
+      .map(({ source }) => source)
   }
 
   async read(
@@ -173,11 +174,20 @@ export class PlatformMcpAdapter implements McpAdapter {
     }
     const current = servers[definition.name]
     const known = nativeKnownKeys(this.profile.schema)
-    const extensions =
-      typeof current === 'object' && current !== null && !Array.isArray(current)
-        ? Object.fromEntries(Object.entries(current).filter(([key]) => !known.has(key)))
-        : {}
-    const nativeValue = { ...extensions, ...projection.nativeValue }
+    const currentObject: McpConfigObject =
+      typeof current === 'object' && current !== null && !Array.isArray(current) ? current : {}
+    const extensions = Object.fromEntries(
+      Object.entries(currentObject).filter(([key]) => !known.has(key)),
+    )
+    // enabled/disabled/oauth 属于已知键但投影不会重新输出，覆盖写入时必须保留，
+    // 否则用户禁用的服务器会被静默重新启用、opencode 的 oauth 配置会被销毁。
+    const preservedState = Object.fromEntries(
+      Object.entries(currentObject).filter(
+        ([key]) =>
+          PRESERVED_STATE_KEYS.has(key) && !(key in (projection.nativeValue ?? {})),
+      ),
+    )
+    const nativeValue = { ...extensions, ...preservedState, ...projection.nativeValue }
     const afterText = codecFor(source).upsertServer(
       text,
       source.nodePath,

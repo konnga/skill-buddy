@@ -48,15 +48,20 @@ export function aggregateMcpServers(
   return [...grouped.entries()]
     .map(([name, items]): AggregatedMcpServer => {
       const definitionHashes = new Set(items.map((item) => item.definitionHash))
-      const states = new Set(items.map((item) => `${item.enabled}:${item.authState}`))
+      // enabled 为 null 表示平台没有原生启停标志，等同于启用；不能与显式 true 判为状态漂移。
+      const states = new Set(items.map((item) => `${item.enabled !== false}:${item.authState}`))
       const conflict = definitionHashes.size > 1 ? conflictKind(items) ?? 'unknown' : undefined
+      const sortKey = (item: McpInstallation): string =>
+        [
+          item.source.agent,
+          item.source.surface,
+          item.source.scope,
+          item.source.projectRoot ?? '',
+          item.source.configPath,
+        ].join(':')
       return {
         name,
-        installations: items.sort((left, right) =>
-          `${left.source.agent}:${left.source.surface}:${left.source.scope}`.localeCompare(
-            `${right.source.agent}:${right.source.surface}:${right.source.scope}`,
-          ),
-        ),
+        installations: items.sort((left, right) => sortKey(left).localeCompare(sortKey(right))),
         hasDefinitionDrift: definitionHashes.size > 1,
         hasStateDrift: states.size > 1,
         ...(conflict ? { conflictKind: conflict } : {}),
