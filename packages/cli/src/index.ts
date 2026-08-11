@@ -16,6 +16,7 @@ import {
   scanInstalledSkills,
   transactionalWriteMcpConfig,
   toSkill,
+  validateMcpDefinition,
   type InstallScope,
   type McpServerDefinition,
   type McpTarget,
@@ -77,10 +78,25 @@ function parseMcpTargets(value: string, projectRoot?: string): McpTarget[] {
     .map((entry) => {
       const [agent, surface] = entry.split(':')
       if (!agent) fail(`invalid MCP target: ${entry}`)
+      // 省略 surface 时只在可写入口中选择；多个可写入口时要求显式指定，避免静默绑定错入口。
+      const writable = allMcpAdapters().filter(
+        (candidate) =>
+          candidate.agent === agent && candidate.capabilities.management === 'read-write',
+      )
       const adapter = surface
         ? getMcpAdapter(agent, surface)
-        : allMcpAdapters().find((candidate) => candidate.agent === agent)
-      if (!adapter) fail(`MCP surface required for ${entry}`)
+        : writable.length === 1
+          ? writable[0]
+          : undefined
+      if (!adapter) {
+        fail(
+          writable.length > 1
+            ? `multiple MCP surfaces for ${agent}; use ${writable
+                .map((candidate) => `${agent}:${candidate.surface}`)
+                .join(' or ')}`
+            : `no writable MCP surface for ${entry}`,
+        )
+      }
       return {
         agent,
         surface: adapter.surface,
@@ -129,6 +145,8 @@ async function loadMcpDefinition(client: RegistryClient, ref: string): Promise<M
   const match = /^([a-z0-9-]+)\/([a-z0-9-]+)(?:@(.+))?$/.exec(ref)
   if (!match) fail('MCP ref must be org/name or org/name@version')
   const remote = await client.getMcpServer(match[1]!, match[2]!, match[3])
+  // registry 返回内容不可直接信任：写入本地 agent 配置前必须过与桌面端相同的校验。
+  validateMcpDefinition(remote.definition, { source: 'user-input' })
   return remote.definition
 }
 
