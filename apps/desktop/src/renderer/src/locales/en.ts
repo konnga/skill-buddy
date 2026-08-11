@@ -96,6 +96,24 @@ export default {
     },
     plan: {
       title: 'Review MCP changes',
+      intent: {
+        upsert: 'Install or update {name}',
+        remove: 'Remove {name}',
+        enable: 'Enable {name}',
+        disable: 'Disable {name}',
+      },
+      action: {
+        upsert: 'Will install or update',
+        remove: 'Will remove',
+        enable: 'Will enable',
+        disable: 'Will disable',
+      },
+      confirm: {
+        upsert: 'Apply changes',
+        remove: 'Confirm removal',
+        enable: 'Confirm enable',
+        disable: 'Confirm disable',
+      },
       noChange: 'No change',
       cancel: 'Cancel',
       close: 'Close',

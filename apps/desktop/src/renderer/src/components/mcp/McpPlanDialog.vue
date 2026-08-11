@@ -11,12 +11,26 @@ import {
 } from 'reka-ui'
 import { Button } from '@/components/ui/button'
 import PlatformIcon from '@/components/PlatformIcon.vue'
-import type { DeepReadonly } from 'vue'
+import { computed, type DeepReadonly } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 const props = defineProps<{ plan: DeepReadonly<McpOperationPlanView> | null; applying?: boolean }>()
 const emit = defineEmits<{ close: []; apply: [] }>()
 const { t } = useI18n()
+
+const operationDescription = computed(() =>
+  props.plan
+    ? t(`mcp.plan.intent.${props.plan.intent}`, { name: props.plan.name })
+    : '',
+)
+
+const actionLabel = computed(() =>
+  props.plan ? t(`mcp.plan.action.${props.plan.intent}`) : '',
+)
+
+const applyLabel = computed(() =>
+  props.plan ? t(`mcp.plan.confirm.${props.plan.intent}`) : t('mcp.plan.apply'),
+)
 
 function basename(path: string): string {
   return path.split(/[\\/]/).filter(Boolean).pop() ?? path
@@ -34,7 +48,7 @@ function basename(path: string): string {
           <span>
             <DialogTitle class="text-base font-semibold">{{ t('mcp.plan.title') }}</DialogTitle>
             <DialogDescription class="mt-1 text-sm text-muted-foreground">
-              {{ plan?.name }} · {{ plan?.kind }}
+              {{ operationDescription }}
             </DialogDescription>
           </span>
           <button
@@ -66,7 +80,13 @@ function basename(path: string): string {
                   {{ basename(action.configPath) }}
                 </span>
               </span>
-              <Check v-if="action.changed" class="size-4 text-emerald-600" />
+              <span
+                v-if="action.changed"
+                class="flex shrink-0 items-center gap-1.5 text-xs text-muted-foreground"
+              >
+                {{ actionLabel }}
+                <Check class="size-4 text-emerald-600" />
+              </span>
               <span v-else class="text-xs text-muted-foreground">{{ t('mcp.plan.noChange') }}</span>
             </div>
           </div>
@@ -100,10 +120,11 @@ function basename(path: string): string {
           </Button>
           <Button
             size="sm"
+            :variant="plan?.intent === 'remove' ? 'destructive' : 'default'"
             :disabled="!plan?.canApply || applying"
             @click="emit('apply')"
           >
-            {{ applying ? t('mcp.plan.applying') : t('mcp.plan.apply') }}
+            {{ applying ? t('mcp.plan.applying') : applyLabel }}
           </Button>
         </div>
       </DialogContent>

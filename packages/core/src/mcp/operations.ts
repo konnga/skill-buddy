@@ -55,6 +55,8 @@ export interface McpPlanIssueView {
   target?: McpTarget
 }
 
+export type McpOperationIntent = 'upsert' | 'remove' | 'enable' | 'disable'
+
 export interface McpPlanActionView {
   kind: McpMutationKind
   name: string
@@ -67,6 +69,7 @@ export interface McpPlanActionView {
 export interface McpOperationPlanView {
   planId: string
   kind: McpMutationKind
+  intent: McpOperationIntent
   name: string
   expiresAt: number
   actions: McpPlanActionView[]

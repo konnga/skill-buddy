@@ -10,6 +10,7 @@ import {
   validateMcpDefinition,
   type McpAdapter,
   type McpConfigSource,
+  type McpOperationIntent,
   type McpOperationPlanView,
   type McpOperationRequestResult,
   type McpPlanActionView,
@@ -139,20 +140,26 @@ export class McpService {
     // 表单等 IPC 传入的定义按新建路径严格校验；扫描得到的定义已脱敏，
     // 其中的占位符字段由 nonExportableFields 生成的计划阻断项处理，不在此硬拒。
     validateMcpDefinition(definition, { source: request.definition ? 'user-input' : 'scan' })
-    return this.createPlan('upsert', definition.name, request.targets, async (target) => {
-      const adapter = this.getAdapter(target)
-      const projection = adapter.project(definition, target)
-      if (projection.blockers.length > 0) {
+    return this.createPlan(
+      'upsert',
+      'upsert',
+      definition.name,
+      request.targets,
+      async (target) => {
+        const adapter = this.getAdapter(target)
+        const projection = adapter.project(definition, target)
+        if (projection.blockers.length > 0) {
+          return {
+            blockers: projection.blockers.map((issue) => issueView(issue, target)),
+            warnings: projection.warnings.map((issue) => issueView(issue, target)),
+          }
+        }
         return {
-          blockers: projection.blockers.map((issue) => issueView(issue, target)),
+          mutation: await adapter.prepareUpsert(definition, target),
           warnings: projection.warnings.map((issue) => issueView(issue, target)),
         }
-      }
-      return {
-        mutation: await adapter.prepareUpsert(definition, target),
-        warnings: projection.warnings.map((issue) => issueView(issue, target)),
-      }
-    })
+      },
+    )
   }
 
   async createRemovePlan(request: McpRemovePlanRequest): Promise<McpOperationPlanView> {
@@ -167,6 +174,7 @@ export class McpService {
       throw new Error('一次卸载计划只能处理同一个 MCP Server')
     }
     return this.createPlan(
+      'remove',
       'remove',
       name,
       items.map((item) => targetOfSource(item.source)),
@@ -189,6 +197,7 @@ export class McpService {
     }
     return this.createPlan(
       'toggle',
+      request.enabled ? 'enable' : 'disable',
       name,
       items.map((item) => targetOfSource(item.source)),
       async (target) => ({
@@ -248,6 +257,7 @@ export class McpService {
 
   private async createPlan(
     kind: 'upsert' | 'remove' | 'toggle',
+    intent: McpOperationIntent,
     name: string,
     targets: McpTarget[],
     prepare: (target: McpTarget) => Promise<{
@@ -301,6 +311,7 @@ export class McpService {
     const view: McpOperationPlanView = {
       planId,
       kind,
+      intent,
       name,
       expiresAt,
       actions,

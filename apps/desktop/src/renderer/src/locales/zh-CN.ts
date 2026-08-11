@@ -96,6 +96,24 @@ export default {
     },
     plan: {
       title: '确认 MCP 变更',
+      intent: {
+        upsert: '安装或更新 {name}',
+        remove: '移除 {name}',
+        enable: '启用 {name}',
+        disable: '禁用 {name}',
+      },
+      action: {
+        upsert: '将安装或更新',
+        remove: '将移除',
+        enable: '将启用',
+        disable: '将禁用',
+      },
+      confirm: {
+        upsert: '应用变更',
+        remove: '确认移除',
+        enable: '确认启用',
+        disable: '确认禁用',
+      },
       noChange: '无变化',
       cancel: '取消',
       close: '关闭',

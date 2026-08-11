@@ -12,6 +12,7 @@ const desktopRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 test('扫描 MCP、查看详情并预览新安装计划', async () => {
   const home = await fs.mkdtemp(join(tmpdir(), 'skillbuddy-mcp-e2e-'))
   await fs.mkdir(join(home, '.claude'), { recursive: true })
+  await fs.mkdir(join(home, '.codex'), { recursive: true })
   await fs.writeFile(
     join(home, '.claude.json'),
     JSON.stringify(
@@ -27,6 +28,11 @@ test('扫描 MCP、查看详情并预览新安装计划', async () => {
       null,
       2,
     ),
+    'utf8',
+  )
+  await fs.writeFile(
+    join(home, '.codex', 'config.toml'),
+    '[mcp_servers.node_repl]\ncommand = "node"\nargs = ["server.js"]\nenabled = true\n',
     'utf8',
   )
 
@@ -51,6 +57,16 @@ test('扫描 MCP、查看详情并预览新安装计划', async () => {
     await page.getByRole('button', { name: 'MCP Servers', exact: true }).click()
     await expect(page.getByText('filesystem', { exact: true }).first()).toBeVisible()
     await expect(page.getByText('@modelcontextprotocol/server-filesystem')).toBeVisible()
+
+    await page.getByText('node_repl', { exact: true }).first().click()
+    await page.getByRole('button', { name: '禁用', exact: true }).click()
+    const togglePlan = page.getByRole('dialog', { name: '确认 MCP 变更' })
+    await expect(togglePlan.getByText('禁用 node_repl', { exact: true })).toBeVisible()
+    await expect(togglePlan.getByText('将禁用', { exact: true })).toBeVisible()
+    await expect(togglePlan.getByRole('button', { name: '确认禁用' })).toBeVisible()
+    await expect(togglePlan).not.toContainText('toggle')
+    await togglePlan.getByRole('button', { name: '取消' }).click()
+
     await expect
       .poll(() =>
         page.evaluate(() => {

@@ -18,7 +18,7 @@ const capabilities = defineMcpCapabilities({
   supportsOAuth: false,
   supportsEnvReferences: true,
   supportsHeaderReferences: false,
-  toggle: 'unsupported',
+  toggle: 'native',
   protocolFeatures: { tools: true },
 })
 
@@ -93,8 +93,40 @@ describe('McpService', () => {
     })
 
     expect(JSON.stringify(plan)).not.toContain('private source text')
+    expect(plan.intent).toBe('upsert')
     expect(plan.actions).toHaveLength(1)
     expect(plan.canApply).toBe(true)
+  })
+
+  it.each([
+    { enabled: true, intent: 'enable' },
+    { enabled: false, intent: 'disable' },
+  ] as const)('启停计划向界面暴露 $intent 意图', async ({ enabled, intent }) => {
+    await fs.writeFile(
+      configPath,
+      JSON.stringify({
+        mcpServers: {
+          filesystem: {
+            command: 'npx',
+            args: ['-y', '@modelcontextprotocol/server-filesystem'],
+            enabled: !enabled,
+          },
+        },
+      }),
+      'utf8',
+    )
+    const scan = await service.scan()
+    const installation = scan.installations.find((item) => item.definition.name === 'filesystem')
+    expect(installation).toBeDefined()
+    if (!installation) throw new Error('测试 MCP 安装不存在')
+
+    const plan = await service.createTogglePlan({
+      projectRoots: [],
+      installationIds: [installation.id],
+      enabled,
+    })
+
+    expect(plan).toMatchObject({ kind: 'toggle', intent, name: 'filesystem', canApply: true })
   })
 
   it('把同一文件中的用户节点和项目本地节点合并为一次写入', async () => {
