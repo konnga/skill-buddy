@@ -1,11 +1,47 @@
-import { ipcMain } from 'electron'
+import { ipcMain, session } from 'electron'
 import { promises as fs } from 'node:fs'
 import { isIP } from 'node:net'
 import { tmpdir } from 'node:os'
 import { dirname, isAbsolute, join, normalize, sep } from 'node:path'
 import { findSkills } from '@skillbuddy/core'
 import { unzipSync } from 'fflate'
+import { readSecret } from '../secrets.js'
 import type { PathAccessPolicy } from '../path-policy.js'
+
+interface MarketFetchInit {
+  headers?: Record<string, string>
+  redirect?: RequestInit['redirect']
+  timeoutMs?: number
+}
+
+/**
+ * 市场请求优先走默认 session 的 Chromium 网络栈（「设置 → 网络」里的
+ * HTTP 代理对其生效）；失败（代理不可用、超时等）时退回 Node 直连再试
+ * 一次。两次尝试各自使用独立的超时信号。
+ */
+async function marketFetch(url: string, init: MarketFetchInit = {}): Promise<Response> {
+  const { timeoutMs = 10_000, ...rest } = init
+  try {
+    return await session.defaultSession.fetch(url, {
+      ...rest,
+      signal: AbortSignal.timeout(timeoutMs),
+    })
+  } catch {
+    return await fetch(url, { ...rest, signal: AbortSignal.timeout(timeoutMs) })
+  }
+}
+
+/** GitHub API 请求头；配置了 Token 时附带鉴权，把限额从 60 次/时提到 5000 次/时。 */
+async function githubHeaders(): Promise<Record<string, string>> {
+  const headers: Record<string, string> = {
+    accept: 'application/vnd.github+json',
+    'user-agent': 'SkillBuddy',
+    'x-github-api-version': '2022-11-28',
+  }
+  const token = await readSecret('githubToken')
+  if (token) headers.authorization = `Bearer ${token}`
+  return headers
+}
 
 /** 阻止远程清单接口访问本机、内网和非 HTTPS 地址。 */
 function assertPublicHttpsUrl(value: string): URL {
@@ -35,14 +71,14 @@ function assertPublicHttpsUrl(value: string): URL {
 export function registerMarketIpc(pathPolicy: PathAccessPolicy): void {
   ipcMain.handle('bundles:manifest', async (_event, value: string) => {
     const url = assertPublicHttpsUrl(value)
-    const response = await fetch(url, { signal: AbortSignal.timeout(10_000) })
+    const response = await marketFetch(url.toString())
     if (!response.ok) throw new Error(`bundles manifest ${response.status}`)
     return (await response.json()) as unknown
   })
 
   ipcMain.handle('market:search', async (_event, query: string) => {
     const url = `https://skills.sh/api/search?q=${encodeURIComponent(query)}`
-    const response = await fetch(url, { signal: AbortSignal.timeout(10_000) })
+    const response = await marketFetch(url)
     if (!response.ok) throw new Error(`skills.sh ${response.status}`)
     const data = (await response.json()) as {
       skills?: { id: string; skillId: string; name: string; installs: number; source: string }[]
@@ -58,14 +94,7 @@ export function registerMarketIpc(pathPolicy: PathAccessPolicy): void {
     url.searchParams.set('q', `${term} skill in:name,description,readme`)
     url.searchParams.set('page', String(Math.max(1, page)))
     url.searchParams.set('per_page', '24')
-    const response = await fetch(url, {
-      headers: {
-        accept: 'application/vnd.github+json',
-        'user-agent': 'SkillBuddy',
-        'x-github-api-version': '2022-11-28',
-      },
-      signal: AbortSignal.timeout(10_000),
-    })
+    const response = await marketFetch(url.toString(), { headers: await githubHeaders() })
     if (!response.ok) {
       if (response.status === 403) throw new Error('GitHub search rate limit exceeded')
       throw new Error(`GitHub search ${response.status}`)
@@ -104,9 +133,9 @@ export function registerMarketIpc(pathPolicy: PathAccessPolicy): void {
     const missing = [...new Set(valid)].filter((repo) => !starsCache.has(repo)).slice(0, 30)
     await Promise.allSettled(
       missing.map(async (repo) => {
-        const response = await fetch(`https://api.github.com/repos/${repo}`, {
-          headers: { accept: 'application/vnd.github+json' },
-          signal: AbortSignal.timeout(8_000),
+        const response = await marketFetch(`https://api.github.com/repos/${repo}`, {
+          headers: await githubHeaders(),
+          timeoutMs: 8_000,
         })
         if (!response.ok) return
         const data = (await response.json()) as { stargazers_count?: number }
@@ -130,7 +159,7 @@ export function registerMarketIpc(pathPolicy: PathAccessPolicy): void {
     url.searchParams.set('sortBy', 'score')
     url.searchParams.set('order', 'desc')
     if (query) url.searchParams.set('keyword', query)
-    const response = await fetch(url, { signal: AbortSignal.timeout(10_000) })
+    const response = await marketFetch(url.toString())
     if (!response.ok) throw new Error(`skillhub ${response.status}`)
     const data = (await response.json()) as {
       data?: {
@@ -179,7 +208,7 @@ export function registerMarketIpc(pathPolicy: PathAccessPolicy): void {
       `https://api.skillhub.cn/api/v1/skills/${encodeURIComponent(slug)}/versions`,
     )
     if (namespace) url.searchParams.set('namespace', namespace)
-    const response = await fetch(url, { signal: AbortSignal.timeout(10_000) })
+    const response = await marketFetch(url.toString())
     if (!response.ok) throw new Error(`skillhub versions ${response.status}`)
     const data = (await response.json()) as {
       versions?: {
@@ -209,9 +238,9 @@ export function registerMarketIpc(pathPolicy: PathAccessPolicy): void {
     const url = new URL('https://api.skillhub.cn/api/v1/download')
     url.searchParams.set('slug', slug)
     if (namespace) url.searchParams.set('namespace', namespace)
-    const response = await fetch(url, {
+    const response = await marketFetch(url.toString(), {
       redirect: 'follow',
-      signal: AbortSignal.timeout(60_000),
+      timeoutMs: 60_000,
     })
     if (!response.ok) throw new Error(`skillhub download ${response.status}`)
     const root = await fs.mkdtemp(join(tmpdir(), 'skm-import-'))

@@ -1,11 +1,13 @@
 import { randomUUID } from 'node:crypto'
-import { resolve } from 'node:path'
+import { promises as fs } from 'node:fs'
+import { homedir } from 'node:os'
+import { isAbsolute, parse, resolve } from 'node:path'
 import {
   allMcpAdapters,
-  McpOperationError,
   rebaseMcpMutation,
   scanMcpServers,
   transactionalWriteMcpConfig,
+  validateMcpDefinition,
   type McpAdapter,
   type McpConfigSource,
   type McpOperationPlanView,
@@ -14,7 +16,6 @@ import {
   type McpPlanIssueView,
   type McpPreparedMutation,
   type McpScanResult,
-  type McpServerDefinition,
   type McpTarget,
 } from '@skillbuddy/core'
 import type {
@@ -32,14 +33,39 @@ interface StoredPlan {
 }
 
 const PLAN_TTL = 5 * 60_000
-const BACKUP_TTL = 60_000
-const ENV_NAME_RE = /^[A-Za-z_][A-Za-z0-9_]*$/
-const SENSITIVE_ARGUMENT = /(token|secret|password|passwd|api[-_]?key|authorization)/i
+// 撤销窗口需覆盖 bundle 逐个确认多份计划、以及 skill 安装（可能克隆 git 仓库）的耗时，
+// 否则撤销提示出现时对应备份可能已过期。
+const BACKUP_TTL = 10 * 60_000
 
 export interface McpServiceOptions {
   adapters?: readonly McpAdapter[]
   planTtl?: number
   backupTtl?: number
+}
+
+const MAX_PROJECT_ROOTS = 64
+
+/**
+ * 净化 Renderer 传入的项目根目录：路径策略的写入白名单由此推导，
+ * 不能让任意 IPC 输入直接成为合法写入范围。仅接受真实存在的绝对路径目录，
+ * 并排除文件系统根与用户主目录本身。
+ */
+async function sanitizeProjectRoots(roots: unknown): Promise<string[]> {
+  if (!Array.isArray(roots)) return []
+  const home = resolve(homedir())
+  const sanitized = new Set<string>()
+  for (const root of roots.slice(0, MAX_PROJECT_ROOTS)) {
+    if (typeof root !== 'string' || !root.trim() || /[\u0000-\u001f]/.test(root)) continue
+    if (!isAbsolute(root)) continue
+    const resolved = resolve(root)
+    if (resolved === home || parse(resolved).root === resolved) continue
+    try {
+      if ((await fs.stat(resolved)).isDirectory()) sanitized.add(resolved)
+    } catch {
+      // 目录不存在或不可访问：跳过，不作为项目根登记。
+    }
+  }
+  return [...sanitized]
 }
 
 function targetOfSource(source: McpConfigSource): McpTarget {
@@ -56,115 +82,6 @@ function issueView(
   target?: McpTarget,
 ): McpPlanIssueView {
   return { ...issue, target }
-}
-
-function validateDefinition(definition: McpServerDefinition): void {
-  const reject = (message: string): never => {
-    throw new McpOperationError('MCP_WRITE_VALIDATION_FAILED', message)
-  }
-  const candidate = definition as unknown
-  if (typeof candidate !== 'object' || candidate === null || Array.isArray(candidate)) {
-    reject('MCP Server 定义无效')
-  }
-  const value = candidate as Record<string, unknown>
-  if (
-    typeof value.name !== 'string' ||
-    !value.name.trim() ||
-    value.name.length > 128 ||
-    value.name.includes('\0')
-  ) {
-    reject('MCP Server 名称无效')
-  }
-  if (
-    !Array.isArray(value.requiredSecrets) ||
-    value.requiredSecrets.some(
-      (secret) => typeof secret !== 'string' || !ENV_NAME_RE.test(secret),
-    )
-  ) {
-    reject('MCP Server requiredSecrets 只能包含环境变量名称')
-  }
-  if (typeof value.transport !== 'object' || value.transport === null) {
-    reject('MCP Server transport 无效')
-  }
-
-  const transport = value.transport as Record<string, unknown>
-  let references: unknown
-  if (transport.kind === 'stdio') {
-    if (typeof transport.command !== 'string' || !transport.command.trim()) {
-      reject('stdio MCP Server 必须提供 command')
-    }
-    if (
-      !Array.isArray(transport.args) ||
-      transport.args.some(
-        (argument) =>
-          typeof argument !== 'string' ||
-          argument.includes('\0') ||
-          argument === '[redacted]' ||
-          SENSITIVE_ARGUMENT.test(argument),
-      )
-    ) {
-      reject('stdio MCP Server 参数不能包含疑似凭据或脱敏占位符')
-    }
-    if (
-      transport.cwd !== undefined &&
-      (typeof transport.cwd !== 'string' || transport.cwd.includes('\0'))
-    ) {
-      reject('stdio MCP Server cwd 无效')
-    }
-    references = transport.env
-  } else {
-    if (!['streamable-http', 'sse', 'websocket'].includes(String(transport.kind))) {
-      reject('MCP Server transport 类型不受支持')
-    }
-    if (typeof transport.url !== 'string') reject('远程 MCP Server 必须提供 HTTP(S) URL')
-    let url: URL | null = null
-    try {
-      url = new URL(transport.url as string)
-    } catch {
-      reject('远程 MCP Server URL 无效')
-    }
-    if (!url) {
-      throw new McpOperationError('MCP_WRITE_VALIDATION_FAILED', '远程 MCP Server URL 无效')
-    }
-    if (
-      !['http:', 'https:'].includes(url.protocol) ||
-      url.username ||
-      url.password ||
-      url.search ||
-      url.hash
-    ) {
-      reject('远程 MCP Server URL 不能包含凭据、查询参数或片段')
-    }
-    references = transport.headers
-  }
-
-  if (typeof references !== 'object' || references === null || Array.isArray(references)) {
-    reject('MCP env/Header 引用无效')
-  }
-  const referenceRecord = references as Record<string, unknown>
-  for (const [key, rawReference] of Object.entries(referenceRecord)) {
-    if (!key || key.includes('\0') || typeof rawReference !== 'object' || rawReference === null) {
-      reject('MCP env/Header 引用无效')
-    }
-    const reference = rawReference as Record<string, unknown>
-    if (reference.kind === 'literal') {
-      reject('IPC 不接受 MCP env/Header 明文字面量，请使用环境变量引用')
-    }
-    if (reference.kind === 'env') {
-      if (typeof reference.name !== 'string' || !ENV_NAME_RE.test(reference.name)) {
-        reject('MCP 环境变量引用名称无效')
-      }
-      continue
-    }
-    if (
-      reference.kind !== 'secret' ||
-      typeof reference.key !== 'string' ||
-      !ENV_NAME_RE.test(reference.key) ||
-      !['configured', 'missing', 'unknown'].includes(String(reference.state))
-    ) {
-      reject('MCP 密钥引用无效')
-    }
-  }
 }
 
 /** MCP 主进程领域服务：计划内容留在主进程，Renderer 只持有短期 planId。 */
@@ -189,10 +106,12 @@ export class McpService {
     this.#planTtl = options.planTtl ?? PLAN_TTL
     this.#backupTtl = options.backupTtl ?? BACKUP_TTL
     this.#backups = new McpBackupStore(backupRoot)
+    // 上次会话遗留的备份无法恢复（索引只在内存），启动时直接清扫。
+    void this.#backups.sweep()
   }
 
   async scan(projectRoots: string[] = []): Promise<McpScanResult> {
-    this.#projectRoots = [...new Set(projectRoots.map((root) => resolve(root)))]
+    this.#projectRoots = await sanitizeProjectRoots(projectRoots)
     this.#sources = (
       await Promise.all(
         this.#adapters.map((adapter) => adapter.configSources(this.#projectRoots)),
@@ -217,7 +136,9 @@ export class McpService {
       ? request.definition
       : scan.installations.find((item) => item.id === request.sourceInstallationId)?.definition
     if (!definition) throw new Error('找不到用于同步的 MCP Server 定义')
-    validateDefinition(definition)
+    // 表单等 IPC 传入的定义按新建路径严格校验；扫描得到的定义已脱敏，
+    // 其中的占位符字段由 nonExportableFields 生成的计划阻断项处理，不在此硬拒。
+    validateMcpDefinition(definition, { source: request.definition ? 'user-input' : 'scan' })
     return this.createPlan('upsert', definition.name, request.targets, async (target) => {
       const adapter = this.getAdapter(target)
       const projection = adapter.project(definition, target)

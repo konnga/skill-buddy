@@ -1,6 +1,6 @@
 import { ipcMain } from 'electron'
 import { RegistryClient, toSkill, type McpServerDefinition, type Skill } from '@skillbuddy/core'
-import type { InstallTarget, RegistryConfig } from '../../shared/ipc.js'
+import type { InstallTarget, RegistryConfig, RegistryTestResult } from '../../shared/ipc.js'
 import type { PathAccessPolicy } from '../path-policy.js'
 import { installTarget, runTargets } from './targets.js'
 
@@ -9,6 +9,37 @@ const clientOf = (config: RegistryConfig): RegistryClient =>
 
 /** 注册团队 Registry 相关 IPC。 */
 export function registerRegistryIpc(pathPolicy: PathAccessPolicy): void {
+  ipcMain.handle(
+    'registry:test',
+    async (_event, config: RegistryConfig): Promise<RegistryTestResult> => {
+      const start = Date.now()
+      try {
+        await clientOf(config).health()
+      } catch (error) {
+        return {
+          ok: false,
+          latencyMs: Date.now() - start,
+          authOk: false,
+          orgs: [],
+          error: error instanceof Error ? error.message : String(error),
+        }
+      }
+      const latencyMs = Date.now() - start
+      try {
+        const orgs = await clientOf(config).listOrgs()
+        return { ok: true, latencyMs, authOk: true, orgs: orgs.map((org) => org.name) }
+      } catch (error) {
+        return {
+          ok: true,
+          latencyMs,
+          authOk: false,
+          orgs: [],
+          error: error instanceof Error ? error.message : String(error),
+        }
+      }
+    },
+  )
+
   ipcMain.handle('registry:search', (_event, config: RegistryConfig, query?: string) =>
     clientOf(config).search(query),
   )

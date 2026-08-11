@@ -1,9 +1,19 @@
 <script setup lang="ts">
-import { computed, nextTick, onMounted, ref, useTemplateRef, watch } from 'vue'
+import { computed, nextTick, onMounted, ref, shallowRef, useTemplateRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import SidebarToggle from '@/components/SidebarToggle.vue'
 import MarkdownView from '@/components/MarkdownView.vue'
-import { ArrowLeft, FolderOpen, LockKeyhole, Pencil, Plus, TriangleAlert, Trash2 } from '@lucide/vue'
+import {
+  ArrowLeft,
+  Eye,
+  FileText,
+  FolderOpen,
+  LockKeyhole,
+  Pencil,
+  Plus,
+  TriangleAlert,
+  Trash2,
+} from '@lucide/vue'
 import type { AggregatedSkill, Installation } from '@skillbuddy/core'
 import type { InstallTarget } from '../../../shared/ipc.js'
 import { Badge } from '@/components/ui/badge'
@@ -14,6 +24,7 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import CopyButton from '@/components/CopyButton.vue'
 import DiffView from '@/components/DiffView.vue'
 import PlatformIcon from '@/components/PlatformIcon.vue'
+import ResourcePreviewDialog from '@/components/ResourcePreviewDialog.vue'
 import SkillEditor from '@/components/SkillEditor.vue'
 import { agentLabel } from '@/lib/agents'
 import { hasScriptResources, nextPatch } from '@/lib/resources'
@@ -204,28 +215,22 @@ async function publish(): Promise<void> {
 /* ---------- resources ---------- */
 
 const resources = computed(() => primaryInstallation.value.skill.resources ?? {})
-const resourceList = computed(() => Object.entries(resources.value))
+const resourceList = computed(() =>
+  Object.entries(resources.value).sort(([left], [right]) => left.localeCompare(right)),
+)
 const containsScripts = computed(() => hasScriptResources(resources.value))
-const openResource = ref<string | null>(null)
-const resourcePreview = ref('')
-const resourceTruncated = ref(false)
+const resourcePreviewTarget = shallowRef<{ path: string; source: string } | null>(null)
 
-async function toggleResource(rel: string, abs: string): Promise<void> {
-  if (openResource.value === rel) {
-    openResource.value = null
-    return
-  }
-  try {
-    const result = await window.skillsManager.readFile(abs)
-    resourcePreview.value = result.content
-    resourceTruncated.value = result.truncated
-    openResource.value = rel
-  } catch (e) {
-    resourcePreview.value = e instanceof Error ? e.message : String(e)
-    resourceTruncated.value = false
-    openResource.value = rel
-  }
+function previewResource(path: string, source: string): void {
+  resourcePreviewTarget.value = { path, source }
 }
+
+watch(
+  () => props.skill.name,
+  () => {
+    resourcePreviewTarget.value = null
+  },
+)
 
 /* ---------- install to ---------- */
 
@@ -807,36 +812,26 @@ async function runUninstall(): Promise<void> {
               <li v-for="[rel, abs] in resourceList" :key="rel">
                 <button
                   type="button"
-                  class="flex w-full cursor-pointer items-center justify-between gap-2 rounded-md border px-3 py-1.5 text-left transition-colors hover:border-foreground/30"
-                  :aria-expanded="openResource === rel"
-                  :aria-controls="`resource-preview-${rel.replace(/[^a-zA-Z0-9_-]/g, '-')}`"
-                  :aria-label="
-                    t(openResource === rel ? 'detail.collapseResource' : 'detail.expandResource')
-                  "
-                  :title="
-                    t(openResource === rel ? 'detail.collapseResource' : 'detail.expandResource')
-                  "
-                  @click="toggleResource(rel, abs)"
+                  class="group flex h-10 w-full cursor-pointer items-center gap-2.5 rounded-md border px-3 text-left transition-colors hover:border-foreground/30 hover:bg-muted/35"
+                  :aria-label="t('detail.previewResource', { name: rel })"
+                  :title="t('detail.previewResource', { name: rel })"
+                  @click="previewResource(rel, abs)"
                 >
-                  <code class="select-text truncate text-sm">{{ rel }}</code>
-                  <span class="text-sm text-muted-foreground">{{
-                    openResource === rel ? '−' : '+'
-                  }}</span>
+                  <FileText class="size-4 shrink-0 text-muted-foreground" />
+                  <code class="min-w-0 flex-1 select-text truncate text-sm">{{ rel }}</code>
+                  <Eye
+                    class="size-4 shrink-0 text-muted-foreground transition-colors group-hover:text-foreground"
+                  />
                 </button>
-                <ScrollArea
-                  v-if="openResource === rel"
-                  :id="`resource-preview-${rel.replace(/[^a-zA-Z0-9_-]/g, '-')}`"
-                  orientation="both"
-                  class="mt-1 max-h-56 rounded-md border bg-muted text-sm"
-                  viewport-class="max-h-56"
-                >
-                  <pre class="px-3 py-2"><code class="select-text">{{ resourcePreview }}</code><span v-if="resourceTruncated" class="text-muted-foreground">
-{{ t('detail.truncated') }}</span></pre>
-                </ScrollArea>
               </li>
             </ul>
           </ScrollArea>
         </section>
+
+        <ResourcePreviewDialog
+          :resource="resourcePreviewTarget"
+          @close="resourcePreviewTarget = null"
+        />
 
         <!-- content -->
         <section class="mb-8">

@@ -66,6 +66,22 @@ const installedTargets = computed<McpTarget[]>(() =>
   })),
 )
 
+/** 同步源自身不可作为同步目标；其余已安装目标可选，选中即覆盖以收敛漂移。 */
+const syncSourceTargets = computed<McpTarget[]>(() =>
+  syncSource.value
+    ? [
+        {
+          agent: syncSource.value.source.agent,
+          surface: syncSource.value.source.surface,
+          scope: syncSource.value.source.scope,
+          ...(syncSource.value.source.projectRoot
+            ? { projectRoot: syncSource.value.source.projectRoot }
+            : {}),
+        },
+      ]
+    : [],
+)
+
 watch(
   servers,
   (value) => {
@@ -250,7 +266,9 @@ async function executePlan(): Promise<void> {
               v-model="syncTargets"
               :platforms="platforms"
               :project-roots="projectRoots"
-              :excluded="installedTargets"
+              :excluded="syncSourceTargets"
+              :excluded-label="t('mcp.target.syncSource')"
+              :installed="installedTargets"
             />
           </div>
           <div class="mt-5 flex justify-end gap-2">

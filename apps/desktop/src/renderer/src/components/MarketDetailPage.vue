@@ -133,7 +133,7 @@ function formatDate(ms: number): string {
 }
 
 function openReport(url: string): void {
-  if (url) void window.skillsManager.openExternal(url)
+  if (url) void window.skillsManager.openLink(url)
 }
 
 /* ---------- files tab ---------- */
@@ -268,7 +268,7 @@ function timeAgo(ms: number): string {
 }
 
 function openLink(): void {
-  void window.skillsManager.openExternal(props.item.link)
+  void window.skillsManager.openLink(props.item.link)
 }
 
 /* ---------- install ---------- */

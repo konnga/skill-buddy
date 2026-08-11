@@ -33,6 +33,14 @@ watch(model, (value) => {
     view.dispatch({ changes: { from: 0, to: view.state.doc.length, insert: value } })
   }
 })
+
+/** 容器尺寸变化后重新测量编辑器，并恢复输入焦点。 */
+function focus(): void {
+  view?.requestMeasure()
+  view?.focus()
+}
+
+defineExpose({ focus })
 </script>
 
 <template>

@@ -14,13 +14,21 @@ interface BackupRecord {
   backupPath: string
 }
 
-/** 保存一分钟内可撤销的 MCP 原始配置，备份文件权限固定为 0600。 */
+/** 保存 TTL 窗口内可撤销的 MCP 原始配置，备份文件权限固定为 0600。 */
 export class McpBackupStore {
   readonly #root: string
   readonly #operations = new Map<string, BackupRecord[]>()
 
   constructor(root: string) {
     this.#root = root
+  }
+
+  /**
+   * 清空备份根目录。备份索引只存在于内存，上次会话在 TTL 内退出或崩溃时，
+   * 磁盘上会遗留含完整配置内容（可能内嵌凭据）的备份文件；应用启动时必须清扫。
+   */
+  async sweep(): Promise<void> {
+    await fs.rm(this.#root, { recursive: true, force: true }).catch(() => undefined)
   }
 
   async stage(
@@ -50,9 +58,14 @@ export class McpBackupStore {
   async discard(record: BackupRecord): Promise<void> {
     const records = this.#operations.get(record.operationId) ?? []
     const remaining = records.filter((candidate) => candidate.id !== record.id)
-    if (remaining.length > 0) this.#operations.set(record.operationId, remaining)
-    else this.#operations.delete(record.operationId)
-    await fs.unlink(record.backupPath).catch(() => undefined)
+    if (remaining.length > 0) {
+      this.#operations.set(record.operationId, remaining)
+      await fs.unlink(record.backupPath).catch(() => undefined)
+      return
+    }
+    // 操作已无任何备份记录时连目录一起删除，避免全部写入失败后残留空目录。
+    this.#operations.delete(record.operationId)
+    await this.remove(record.operationId)
   }
 
   expire(operationId: string, delay = 60_000): void {

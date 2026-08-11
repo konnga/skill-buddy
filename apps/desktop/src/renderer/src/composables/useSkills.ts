@@ -1,6 +1,7 @@
 import { computed, ref } from 'vue'
 import type { AggregatedSkill, PlatformStatus, Skill } from '@skillbuddy/core'
 import type { InstallTarget, TargetResult } from '../../../shared/ipc.js'
+import { i18n } from '../i18n.js'
 import { useSettings } from './useSettings.js'
 
 const skills = ref<AggregatedSkill[]>([])
@@ -137,6 +138,7 @@ async function refresh(options: { silent?: boolean } = {}): Promise<void> {
     ])
     skills.value = scanned
     platforms.value = platformList
+    notifyDriftIfNeeded(scanned)
     void window.skillsManager.watchStart([...projectRoots.value])
   } catch (e) {
     error.value = e instanceof Error ? e.message : String(e)
@@ -151,8 +153,22 @@ if (!watcherWired) {
   watcherWired = true
   let timer: ReturnType<typeof setTimeout> | undefined
   window.skillsManager.onSkillsChanged(() => {
+    if (!useSettings().autoRefresh.value) return
     clearTimeout(timer)
     timer = setTimeout(() => void refresh({ silent: true }), 300)
+  })
+}
+
+/** 漂移数量相比上次扫描增加时发系统通知（可在设置中开启）。 */
+let lastDriftCount: number | null = null
+function notifyDriftIfNeeded(scanned: AggregatedSkill[]): void {
+  const driftCount = scanned.filter((s) => s.hasDrift).length
+  const previous = lastDriftCount
+  lastDriftCount = driftCount
+  if (previous === null || driftCount <= previous) return
+  if (!useSettings().notifyDrift.value) return
+  new Notification('SkillBuddy', {
+    body: i18n.global.t('notifications.driftDetected', { n: driftCount }),
   })
 }
 
@@ -178,6 +194,16 @@ async function install(
 }
 
 async function uninstall(name: string, targets: InstallTarget[]): Promise<TargetResult[]> {
+  if (useSettings().confirmUninstall.value) {
+    const confirmed = await window.skillsManager.confirmDialog({
+      title: i18n.global.t('settings.confirmUninstallTitle'),
+      message: i18n.global.t('settings.confirmUninstallMsg', { name, n: targets.length }),
+      confirmLabel: i18n.global.t('settings.confirmUninstallAction'),
+      cancelLabel: i18n.global.t('common.cancel'),
+      danger: true,
+    })
+    if (!confirmed) return []
+  }
   const results = await window.skillsManager.uninstallSkill(name, targets)
   await refresh()
   return results

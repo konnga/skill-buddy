@@ -1,0 +1,9 @@
+<svg width="168" height="40" viewBox="0 0 168 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <title>SkillBuddy</title>
+  <g transform="translate(4 4)">
+    <rect x="0.75" y="0.75" width="15.5" height="15.5" rx="4.5" fill="#CCFBF1" stroke="#0F766E" stroke-width="2.5"/>
+    <rect x="7.75" y="7.75" width="15.5" height="15.5" rx="4.5" fill="#FFF7ED" stroke="#F59E0B" stroke-width="2.5"/>
+    <path d="M10.75 15.5L13 17.75L17.5 13.25" stroke="#0F766E" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+  <text x="40" y="26" fill="#202020" font-family="system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="20" font-weight="650" letter-spacing="-0.3">SkillBuddy</text>
+</svg>

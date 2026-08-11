@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import PlatformIcon from '@/components/PlatformIcon.vue'
 import { Select } from '@/components/ui/select'
@@ -11,8 +11,19 @@ const agents = defineModel<string[]>('agents', { default: () => [] })
 defineProps<{ label?: string }>()
 
 const { detectedPlatforms } = useSkills()
-const { projectRoots } = useSettings()
+const { projectRoots, defaultInstallScope } = useSettings()
 const { t } = useI18n()
+
+// 「默认安装范围」为项目时，预选第一个项目目录（父组件传了具体值则不动）
+onMounted(() => {
+  if (
+    scope.value === 'user' &&
+    defaultInstallScope.value === 'project' &&
+    projectRoots.value.length > 0
+  ) {
+    scope.value = projectRoots.value[0]!
+  }
+})
 
 const available = computed(() =>
   detectedPlatforms.value.filter((p) => scope.value === 'user' || p.hasProjectScope),

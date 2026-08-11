@@ -7,7 +7,12 @@ import PlatformIcon from '@/components/PlatformIcon.vue'
 const props = defineProps<{
   platforms: McpPlatformStatus[]
   projectRoots: string[]
+  /** 禁用不可选的目标（如同步源自身）。 */
   excluded?: McpTarget[]
+  /** 自定义禁用目标的提示文案，默认「已安装」。 */
+  excludedLabel?: string
+  /** 已安装但仍可选的目标（选中表示覆盖写入），仅展示提示。 */
+  installed?: McpTarget[]
 }>()
 const model = defineModel<McpTarget[]>({ default: () => [] })
 const { t } = useI18n()
@@ -18,6 +23,7 @@ interface TargetOption {
   platform: McpPlatformStatus
   scopeLabel: string
   excluded: boolean
+  installed: boolean
 }
 
 function targetKey(target: McpTarget): string {
@@ -30,6 +36,10 @@ function basename(path: string): string {
 
 const excludedKeys = computed(
   () => new Set((props.excluded ?? []).map((target) => targetKey(target))),
+)
+
+const installedKeys = computed(
+  () => new Set((props.installed ?? []).map((target) => targetKey(target))),
 )
 
 const options = computed<TargetOption[]>(() =>
@@ -53,6 +63,7 @@ const options = computed<TargetOption[]>(() =>
               ? t('mcp.target.global')
               : `${scope === 'local' ? t('mcp.target.local') : t('mcp.target.project')} · ${basename(projectRoot ?? '')}`,
           excluded: excludedKeys.value.has(key),
+          installed: installedKeys.value.has(key),
         }
       })
     }),
@@ -72,7 +83,7 @@ function toggle(option: TargetOption): void {
 </script>
 
 <template>
-  <div class="max-h-64 overflow-y-auto rounded-md border">
+  <div class="max-h-72 overflow-y-auto rounded-md border">
     <label
       v-for="option in options"
       :key="option.key"
@@ -96,6 +107,9 @@ function toggle(option: TargetOption): void {
         </span>
       </span>
       <span v-if="option.excluded" class="text-xs text-muted-foreground">
+        {{ excludedLabel ?? t('mcp.target.installed') }}
+      </span>
+      <span v-else-if="option.installed" class="text-xs text-muted-foreground">
         {{ t('mcp.target.installed') }}
       </span>
     </label>

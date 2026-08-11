@@ -20,6 +20,7 @@ import {
   Trash2,
   Users,
 } from '@lucide/vue'
+import skillbuddyMarkUrl from '@/assets/skillbuddy-mark.svg'
 import PlatformIcon from '@/components/PlatformIcon.vue'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -125,7 +126,12 @@ function createGroup(): void {
         </button>
       </div>
       <div class="flex shrink-0 items-center gap-2 px-4 py-3">
-        <Blocks class="size-5 text-primary" />
+        <img
+          :src="skillbuddyMarkUrl"
+          alt=""
+          class="size-5 shrink-0"
+          aria-hidden="true"
+        />
         <span class="font-semibold tracking-tight">SkillBuddy</span>
       </div>
 

@@ -221,14 +221,14 @@ function offerMcpUndo(): void {
   mcpOperationIds.value = []
 }
 
-async function finishInstallation(): Promise<void> {
+async function finishInstallation(options: { autoClose?: boolean } = {}): Promise<void> {
   const skillSuccess =
     pendingSkills.value.length === 0 || (await installSelectedSkills(pendingSkills.value))
   pendingSkills.value = []
   mcpQueue.value = []
   offerMcpUndo()
   busy.value = false
-  if (skillSuccess) emit('close')
+  if (skillSuccess && (options.autoClose ?? true)) emit('close')
 }
 
 async function prepareNextMcpPlan(): Promise<void> {
@@ -295,10 +295,15 @@ async function executeMcpPlan(): Promise<void> {
 function cancelMcpPlans(): void {
   if (applying.value) return
   closePlan()
+  const skipped = mcpQueue.value.length
   mcpQueue.value = []
-  pendingSkills.value = []
-  offerMcpUndo()
-  busy.value = false
+  // 关闭计划对话框只代表跳过剩余 MCP 步骤，已选 skills 仍然继续安装；
+  // 页面保持打开并提示跳过数量，避免“什么都没装且毫无反馈”。
+  void finishInstallation({ autoClose: false }).then(() => {
+    if (skipped > 0 && !note.value) {
+      note.value = t('bundles.mcpSkipped', { n: skipped })
+    }
+  })
 }
 </script>
 

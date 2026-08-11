@@ -1,6 +1,15 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import {
+  computed,
+  nextTick,
+  onBeforeUnmount,
+  onMounted,
+  ref,
+  shallowRef,
+  useTemplateRef,
+} from 'vue'
 import { useI18n } from 'vue-i18n'
+import { Maximize2, Minimize2 } from '@lucide/vue'
 import type { AggregatedSkill, Skill } from '@skillbuddy/core'
 import type { InstallTarget } from '../../../shared/ipc.js'
 import { Badge } from '@/components/ui/badge'
@@ -28,8 +37,26 @@ const content = ref(source.skill.content)
 const targetPaths = ref<Set<string>>(new Set(writableInstallations.map((i) => i.path)))
 const busy = ref(false)
 const error = ref<string | null>(null)
+const editorExpanded = shallowRef(false)
+const markdownEditor = useTemplateRef<InstanceType<typeof MarkdownEditor>>('markdownEditor')
 
 const multiInstalled = computed(() => writableInstallations.length > 1)
+
+async function toggleEditorExpanded(): Promise<void> {
+  editorExpanded.value = !editorExpanded.value
+  await nextTick()
+  markdownEditor.value?.focus()
+}
+
+function onEditorKeydown(event: KeyboardEvent): void {
+  if (event.key !== 'Escape' || !editorExpanded.value) return
+  event.preventDefault()
+  event.stopPropagation()
+  void toggleEditorExpanded()
+}
+
+onMounted(() => window.addEventListener('keydown', onEditorKeydown, true))
+onBeforeUnmount(() => window.removeEventListener('keydown', onEditorKeydown, true))
 
 function toggle(path: string): void {
   const next = new Set(targetPaths.value)
@@ -78,7 +105,12 @@ async function save(): Promise<void> {
     <div class="grid grid-cols-2 gap-3">
       <label class="col-span-2 flex flex-col gap-1.5 text-sm text-muted-foreground">
         {{ t('editor.description') }}
-        <Input v-model="description" class="text-sm" :placeholder="t('editor.descriptionPh')" />
+        <textarea
+          v-model="description"
+          rows="3"
+          class="min-h-20 w-full resize-y rounded-md border border-input bg-transparent px-3 py-2 text-sm leading-5 text-foreground transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+          :placeholder="t('editor.descriptionPh')"
+        />
       </label>
       <label class="flex flex-col gap-1.5 text-sm text-muted-foreground">
         {{ t('editor.version') }}
@@ -90,10 +122,39 @@ async function save(): Promise<void> {
       </label>
     </div>
 
-    <div class="flex flex-col gap-1.5">
-      <span class="text-sm text-muted-foreground">{{ t('editor.body') }}</span>
-      <MarkdownEditor v-model="content" />
-    </div>
+    <Teleport to="body" :disabled="!editorExpanded">
+      <div
+        :class="[
+          editorExpanded
+            ? 'fixed inset-0 z-[80] flex flex-col bg-background px-6 pb-6 pt-12'
+            : 'flex flex-col gap-1.5',
+        ]"
+      >
+        <div class="flex shrink-0 items-center justify-between gap-3">
+          <span class="text-sm text-muted-foreground">{{ t('editor.body') }}</span>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            class="size-8 shrink-0"
+            :aria-pressed="editorExpanded"
+            :aria-label="t(editorExpanded ? 'editor.collapseEditor' : 'editor.expandEditor')"
+            :title="t(editorExpanded ? 'editor.collapseEditor' : 'editor.expandEditor')"
+            @click="toggleEditorExpanded"
+          >
+            <Minimize2 v-if="editorExpanded" class="size-4" />
+            <Maximize2 v-else class="size-4" />
+          </Button>
+        </div>
+        <div :class="editorExpanded && 'min-h-0 flex-1'">
+          <MarkdownEditor
+            ref="markdownEditor"
+            v-model="content"
+            :height="editorExpanded ? '100%' : 'clamp(520px, 60vh, 720px)'"
+          />
+        </div>
+      </div>
+    </Teleport>
 
     <div v-if="multiInstalled" class="flex flex-col gap-2 rounded-md border px-3 py-2.5">
       <span class="text-sm text-muted-foreground">{{ t('editor.saveTo') }}</span>

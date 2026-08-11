@@ -92,6 +92,9 @@
   .vibrancy .sidebar-surface {
     background: transparent;
   }
+  .dark.vibrancy .sidebar-surface {
+    background: color-mix(in oklch, var(--background) 92%, transparent);
+  }
   .content-surface {
     @apply border-l bg-background;
     border-left-color: rgb(0 0 0 / 0.18);

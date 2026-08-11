@@ -1,6 +1,7 @@
 import { ref, watch } from 'vue'
-import type { CustomPlatformInput } from '../../../shared/ipc.js'
+import type { CustomPlatformInput, LinkOpenMode } from '../../../shared/ipc.js'
 import { detectLocale, i18n, type Locale } from '../i18n.js'
+import { applyAppearance } from './useAppearance.js'
 
 export type ThemeMode = 'system' | 'light' | 'dark'
 
@@ -20,6 +21,8 @@ const language = ref<Locale>(load('skm.language', detectLocale()))
 const registryUrl = ref<string>(load('skm.registryUrl', ''))
 /** Registry token lives in the OS keychain (via safeStorage), not localStorage. */
 const registryToken = ref<string>('')
+/** GitHub Token（提高市场搜索限额），同样存系统钥匙串。 */
+const githubToken = ref<string>('')
 
 void (async () => {
   // one-time migration from the old plaintext localStorage slot
@@ -30,8 +33,78 @@ void (async () => {
   }
   registryToken.value = await window.skillsManager.secureGet('registryToken')
   watch(registryToken, (v) => void window.skillsManager.secureSet('registryToken', v))
+  githubToken.value = await window.skillsManager.secureGet('githubToken')
+  watch(githubToken, (v) => void window.skillsManager.secureSet('githubToken', v))
 })()
 const sidebarCollapsed = ref<boolean>(load('skm.sidebarCollapsed', false))
+
+/** 打开链接方式：默认浏览器或应用内浏览器；主进程按此分流所有外链。 */
+const linkOpenMode = ref<LinkOpenMode>(load('skm.linkOpenMode', 'external'))
+void window.skillsManager?.setLinkOpenMode(linkOpenMode.value)
+watch(linkOpenMode, (v) => {
+  localStorage.setItem('skm.linkOpenMode', JSON.stringify(v))
+  void window.skillsManager?.setLinkOpenMode(v)
+})
+
+/** HTTP 代理（作用于市场请求与应用内浏览器），空串跟随系统。 */
+const proxyUrl = ref<string>(load('skm.proxyUrl', ''))
+void window.skillsManager?.setProxy(proxyUrl.value)
+watch(proxyUrl, (v) => {
+  localStorage.setItem('skm.proxyUrl', JSON.stringify(v))
+  void window.skillsManager?.setProxy(v)
+})
+
+/** 技能目录变化时自动静默刷新。 */
+const autoRefresh = ref<boolean>(load('skm.autoRefresh', true))
+watch(autoRefresh, (v) => localStorage.setItem('skm.autoRefresh', JSON.stringify(v)))
+
+/** 检测到新的内容漂移时发送系统通知。 */
+const notifyDrift = ref<boolean>(load('skm.notifyDrift', false))
+watch(notifyDrift, (v) => localStorage.setItem('skm.notifyDrift', JSON.stringify(v)))
+
+/** 安装目标选择器默认的安装范围。 */
+const defaultInstallScope = ref<'user' | 'project'>(load('skm.defaultInstallScope', 'user'))
+watch(defaultInstallScope, (v) =>
+  localStorage.setItem('skm.defaultInstallScope', JSON.stringify(v)),
+)
+
+/** 卸载 skill 前弹原生确认框。 */
+const confirmUninstall = ref<boolean>(load('skm.confirmUninstall', false))
+watch(confirmUninstall, (v) => localStorage.setItem('skm.confirmUninstall', JSON.stringify(v)))
+
+/** 全局唤起快捷键（Electron accelerator 语法），空串表示关闭。 */
+const globalShortcut = ref<string>(load('skm.globalShortcut', ''))
+/** 最近一次快捷键注册是否成功（无效或被占用时为 false）。 */
+const globalShortcutOk = ref(true)
+void (async () => {
+  if (globalShortcut.value) {
+    globalShortcutOk.value =
+      (await window.skillsManager?.setGlobalShortcut(globalShortcut.value)) ?? false
+  }
+})()
+watch(globalShortcut, async (v) => {
+  localStorage.setItem('skm.globalShortcut', JSON.stringify(v))
+  globalShortcutOk.value = (await window.skillsManager?.setGlobalShortcut(v)) ?? false
+})
+
+/** 开机自启动：真值以系统为准，启动时读入，修改时写回。 */
+const launchAtLogin = ref(false)
+void (async () => {
+  launchAtLogin.value = (await window.skillsManager?.getLoginItem()) ?? false
+  watch(launchAtLogin, (v) => void window.skillsManager?.setLoginItem(v))
+})()
+
+/** 保存的 Registry 连接配置（Token 按名称分槽存钥匙串）。 */
+export interface RegistryProfile {
+  name: string
+  url: string
+}
+const registryProfiles = ref<RegistryProfile[]>(load('skm.registryProfiles', []))
+watch(
+  registryProfiles,
+  (v) => localStorage.setItem('skm.registryProfiles', JSON.stringify(v)),
+  { deep: true },
+)
 
 export interface SkillGroup {
   name: string
@@ -94,11 +167,16 @@ watch(theme, (v) => {
 })
 
 const media = window.matchMedia('(prefers-color-scheme: dark)')
-media.addEventListener('change', () => applyTheme())
+const systemDark = ref(media.matches)
+media.addEventListener('change', () => {
+  systemDark.value = media.matches
+  applyTheme()
+})
 
 export function applyTheme(): void {
   const dark = theme.value === 'dark' || (theme.value === 'system' && media.matches)
   document.documentElement.classList.toggle('dark', dark)
+  applyAppearance(dark)
   // The macOS window vibrancy (transparent sidebar) renders in the OS theme,
   // so a fixed light/dark choice must also be pushed to the main process.
   void window.skillsManager?.setTheme(theme.value)
@@ -114,5 +192,28 @@ export async function syncCustomPlatforms(): Promise<void> {
 }
 
 export function useSettings() {
-  return { projectRoots, customPlatforms, theme, language, registryUrl, registryToken, sidebarCollapsed, groups, tempApplications, importSyncPairs }
+  return {
+    projectRoots,
+    customPlatforms,
+    theme,
+    language,
+    registryUrl,
+    registryToken,
+    githubToken,
+    sidebarCollapsed,
+    groups,
+    tempApplications,
+    importSyncPairs,
+    systemDark,
+    linkOpenMode,
+    proxyUrl,
+    autoRefresh,
+    notifyDrift,
+    defaultInstallScope,
+    confirmUninstall,
+    globalShortcut,
+    globalShortcutOk,
+    launchAtLogin,
+    registryProfiles,
+  }
 }

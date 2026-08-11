@@ -1,12 +1,4 @@
-import {
-  app,
-  BrowserWindow,
-  dialog,
-  ipcMain,
-  nativeTheme,
-  safeStorage,
-  shell,
-} from 'electron'
+import { app, BrowserWindow, dialog, ipcMain, nativeTheme, shell } from 'electron'
 import { execFile } from 'node:child_process'
 import { randomUUID } from 'node:crypto'
 import { existsSync, watch, type FSWatcher } from 'node:fs'
@@ -25,6 +17,8 @@ import {
   type Skill,
 } from '@skillbuddy/core'
 import type { CustomPlatformInput, InstallTarget } from '../../shared/ipc.js'
+import { readFilePreview } from '../file-preview.js'
+import { readSecret, writeSecret } from '../secrets.js'
 import { PathAccessPolicy, validateCustomPlatform } from '../path-policy.js'
 import { installTarget, runTargets } from './targets.js'
 
@@ -129,37 +123,9 @@ export function registerSkillsIpc(pathPolicy: PathAccessPolicy): void {
     nativeTheme.themeSource = mode
   })
 
-  const secretsPath = (): string => join(app.getPath('userData'), 'secrets.json')
-  async function readSecrets(): Promise<Record<string, string>> {
-    try {
-      return JSON.parse(await fs.readFile(secretsPath(), 'utf8')) as Record<string, string>
-    } catch {
-      return {}
-    }
-  }
+  ipcMain.handle('secure:get', (_event, key: string) => readSecret(key))
 
-  ipcMain.handle('secure:get', async (_event, key: string) => {
-    const encrypted = (await readSecrets())[key]
-    if (!encrypted) return ''
-    try {
-      return safeStorage.decryptString(Buffer.from(encrypted, 'base64'))
-    } catch {
-      return ''
-    }
-  })
-
-  ipcMain.handle('secure:set', async (_event, key: string, value: string) => {
-    const secrets = await readSecrets()
-    if (!value) {
-      delete secrets[key]
-    } else {
-      if (!safeStorage.isEncryptionAvailable()) {
-        throw new Error('secure storage unavailable - cannot encrypt secret / 系统加密后端不可用')
-      }
-      secrets[key] = safeStorage.encryptString(value).toString('base64')
-    }
-    await fs.writeFile(secretsPath(), JSON.stringify(secrets), 'utf8')
-  })
+  ipcMain.handle('secure:set', (_event, key: string, value: string) => writeSecret(key, value))
 
   const undoStash = new Map<
     string,
@@ -267,6 +233,11 @@ export function registerSkillsIpc(pathPolicy: PathAccessPolicy): void {
       }
     }
     return { content: await fs.readFile(path, 'utf8'), truncated: false }
+  })
+
+  ipcMain.handle('file:preview', async (_event, path: string) => {
+    await pathPolicy.assertReadable(path)
+    return readFilePreview(path)
   })
 
   ipcMain.handle('file:list-tree', async (_event, root: string) => {

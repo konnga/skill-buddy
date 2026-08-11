@@ -2,6 +2,7 @@
 import { shallowRef } from 'vue'
 import AppToast from '@/components/AppToast.vue'
 import ImportAppsModal from '@/components/ImportAppsModal.vue'
+import InAppBrowser from '@/components/InAppBrowser.vue'
 import ImportSheet from '@/components/ImportSheet.vue'
 import SettingsPage from '@/components/SettingsPage.vue'
 import Sidebar from '@/components/Sidebar.vue'
@@ -32,6 +33,7 @@ function navigate(viewName: WorkspaceView): void {
 
 <template>
   <AppToast />
+  <InAppBrowser />
   <SettingsPage v-if="settingsOpen" @back="settingsOpen = false" />
   <div v-else class="relative flex h-screen flex-col">
     <div class="flex min-h-0 flex-1">

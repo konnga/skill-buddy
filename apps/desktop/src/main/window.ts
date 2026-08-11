@@ -1,5 +1,6 @@
-import { BrowserWindow, shell } from 'electron'
+import { BrowserWindow } from 'electron'
 import { join } from 'node:path'
+import { openLink } from './in-app-browser.js'
 
 /** 创建并配置 SkillBuddy 主窗口。 */
 export function createWindow(): void {
@@ -27,8 +28,21 @@ export function createWindow(): void {
 
   mainWindow.on('ready-to-show', () => mainWindow.show())
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
-    if (/^https?:\/\//.test(url)) void shell.openExternal(url)
+    openLink(mainWindow, url)
     return { action: 'deny' }
+  })
+  // setWindowOpenHandler 只覆盖新窗口请求；Markdown 渲染出的普通 <a href>
+  // 会让当前窗口就地导航，这里把所有跨源导航拦下，按用户设置分流打开。
+  mainWindow.webContents.on('will-navigate', (event, url) => {
+    let sameOrigin = false
+    try {
+      sameOrigin = new URL(url).origin === new URL(mainWindow.webContents.getURL()).origin
+    } catch {
+      /* 非法 URL 一律拦截 */
+    }
+    if (sameOrigin) return
+    event.preventDefault()
+    openLink(mainWindow, url)
   })
 
   if (process.env.ELECTRON_RENDERER_URL) {

@@ -66,6 +66,12 @@ export interface TargetResult {
   error?: string
 }
 
+/** 已授权本地文件可安全返回给渲染进程的预览数据。 */
+export type FilePreviewResult =
+  | { kind: 'text'; content: string; truncated: boolean }
+  | { kind: 'image'; dataUrl: string; mimeType: string; truncated: false }
+  | { kind: 'unsupported'; reason: 'binary' | 'too-large'; truncated: false }
+
 export interface McpUpsertPlanRequest {
   projectRoots: string[]
   sourceInstallationId?: string
@@ -80,4 +86,52 @@ export interface McpRemovePlanRequest {
 
 export interface McpTogglePlanRequest extends McpRemovePlanRequest {
   enabled: boolean
+}
+
+/** 外部链接的打开方式：系统默认浏览器，或应用内浏览器。 */
+export type LinkOpenMode = 'external' | 'in-app'
+
+/** 应用内浏览器（WebContentsView）的导航状态，由主进程推送给渲染进程。 */
+export interface InAppBrowserState {
+  open: boolean
+  url: string
+  title: string
+  canGoBack: boolean
+  canGoForward: boolean
+  loading: boolean
+}
+
+/** 应用与运行时版本信息（关于页）。 */
+export interface AppInfo {
+  version: string
+  electron: string
+  chrome: string
+  node: string
+  platform: string
+  arch: string
+}
+
+/** 检查更新的结果：有新版本 / 已是最新 / 尚无发布 / 出错。 */
+export type UpdateCheckResult =
+  | { status: 'update'; latest: string; url: string }
+  | { status: 'latest'; latest: string; url: string }
+  | { status: 'none' }
+  | { status: 'error'; message: string }
+
+/** 原生确认对话框参数。 */
+export interface ConfirmOptions {
+  title: string
+  message: string
+  confirmLabel: string
+  cancelLabel: string
+  danger?: boolean
+}
+
+/** Registry 连接测试结果。 */
+export interface RegistryTestResult {
+  ok: boolean
+  latencyMs: number
+  authOk: boolean
+  orgs: string[]
+  error?: string
 }

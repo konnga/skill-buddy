@@ -18,13 +18,20 @@ import type {
 import type {
   AiConversationContext,
   AiConversationEvent,
+  AppInfo,
+  ConfirmOptions,
   CustomPlatformInput,
+  FilePreviewResult,
+  InAppBrowserState,
   InstallTarget,
+  LinkOpenMode,
   McpRemovePlanRequest,
   McpTogglePlanRequest,
   McpUpsertPlanRequest,
   RegistryConfig,
+  RegistryTestResult,
   TargetResult,
+  UpdateCheckResult,
 } from '../shared/ipc.js'
 
 const api = {
@@ -109,8 +116,36 @@ const api = {
     total: number
   }> => ipcRenderer.invoke('market:github-search', q, page),
   openExternal: (url: string): Promise<void> => ipcRenderer.invoke('shell:open-external', url),
+  /** 按用户「打开链接方式」设置分流（默认浏览器 / 应用内浏览器）。 */
+  openLink: (url: string): Promise<void> => ipcRenderer.invoke('links:open', url),
+  setLinkOpenMode: (mode: LinkOpenMode): Promise<void> =>
+    ipcRenderer.invoke('links:set-mode', mode),
+  browserClose: (): Promise<void> => ipcRenderer.invoke('browser:close'),
+  browserBack: (): Promise<void> => ipcRenderer.invoke('browser:back'),
+  browserForward: (): Promise<void> => ipcRenderer.invoke('browser:forward'),
+  browserReload: (): Promise<void> => ipcRenderer.invoke('browser:reload'),
+  onBrowserState: (callback: (state: InAppBrowserState) => void): void => {
+    ipcRenderer.on('browser:state', (_event, state: InAppBrowserState) => callback(state))
+  },
   setTheme: (mode: 'system' | 'light' | 'dark'): Promise<void> =>
     ipcRenderer.invoke('theme:set', mode),
+  getAppInfo: (): Promise<AppInfo> => ipcRenderer.invoke('app:info'),
+  checkUpdate: (): Promise<UpdateCheckResult> => ipcRenderer.invoke('app:check-update'),
+  getLoginItem: (): Promise<boolean> => ipcRenderer.invoke('system:get-login-item'),
+  setLoginItem: (openAtLogin: boolean): Promise<void> =>
+    ipcRenderer.invoke('system:set-login-item', openAtLogin),
+  /** 注册全局唤起快捷键，返回是否注册成功（空串表示清除）。 */
+  setGlobalShortcut: (accelerator: string): Promise<boolean> =>
+    ipcRenderer.invoke('system:set-global-shortcut', accelerator),
+  setProxy: (url: string): Promise<void> => ipcRenderer.invoke('network:set-proxy', url),
+  exportConfig: (content: string): Promise<boolean> =>
+    ipcRenderer.invoke('config:export', content),
+  importConfig: (): Promise<string | null> => ipcRenderer.invoke('config:import'),
+  confirmDialog: (options: ConfirmOptions): Promise<boolean> =>
+    ipcRenderer.invoke('dialog:confirm', options),
+  openUserData: (): Promise<void> => ipcRenderer.invoke('system:open-user-data'),
+  registryTest: (cfg: RegistryConfig): Promise<RegistryTestResult> =>
+    ipcRenderer.invoke('registry:test', cfg),
   fetchBundlesManifest: (url: string): Promise<unknown> =>
     ipcRenderer.invoke('bundles:manifest', url),
   skillhubSearch: (
@@ -223,6 +258,8 @@ const api = {
     ipcRenderer.invoke('skills:trash', paths),
   readFile: (path: string): Promise<{ content: string; truncated: boolean }> =>
     ipcRenderer.invoke('file:read', path),
+  previewFile: (path: string): Promise<FilePreviewResult> =>
+    ipcRenderer.invoke('file:preview', path),
   listTree: (root: string): Promise<{ path: string; size: number; isDir: boolean }[]> =>
     ipcRenderer.invoke('file:list-tree', root),
   onSkillsChanged: (callback: () => void): void => {
