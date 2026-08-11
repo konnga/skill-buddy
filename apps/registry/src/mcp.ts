@@ -1,8 +1,11 @@
-import type { McpServerDefinition, McpValueRef } from '@skillbuddy/core'
+import {
+  validateMcpDefinition,
+  type McpServerDefinition,
+  type McpValueRef,
+} from '@skillbuddy/core'
 
 const NAME_RE = /^[a-z0-9]+(-[a-z0-9]+)*$/
 const ENV_NAME_RE = /^[A-Za-z_][A-Za-z0-9_]*$/
-const SENSITIVE_ARGUMENT = /(token|secret|password|passwd|api[-_]?key|authorization)/i
 
 function record(value: unknown, label: string): Record<string, unknown> {
   if (typeof value !== 'object' || value === null || Array.isArray(value)) {
@@ -78,13 +81,6 @@ export function sanitizeMcpDefinition(
     if (!Array.isArray(transport.args) || transport.args.some((arg) => typeof arg !== 'string')) {
       throw new Error('stdio args must be strings')
     }
-    if (
-      transport.args.some(
-        (argument) => argument === '[redacted]' || SENSITIVE_ARGUMENT.test(argument),
-      )
-    ) {
-      throw new Error('stdio args cannot contain embedded secrets')
-    }
     if (transport.cwd !== undefined && typeof transport.cwd !== 'string') {
       throw new Error('stdio cwd must be a string')
     }
@@ -93,7 +89,7 @@ export function sanitizeMcpDefinition(
       ...(definition.requiredSecrets as string[]),
       ...Object.values(env).map(referenceName),
     ])
-    return {
+    const sanitized: McpServerDefinition = {
       name: expectedName,
       ...(definition.description ? { description: definition.description as string } : {}),
       transport: {
@@ -105,6 +101,8 @@ export function sanitizeMcpDefinition(
       },
       requiredSecrets: [...requiredSecrets].sort(),
     }
+    validateMcpDefinition(sanitized, { source: 'user-input' })
+    return sanitized
   }
 
   if (!['streamable-http', 'sse', 'websocket'].includes(String(transport.kind))) {
@@ -118,21 +116,12 @@ export function sanitizeMcpDefinition(
   } catch {
     throw new Error('remote URL is invalid')
   }
-  if (
-    !['http:', 'https:'].includes(url.protocol) ||
-    url.username ||
-    url.password ||
-    url.search ||
-    url.hash
-  ) {
-    throw new Error('remote URL cannot contain credentials, query parameters, or fragments')
-  }
   const headers = references(transport.headers, 'definition.transport.headers')
   const requiredSecrets = new Set([
     ...(definition.requiredSecrets as string[]),
     ...Object.values(headers).map(referenceName),
   ])
-  return {
+  const sanitized: McpServerDefinition = {
     name: expectedName,
     ...(definition.description ? { description: definition.description as string } : {}),
     transport: {
@@ -142,4 +131,6 @@ export function sanitizeMcpDefinition(
     },
     requiredSecrets: [...requiredSecrets].sort(),
   }
+  validateMcpDefinition(sanitized, { source: 'user-input' })
+  return sanitized
 }

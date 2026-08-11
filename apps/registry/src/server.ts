@@ -11,6 +11,12 @@ export interface ServerOptions {
 }
 
 const NAME_RE = /^[a-z0-9]+(-[a-z0-9]+)*$/
+
+/** better-sqlite3 的约束冲突；其他异常应按 500 暴露，不能伪装成 409「已发布」。 */
+function isConstraintViolation(error: unknown): boolean {
+  const code = (error as { code?: unknown } | null)?.code
+  return typeof code === 'string' && code.startsWith('SQLITE_CONSTRAINT')
+}
 interface PublishBody {
   version: string
   description?: string
@@ -106,7 +112,8 @@ export function buildServer(options: ServerOptions): FastifyInstance & { db: Db 
         displayName ?? name,
         Date.now(),
       )
-    } catch {
+    } catch (error) {
+      if (!isConstraintViolation(error)) throw error
       return reply.code(409).send({ error: 'org exists' })
     }
     audit(db, { actor: actor.name, org: name, action: 'org.create', subject: name })
@@ -276,7 +283,8 @@ export function buildServer(options: ServerOptions): FastifyInstance & { db: Db 
         actor.name,
         Date.now(),
       )
-    } catch {
+    } catch (error) {
+      if (!isConstraintViolation(error)) throw error
       return reply.code(409).send({ error: `version ${body.version} already published` })
     }
     audit(db, {
@@ -439,7 +447,8 @@ export function buildServer(options: ServerOptions): FastifyInstance & { db: Db 
           createdAt,
         )
       })()
-    } catch {
+    } catch (error) {
+      if (!isConstraintViolation(error)) throw error
       return reply.code(409).send({ error: `version ${body.version} already published` })
     }
     audit(db, {
@@ -566,7 +575,8 @@ export function buildServer(options: ServerOptions): FastifyInstance & { db: Db 
         actor.name,
         Date.now(),
       )
-    } catch {
+    } catch (error) {
+      if (!isConstraintViolation(error)) throw error
       return reply.code(409).send({ error: `version ${body.version} already published` })
     }
     audit(db, {
@@ -633,7 +643,8 @@ export function buildServer(options: ServerOptions): FastifyInstance & { db: Db 
     )
     db.transaction(() => {
       del.run(org)
-      for (const name of mcpServers) insert.run(org, name)
+      // 去重，避免请求体中的重复名称撞唯一约束导致 500。
+      for (const name of new Set(mcpServers)) insert.run(org, name)
     })()
     audit(db, {
       actor: actor.name,
