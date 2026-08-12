@@ -29,6 +29,7 @@ import { Input } from '@/components/ui/input'
 import { Select } from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
 import { ScrollArea } from '@/components/ui/scroll-area'
+import skillbuddyMarkUrl from '@/assets/skillbuddy-mark.svg'
 import CopyButton from '@/components/CopyButton.vue'
 import PlatformIcon from '@/components/PlatformIcon.vue'
 import ThemeCodePreview from '@/components/appearance/ThemeCodePreview.vue'
@@ -851,11 +852,19 @@ async function copyDiagnostics(): Promise<void> {
               class="flex flex-col gap-2 px-5 py-4"
             >
               <div class="flex items-center justify-between gap-6">
-                <div class="min-w-0">
-                  <p class="text-sm font-medium">{{ t('settings.aboutVersionTitle') }}</p>
-                  <p class="mt-0.5 text-sm text-muted-foreground">
-                    SkillBuddy v{{ appInfo?.version ?? '…' }}
-                  </p>
+                <div class="flex min-w-0 items-center gap-3">
+                  <img
+                    :src="skillbuddyMarkUrl"
+                    alt=""
+                    class="size-9 shrink-0"
+                    aria-hidden="true"
+                  />
+                  <div class="min-w-0">
+                    <p class="text-sm font-medium">{{ t('settings.aboutVersionTitle') }}</p>
+                    <p class="mt-0.5 text-sm text-muted-foreground">
+                      SkillBuddy v{{ appInfo?.version ?? '…' }}
+                    </p>
+                  </div>
                 </div>
                 <span class="flex shrink-0 items-center gap-2">
                   <Button v-if="updateResult?.status === 'update'" size="sm" @click="openReleasePage">

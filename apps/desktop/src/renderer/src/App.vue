@@ -44,6 +44,7 @@ function navigate(viewName: WorkspaceView): void {
         :inset="sidebarCollapsed"
         @open-settings="openSettings"
         @import-skills="importOpen = true"
+        @navigate="navigate"
       />
       <ImportAppsModal
         :open="importOpen"

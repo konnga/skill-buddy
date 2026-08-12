@@ -24,9 +24,18 @@ const props = defineProps<{
 const emit = defineEmits<{
   openSettings: []
   importSkills: []
+  navigate: [view: WorkspaceViewName]
 }>()
 
-const { skills } = useSkills()
+const {
+  skills,
+  search,
+  platformFilter,
+  projectFilter,
+  driftOnly,
+  groupFilter,
+  ownershipFilter,
+} = useSkills()
 const selected = shallowRef<AggregatedSkill | null>(null)
 const selectedFocus = shallowRef<SkillFocus | null>(null)
 const selectedMode = shallowRef<'view' | 'edit'>('view')
@@ -68,6 +77,17 @@ function closeSkill(): void {
 function openConversation(skill: AggregatedSkill | null = null): void {
   conversationSkill.value = skill
   newOpen.value = true
+}
+
+/** 打开与工作台全局漂移数量一致的 Skills 筛选结果。 */
+function openDriftSkills(): void {
+  search.value = ''
+  platformFilter.value = null
+  projectFilter.value = null
+  groupFilter.value = null
+  ownershipFilter.value = null
+  driftOnly.value = true
+  emit('navigate', 'skills')
 }
 
 function closeConversation(): void {
@@ -134,6 +154,7 @@ watch(skills, (value) => {
       @open-bundles="bundlesOpen = true"
       @open-bundle="bundleSelected = $event"
       @open-attention="attentionOpen = true"
+      @open-drift="openDriftSkills"
       @new-skill="openConversation()"
       @import-skills="emit('importSkills')"
     />

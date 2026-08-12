@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { computed, ref, shallowRef } from 'vue'
 import { useI18n } from 'vue-i18n'
 import {
   DialogContent,
@@ -10,8 +10,8 @@ import {
 } from 'reka-ui'
 import {
   Blocks,
+  ChevronRight,
   FolderOpen,
-  Globe,
   LayoutDashboard,
   PanelLeft,
   Plus,
@@ -42,6 +42,7 @@ const {
   detectedPlatforms,
   countByPlatform,
   countByProject,
+  projectPlatformCounts,
   platformFilter,
   projectFilter,
   groupFilter,
@@ -53,6 +54,12 @@ const { groups, filterGroup, deleteGroup } = useGroups()
 
 const groupCreateOpen = ref(false)
 const newGroupName = ref('')
+const bundlesExpanded = shallowRef(true)
+const agentsExpanded = shallowRef(true)
+const scopeExpanded = shallowRef(true)
+const expandedProjectRoot = computed(() =>
+  projectFilter.value && projectFilter.value !== 'user' ? projectFilter.value : null,
+)
 
 const basename = (path: string): string => path.split('/').filter(Boolean).pop() ?? path
 
@@ -66,11 +73,21 @@ function showAllSkills(): void {
 
 function filterPlatform(id: string): void {
   platformFilter.value = platformFilter.value === id ? null : id
+  projectFilter.value = null
   emit('navigate', 'skills')
 }
 
 function filterProject(root: string): void {
-  projectFilter.value = projectFilter.value === root ? null : root
+  const isActive = projectFilter.value === root && platformFilter.value === null
+  projectFilter.value = isActive ? null : root
+  platformFilter.value = null
+  emit('navigate', 'skills')
+}
+
+function filterProjectPlatform(root: string, id: string): void {
+  const isActive = projectFilter.value === root && platformFilter.value === id
+  projectFilter.value = root
+  platformFilter.value = isActive ? null : id
   emit('navigate', 'skills')
 }
 
@@ -195,84 +212,24 @@ function createGroup(): void {
           {{ t('team.title') }}
         </button>
 
-        <p class="mb-1 mt-4 px-3 text-sm font-medium text-muted-foreground">
-          {{ t('app.platforms') }}
-        </p>
-        <button
-          v-for="platform in detectedPlatforms"
-          :key="platform.id"
-          type="button"
-          :class="[
-            'flex items-center justify-between rounded-md px-3 py-1.5 text-sm transition-colors',
-            props.view === 'skills' && platformFilter === platform.id
-              ? 'nav-active'
-              : 'hover:bg-accent/60',
-          ]"
-          @click="filterPlatform(platform.id)"
-        >
-          <span class="flex min-w-0 items-center gap-2">
-            <PlatformIcon :id="platform.id" :size="15" class="text-foreground/70" />
-            <span class="truncate">{{ platform.displayName }}</span>
-          </span>
-          <span class="text-sm tabular-nums text-muted-foreground">
-            {{ countByPlatform.get(platform.id) ?? 0 }}
-          </span>
-        </button>
-
         <section class="mt-4">
           <div class="mb-1 flex items-center justify-between px-3">
-            <p class="text-sm font-medium text-muted-foreground">{{ t('app.scope') }}</p>
             <button
               type="button"
-              class="cursor-pointer rounded p-0.5 text-muted-foreground transition-colors hover:bg-accent/60 hover:text-foreground"
-              :title="t('app.addScope')"
-              :aria-label="t('app.addScope')"
-              @click="addProjectRoot"
+              class="-ml-1 flex min-w-0 flex-1 cursor-pointer items-center gap-1 rounded p-1 text-left text-sm font-medium text-muted-foreground transition-colors hover:bg-accent/60 hover:text-foreground"
+              aria-controls="sidebar-bundles"
+              :aria-expanded="bundlesExpanded"
+              @click="bundlesExpanded = !bundlesExpanded"
             >
-              <Plus class="size-3.5" />
+              <ChevronRight
+                :class="[
+                  'size-3 shrink-0 transition-transform duration-200 ease-out motion-reduce:transition-none',
+                  bundlesExpanded ? 'rotate-90' : '',
+                ]"
+                aria-hidden="true"
+              />
+              <span class="truncate">{{ t('groups.title') }}</span>
             </button>
-          </div>
-          <button
-            type="button"
-            :class="[
-              'flex w-full cursor-pointer items-center justify-between rounded-md px-3 py-1.5 text-sm transition-colors',
-              props.view === 'skills' && projectFilter === 'user'
-                ? 'nav-active'
-                : 'hover:bg-accent/60',
-            ]"
-            @click="filterProject('user')"
-          >
-            <span class="flex min-w-0 items-center gap-2">
-              <Globe class="size-3.5 shrink-0 text-foreground/60" />
-              <span class="truncate">{{ t('app.userGlobal') }}</span>
-            </span>
-          </button>
-          <button
-            v-for="root in projectRoots"
-            :key="root"
-            type="button"
-            :class="[
-              'flex w-full cursor-pointer items-center justify-between rounded-md px-3 py-1.5 text-sm transition-colors',
-              props.view === 'skills' && projectFilter === root
-                ? 'nav-active'
-                : 'hover:bg-accent/60',
-            ]"
-            :title="root"
-            @click="filterProject(root)"
-          >
-            <span class="flex min-w-0 items-center gap-2">
-              <FolderOpen class="size-3.5 shrink-0 text-foreground/60" />
-              <span class="truncate">{{ basename(root) }}</span>
-            </span>
-            <span class="text-sm tabular-nums text-muted-foreground">
-              {{ countByProject.get(root) ?? 0 }}
-            </span>
-          </button>
-        </section>
-
-        <section class="mt-4">
-          <div class="mb-1 flex items-center justify-between px-3">
-            <p class="text-sm font-medium text-muted-foreground">{{ t('groups.title') }}</p>
             <button
               type="button"
               class="cursor-pointer rounded p-0.5 text-muted-foreground transition-colors hover:bg-accent/60 hover:text-foreground"
@@ -284,39 +241,222 @@ function createGroup(): void {
             </button>
           </div>
           <div
-            v-for="group in groups"
-            :key="group.name"
+            id="sidebar-bundles"
             :class="[
-              'group/g flex items-center justify-between rounded-md px-3 py-1.5 text-sm transition-colors',
-              props.view === 'skills' && groupFilter === group.name
-                ? 'nav-active'
-                : 'hover:bg-accent/60',
+              'grid transition-[grid-template-rows,opacity] motion-reduce:transition-none',
+              bundlesExpanded
+                ? 'grid-rows-[1fr] opacity-100 duration-200 ease-out'
+                : 'grid-rows-[0fr] opacity-0 duration-150 ease-in',
             ]"
+            :inert="!bundlesExpanded"
           >
+            <div class="min-h-0 overflow-hidden">
+              <div
+                v-for="group in groups"
+                :key="group.name"
+                :class="[
+                  'group/g flex items-center justify-between rounded-md px-3 py-1.5 text-sm transition-colors',
+                  props.view === 'skills' && groupFilter === group.name
+                    ? 'nav-active'
+                    : 'hover:bg-accent/60',
+                ]"
+              >
+                <button
+                  type="button"
+                  class="flex min-w-0 flex-1 cursor-pointer items-center text-left"
+                  @click="selectGroup(group.name)"
+                >
+                  <span class="truncate">{{ group.name }}</span>
+                </button>
+                <span class="flex shrink-0 items-center gap-1">
+                  <span class="text-sm tabular-nums text-muted-foreground">
+                    {{ group.skills.length }}
+                  </span>
+                  <button
+                    type="button"
+                    class="hidden cursor-pointer rounded p-0.5 text-muted-foreground hover:text-destructive group-hover/g:inline-flex"
+                    :title="t('groups.deleteGroup')"
+                    :aria-label="t('groups.deleteGroup')"
+                    @click="deleteGroup(group.name)"
+                  >
+                    <Trash2 class="size-3" />
+                  </button>
+                </span>
+              </div>
+              <p v-if="groups.length === 0" class="px-3 py-1 text-sm text-muted-foreground">
+                {{ t('groups.empty') }}
+              </p>
+            </div>
+          </div>
+        </section>
+
+        <section class="mt-4">
+          <button
+            type="button"
+            class="mb-1 flex w-full cursor-pointer items-center gap-1 rounded-md px-3 py-1 text-left text-sm font-medium text-muted-foreground transition-colors hover:bg-accent/60 hover:text-foreground"
+            aria-controls="sidebar-agents"
+            :aria-expanded="agentsExpanded"
+            @click="agentsExpanded = !agentsExpanded"
+          >
+            <ChevronRight
+              :class="[
+                'size-3 shrink-0 transition-transform duration-200 ease-out motion-reduce:transition-none',
+                agentsExpanded ? 'rotate-90' : '',
+              ]"
+              aria-hidden="true"
+            />
+            {{ t('app.agents') }}
+          </button>
+          <div
+            id="sidebar-agents"
+            :class="[
+              'grid transition-[grid-template-rows,opacity] motion-reduce:transition-none',
+              agentsExpanded
+                ? 'grid-rows-[1fr] opacity-100 duration-200 ease-out'
+                : 'grid-rows-[0fr] opacity-0 duration-150 ease-in',
+            ]"
+            :inert="!agentsExpanded"
+          >
+            <div class="min-h-0 overflow-hidden">
+              <button
+                v-for="platform in detectedPlatforms"
+                :key="platform.id"
+                type="button"
+                :class="[
+                  'flex w-full cursor-pointer items-center justify-between rounded-md px-3 py-1.5 text-sm transition-colors',
+                  props.view === 'skills' &&
+                  projectFilter === null &&
+                  platformFilter === platform.id
+                    ? 'nav-active'
+                    : 'hover:bg-accent/60',
+                ]"
+                @click="filterPlatform(platform.id)"
+              >
+                <span class="flex min-w-0 items-center gap-2">
+                  <PlatformIcon :id="platform.id" :size="15" class="text-foreground/70" />
+                  <span class="truncate">{{ platform.displayName }}</span>
+                </span>
+                <span class="text-sm tabular-nums text-muted-foreground">
+                  {{ countByPlatform.get(platform.id) ?? 0 }}
+                </span>
+              </button>
+            </div>
+          </div>
+        </section>
+
+        <section class="mt-4">
+          <div class="mb-1 flex items-center justify-between px-3">
             <button
               type="button"
-              class="flex min-w-0 flex-1 items-center text-left"
-              @click="selectGroup(group.name)"
+              class="-ml-1 flex min-w-0 flex-1 cursor-pointer items-center gap-1 rounded p-1 text-left text-sm font-medium text-muted-foreground transition-colors hover:bg-accent/60 hover:text-foreground"
+              aria-controls="sidebar-scope"
+              :aria-expanded="scopeExpanded"
+              @click="scopeExpanded = !scopeExpanded"
             >
-              <span class="truncate">{{ group.name }}</span>
+              <ChevronRight
+                :class="[
+                  'size-3 shrink-0 transition-transform duration-200 ease-out motion-reduce:transition-none',
+                  scopeExpanded ? 'rotate-90' : '',
+                ]"
+                aria-hidden="true"
+              />
+              <span class="truncate">{{ t('app.scope') }}</span>
             </button>
-            <span class="flex shrink-0 items-center gap-1">
-              <span class="text-sm tabular-nums text-muted-foreground">{{ group.skills.length }}</span>
-              <button
-                type="button"
-                class="hidden rounded p-0.5 text-muted-foreground hover:text-destructive group-hover/g:inline-flex"
-                :title="t('groups.deleteGroup')"
-                :aria-label="t('groups.deleteGroup')"
-                @click="deleteGroup(group.name)"
-              >
-                <Trash2 class="size-3" />
-              </button>
-            </span>
+            <button
+              type="button"
+              class="cursor-pointer rounded p-0.5 text-muted-foreground transition-colors hover:bg-accent/60 hover:text-foreground"
+              :title="t('app.addScope')"
+              :aria-label="t('app.addScope')"
+              @click="addProjectRoot"
+            >
+              <Plus class="size-3.5" />
+            </button>
           </div>
-          <p v-if="groups.length === 0" class="px-3 py-1 text-sm text-muted-foreground">
-            {{ t('groups.empty') }}
-          </p>
+          <div
+            id="sidebar-scope"
+            :class="[
+              'grid transition-[grid-template-rows,opacity] motion-reduce:transition-none',
+              scopeExpanded
+                ? 'grid-rows-[1fr] opacity-100 duration-200 ease-out'
+                : 'grid-rows-[0fr] opacity-0 duration-150 ease-in',
+            ]"
+            :inert="!scopeExpanded"
+          >
+            <div class="min-h-0 overflow-hidden">
+              <template v-for="root in projectRoots" :key="root">
+                <button
+                  type="button"
+                  :class="[
+                    'flex w-full cursor-pointer items-center justify-between rounded-md px-3 py-1.5 text-sm transition-colors',
+                    props.view === 'skills' && projectFilter === root && platformFilter === null
+                      ? 'nav-active'
+                      : 'hover:bg-accent/60',
+                  ]"
+                  :title="root"
+                  :aria-expanded="expandedProjectRoot === root"
+                  @click="filterProject(root)"
+                >
+                  <span class="flex min-w-0 items-center gap-1.5">
+                    <ChevronRight
+                      :class="[
+                        'size-3 shrink-0 text-muted-foreground transition-transform duration-200 ease-out motion-reduce:transition-none',
+                        expandedProjectRoot === root ? 'rotate-90' : '',
+                      ]"
+                      aria-hidden="true"
+                    />
+                    <FolderOpen class="size-3.5 shrink-0 text-foreground/60" />
+                    <span class="truncate">{{ basename(root) }}</span>
+                  </span>
+                  <span class="text-sm tabular-nums text-muted-foreground">
+                    {{ countByProject.get(root) ?? 0 }}
+                  </span>
+                </button>
+                <div
+                  :class="[
+                    'grid transition-[grid-template-rows,opacity] motion-reduce:transition-none',
+                    expandedProjectRoot === root
+                      ? 'grid-rows-[1fr] opacity-100 duration-200 ease-out'
+                      : 'grid-rows-[0fr] opacity-0 duration-150 ease-in',
+                  ]"
+                  :inert="expandedProjectRoot !== root"
+                >
+                  <div class="min-h-0 overflow-hidden">
+                    <div class="pb-1">
+                      <button
+                        v-for="platform in projectPlatformCounts.get(root) ?? []"
+                        :key="`${root}:${platform.id}`"
+                        type="button"
+                        :class="[
+                          'flex w-full cursor-pointer items-center justify-between rounded-md py-1.5 pl-12 pr-3 text-sm transition-colors',
+                          props.view === 'skills' &&
+                          projectFilter === root &&
+                          platformFilter === platform.id
+                            ? 'nav-active'
+                            : 'hover:bg-accent/60',
+                        ]"
+                        :title="`${basename(root)} / ${platform.displayName}`"
+                        @click="filterProjectPlatform(root, platform.id)"
+                      >
+                        <span class="flex min-w-0 items-center gap-2">
+                          <PlatformIcon
+                            :id="platform.id"
+                            :size="15"
+                            class="text-foreground/70"
+                          />
+                          <span class="truncate">{{ platform.displayName }}</span>
+                        </span>
+                        <span class="tabular-nums text-muted-foreground">
+                          {{ platform.count }}
+                        </span>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </template>
+            </div>
+          </div>
         </section>
+
         </nav>
       </ScrollArea>
 

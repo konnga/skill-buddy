@@ -228,8 +228,14 @@ function basename(path: string): string {
               <button
                 v-if="canToggle(installation)"
                 type="button"
-                class="rounded-md p-2 text-muted-foreground hover:bg-muted hover:text-foreground"
+                :class="[
+                  'cursor-pointer rounded-md p-2 transition-colors disabled:cursor-not-allowed disabled:opacity-50',
+                  installation.enabled === false
+                    ? 'bg-amber-500/10 text-amber-600 hover:bg-amber-500/15 dark:text-amber-400'
+                    : 'bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500/15 dark:text-emerald-400',
+                ]"
                 :disabled="busy"
+                :aria-pressed="installation.enabled !== false"
                 :title="
                   installation.enabled === false
                     ? t('mcp.actions.enable')
@@ -242,8 +248,8 @@ function basename(path: string): string {
                 "
                 @click="emit('toggle', installation.id, installation.enabled === false)"
               >
-                <Power v-if="installation.enabled === false" class="size-4" />
-                <PowerOff v-else class="size-4" />
+                <PowerOff v-if="installation.enabled === false" class="size-4" />
+                <Power v-else class="size-4" />
               </button>
               <button
                 v-if="!installation.source.readOnly"

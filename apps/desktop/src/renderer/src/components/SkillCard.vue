@@ -16,24 +16,49 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import CopyButton from '@/components/CopyButton.vue'
 import PlatformIcon from '@/components/PlatformIcon.vue'
 import { agentLabel } from '@/lib/agents'
+import { matchesSkillInstallation } from '@/lib/skill-installations'
 
-const props = defineProps<{ skill: AggregatedSkill; busy?: boolean; currentPlatform?: string }>()
+const props = defineProps<{
+  skill: AggregatedSkill
+  busy?: boolean
+  selected?: boolean
+  currentPlatform?: string
+  scopeFilter?: 'user' | 'project'
+  projectRoot?: string
+  ownershipFilter?: 'managed' | 'agent'
+}>()
 const emit = defineEmits<{
   open: []
   edit: []
+  toggleSelected: []
   toggleEnabled: []
   uninstallCurrent: []
   uninstallAll: []
 }>()
 const { t } = useI18n()
 
-const agents = computed(() => [...new Set(props.skill.installations.map((i) => i.agent))])
-const hasProject = computed(() => props.skill.installations.some((i) => i.scope === 'project'))
-const readOnly = computed(() => props.skill.installations.every((i) => i.readOnly))
-const visibleInstallations = computed(() =>
-  props.currentPlatform
-    ? props.skill.installations.filter((installation) => installation.agent === props.currentPlatform)
-    : props.skill.installations,
+const visibleInstallations = computed(() => {
+  if (props.scopeFilter === 'project' && !props.projectRoot) return []
+  const projectFilter =
+    props.scopeFilter === 'user'
+      ? 'user'
+      : props.scopeFilter === 'project'
+        ? props.projectRoot
+        : null
+  return props.skill.installations.filter((installation) =>
+    matchesSkillInstallation(installation, {
+      platformId: props.currentPlatform,
+      projectFilter,
+      ownershipFilter: props.ownershipFilter,
+    }),
+  )
+})
+const agents = computed(() => [...new Set(visibleInstallations.value.map((i) => i.agent))])
+const hasProject = computed(() => visibleInstallations.value.some((i) => i.scope === 'project'))
+const readOnly = computed(
+  () =>
+    visibleInstallations.value.length > 0 &&
+    visibleInstallations.value.every((installation) => installation.readOnly),
 )
 const visibleWritableInstallations = computed(() =>
   visibleInstallations.value.filter((installation) => !installation.readOnly),
@@ -51,19 +76,43 @@ const visibleAllDisabled = computed(
 const visibleHasEnabled = computed(() =>
   visibleWritableInstallations.value.some((installation) => installation.enabled !== false),
 )
+const toggleLabel = computed(() => {
+  if (props.scopeFilter && props.currentPlatform) {
+    return t(visibleHasEnabled.value ? 'card.disableScopeAgent' : 'card.enableScopeAgent', {
+      platform: agentLabel(props.currentPlatform),
+    })
+  }
+  if (props.scopeFilter) {
+    return t(visibleHasEnabled.value ? 'card.disableScope' : 'card.enableScope')
+  }
+  if (props.currentPlatform) {
+    return t(visibleHasEnabled.value ? 'card.disableAgent' : 'card.enableAgent', {
+      platform: agentLabel(props.currentPlatform),
+    })
+  }
+  return t(visibleHasEnabled.value ? 'card.disableGlobal' : 'card.enableGlobal')
+})
 const currentPlatformReadOnly = computed(
   () =>
     !props.currentPlatform ||
-    !props.skill.installations.some(
-      (installation) => installation.agent === props.currentPlatform && !installation.readOnly,
+    !visibleWritableInstallations.value.some(
+      (installation) => installation.agent === props.currentPlatform,
     ),
 )
 const hasOtherWritablePlatform = computed(
   () =>
     Boolean(props.currentPlatform) &&
-    props.skill.installations.some(
+    visibleWritableInstallations.value.some(
       (installation) => installation.agent !== props.currentPlatform && !installation.readOnly,
     ),
+)
+const uninstallAllLabel = computed(() =>
+  props.scopeFilter ? t('card.uninstallScope') : t('card.uninstallAll'),
+)
+const uninstallCurrentLabel = computed(() =>
+  props.scopeFilter
+    ? t('card.uninstallScopeAgent', { platform: agentLabel(props.currentPlatform ?? '') })
+    : t('card.uninstallCurrent', { platform: agentLabel(props.currentPlatform ?? '') }),
 )
 </script>
 
@@ -71,90 +120,35 @@ const hasOtherWritablePlatform = computed(
   <Card
     :class="[
       'group cursor-pointer transition-colors hover:border-foreground/25',
+      props.selected && 'border-primary/60 bg-primary/5 ring-1 ring-primary/20',
       visibleAllDisabled && 'opacity-60 saturate-75',
       visibleDisabledCount > 0 && !visibleAllDisabled && 'border-amber-500/20 bg-muted/20',
     ]"
     @click="$emit('open')"
   >
-    <CardHeader class="pb-3">
+    <CardHeader class="gap-3 pb-3">
       <div class="flex items-start justify-between gap-2">
-        <span class="flex min-w-0 items-center gap-1.5">
-          <CardTitle class="select-text truncate text-base">{{ skill.name }}</CardTitle>
+        <div class="flex min-w-0 items-start gap-2">
+          <input
+            type="checkbox"
+            :checked="props.selected"
+            :aria-label="t('batch.selectSkill', { name: skill.name })"
+            class="mt-1 size-4 shrink-0 cursor-pointer accent-primary"
+            @click.stop
+            @change.stop="emit('toggleSelected')"
+          />
+          <CardTitle
+            class="line-clamp-2 min-w-0 select-text break-words text-base leading-6"
+            :title="skill.name"
+          >
+            {{ skill.name }}
+          </CardTitle>
+        </div>
+        <span class="flex shrink-0 items-center gap-1">
           <CopyButton
             :text="skill.name"
             class="opacity-0 transition-opacity group-hover:opacity-100"
           />
-        </span>
-        <span class="flex shrink-0 items-center gap-1.5">
-          <Badge v-if="readOnly" variant="secondary">
-            {{ t('card.readOnly') }}
-          </Badge>
-          <Badge
-            v-if="visibleAllDisabled"
-            variant="secondary"
-            class="text-amber-600 dark:text-amber-400"
-          >
-            {{ t('card.disabled') }}
-          </Badge>
-          <Badge
-            v-else-if="visibleDisabledCount > 0"
-            variant="secondary"
-            class="text-amber-600 dark:text-amber-400"
-          >
-            {{ t('card.partiallyDisabled') }}
-          </Badge>
-          <Badge v-if="hasProject" variant="secondary">project</Badge>
-          <Badge
-            v-if="skill.hasDrift"
-            variant="outline"
-            class="gap-1 border-amber-500/40 text-amber-600 dark:text-amber-400"
-          >
-            <TriangleAlert class="size-3" />
-            {{ t('card.drift') }}
-          </Badge>
-          <button
-            v-if="visibleWritableInstallations.length > 0"
-            type="button"
-            role="switch"
-            :aria-checked="visibleHasEnabled"
-            :aria-label="
-              t(
-                currentPlatform
-                  ? visibleHasEnabled
-                    ? 'card.disableScope'
-                    : 'card.enableScope'
-                  : visibleHasEnabled
-                    ? 'card.disableGlobal'
-                    : 'card.enableGlobal',
-                currentPlatform ? { platform: agentLabel(currentPlatform) } : {},
-              )
-            "
-            :title="
-              t(
-                currentPlatform
-                  ? visibleHasEnabled
-                    ? 'card.disableScope'
-                    : 'card.enableScope'
-                  : visibleHasEnabled
-                    ? 'card.disableGlobal'
-                    : 'card.enableGlobal',
-                currentPlatform ? { platform: agentLabel(currentPlatform) } : {},
-              )
-            "
-            :disabled="busy"
-            class="relative inline-flex h-5 w-9 shrink-0 cursor-pointer items-center rounded-full transition-all disabled:cursor-not-allowed disabled:opacity-50"
-            :class="
-              visibleHasEnabled
-                ? 'bg-emerald-500 shadow-sm ring-2 ring-emerald-500/20'
-                : 'bg-muted-foreground/25'
-            "
-            @click.stop="emit('toggleEnabled')"
-          >
-            <span
-              class="size-3.5 rounded-full bg-white shadow-sm transition-transform"
-              :class="visibleHasEnabled ? 'translate-x-[18px]' : 'translate-x-[3px]'"
-            />
-          </button>
           <DropdownMenuRoot>
             <DropdownMenuTrigger as-child>
               <button
@@ -189,7 +183,7 @@ const hasOtherWritablePlatform = computed(
                   @select="emit('uninstallCurrent')"
                 >
                   <Trash2 class="size-4" />
-                  {{ t('card.uninstallCurrent', { platform: agentLabel(currentPlatform) }) }}
+                  {{ uninstallCurrentLabel }}
                 </DropdownMenuItem>
                 <DropdownMenuItem
                   v-if="!currentPlatform || hasOtherWritablePlatform"
@@ -198,28 +192,83 @@ const hasOtherWritablePlatform = computed(
                   @select="emit('uninstallAll')"
                 >
                   <Trash2 class="size-4" />
-                  {{ t('card.uninstallAll') }}
+                  {{ uninstallAllLabel }}
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenuPortal>
           </DropdownMenuRoot>
         </span>
       </div>
+      <div class="flex min-h-5 items-center justify-between gap-2">
+        <span class="flex min-w-0 flex-wrap items-center gap-1.5">
+          <Badge v-if="readOnly" variant="secondary">
+            {{ t('card.readOnly') }}
+          </Badge>
+          <Badge
+            v-if="visibleAllDisabled"
+            variant="secondary"
+            class="text-amber-600 dark:text-amber-400"
+          >
+            {{ t('card.disabled') }}
+          </Badge>
+          <Badge
+            v-else-if="visibleDisabledCount > 0"
+            variant="secondary"
+            class="text-amber-600 dark:text-amber-400"
+          >
+            {{ t('card.partiallyDisabled') }}
+          </Badge>
+          <Badge v-if="hasProject" variant="secondary">{{ t('card.scopeProject') }}</Badge>
+          <Badge
+            v-if="skill.hasDrift"
+            variant="outline"
+            class="gap-1 border-amber-500/40 text-amber-600 dark:text-amber-400"
+          >
+            <TriangleAlert class="size-3" />
+            {{ t('card.drift') }}
+          </Badge>
+        </span>
+        <button
+          v-if="visibleWritableInstallations.length > 0"
+          type="button"
+          role="switch"
+          :aria-checked="visibleHasEnabled"
+          :aria-label="toggleLabel"
+          :title="toggleLabel"
+          :disabled="busy"
+          class="relative inline-flex h-5 w-9 shrink-0 cursor-pointer items-center rounded-full transition-all disabled:cursor-not-allowed disabled:opacity-50"
+          :class="
+            visibleHasEnabled
+              ? 'bg-emerald-500 shadow-sm ring-2 ring-emerald-500/20'
+              : 'bg-muted-foreground/25'
+          "
+          @click.stop="emit('toggleEnabled')"
+        >
+          <span
+            class="size-3.5 rounded-full bg-white shadow-sm transition-transform"
+            :class="visibleHasEnabled ? 'translate-x-[18px]' : 'translate-x-[3px]'"
+          />
+        </button>
+      </div>
       <CardDescription class="line-clamp-2 min-h-10">
         {{ skill.description || t('card.noDescription') }}
       </CardDescription>
     </CardHeader>
-    <CardContent class="flex flex-wrap items-center gap-x-3 gap-y-1.5">
+    <CardContent
+      v-if="agents.length || skill.tags.length"
+      class="flex flex-wrap items-center gap-1.5"
+    >
       <span
         v-for="agent in agents"
         :key="agent"
-        class="flex items-center gap-1.5 text-sm text-muted-foreground"
+        class="inline-flex"
+        role="img"
         :title="agentLabel(agent)"
+        :aria-label="agentLabel(agent)"
       >
         <PlatformIcon :id="agent" :size="14" />
-        {{ agentLabel(agent) }}
       </span>
-      <span v-if="skill.tags.length" class="text-border">·</span>
+      <span v-if="agents.length && skill.tags.length" class="text-border">·</span>
       <Badge v-for="tag in skill.tags" :key="tag" variant="outline" class="text-[11px]">
         {{ tag }}
       </Badge>

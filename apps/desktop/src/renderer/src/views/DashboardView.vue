@@ -18,6 +18,7 @@ const emit = defineEmits<{
   openBundles: []
   openBundle: [bundle: SkillBundle]
   openAttention: []
+  openDrift: []
   newSkill: []
   importSkills: []
 }>()
@@ -94,6 +95,7 @@ const todoCount = computed(() => {
         @open-market="emit('openMarket', $event)"
         @open-bundles="emit('openBundles')"
         @open-bundle="emit('openBundle', $event)"
+        @open-drift="emit('openDrift')"
       />
     </ScrollArea>
   </div>

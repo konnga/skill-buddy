@@ -2,6 +2,7 @@ import { computed, ref } from 'vue'
 import type { AggregatedSkill, PlatformStatus, Skill } from '@skillbuddy/core'
 import type { InstallTarget, TargetResult } from '../../../shared/ipc.js'
 import { i18n } from '../i18n.js'
+import { matchesSkillInstallation } from '../lib/skill-installations.js'
 import { useSettings } from './useSettings.js'
 
 const skills = ref<AggregatedSkill[]>([])
@@ -58,15 +59,17 @@ function searchScore(skill: AggregatedSkill, query: string, tokens: string[]): n
 const filtered = computed(() => {
   const q = search.value.trim().toLowerCase()
   const tokens = q ? q.split(/\s+/) : []
+  const installationFilter = {
+    platformId: platformFilter.value,
+    projectFilter: projectFilter.value,
+    ownershipFilter: ownershipFilter.value,
+  }
   const matches = skills.value.flatMap((s) => {
-    if (platformFilter.value && !s.installations.some((i) => i.agent === platformFilter.value))
-      return []
-    if (projectFilter.value === 'user' && !s.installations.some((i) => i.scope === 'user'))
-      return []
     if (
-      projectFilter.value &&
-      projectFilter.value !== 'user' &&
-      !s.installations.some((i) => i.projectRoot === projectFilter.value)
+      (platformFilter.value || projectFilter.value || ownershipFilter.value) &&
+      !s.installations.some((installation) =>
+        matchesSkillInstallation(installation, installationFilter),
+      )
     )
       return []
     if (groupFilter.value) {
@@ -74,16 +77,6 @@ const filtered = computed(() => {
       const group = groups.value.find((g) => g.name === groupFilter.value)
       if (!group || !group.skills.includes(s.name)) return []
     }
-    if (
-      ownershipFilter.value === 'managed' &&
-      !s.installations.some((installation) => !installation.readOnly)
-    )
-      return []
-    if (
-      ownershipFilter.value === 'agent' &&
-      !s.installations.some((installation) => installation.readOnly)
-    )
-      return []
     if (driftOnly.value && !s.hasDrift) return []
     const score = q ? searchScore(s, q, tokens) : 0
     return score === null ? [] : [{ skill: s, score }]
@@ -125,6 +118,49 @@ const countByProject = computed(() => {
     }
   }
   return counts
+})
+
+export interface ProjectPlatformCount {
+  id: string
+  displayName: string
+  count: number
+}
+
+/** Count skills by platform within each project scope for the sidebar hierarchy. */
+const projectPlatformCounts = computed<Map<string, ProjectPlatformCount[]>>(() => {
+  const countsByProject = new Map<string, Map<string, number>>()
+  for (const skill of skills.value) {
+    const agentsByProject = new Map<string, Set<string>>()
+    for (const installation of skill.installations) {
+      if (!installation.projectRoot) continue
+      const agents = agentsByProject.get(installation.projectRoot) ?? new Set<string>()
+      agents.add(installation.agent)
+      agentsByProject.set(installation.projectRoot, agents)
+    }
+    for (const [projectRoot, agents] of agentsByProject) {
+      const counts = countsByProject.get(projectRoot) ?? new Map<string, number>()
+      for (const agent of agents) counts.set(agent, (counts.get(agent) ?? 0) + 1)
+      countsByProject.set(projectRoot, counts)
+    }
+  }
+
+  const platformOrder = new Map(platforms.value.map((platform, index) => [platform.id, index]))
+  return new Map<string, ProjectPlatformCount[]>(
+    [...countsByProject].map(([projectRoot, counts]) => {
+      const projectPlatforms = [...counts.entries()]
+        .sort(
+          ([a], [b]) =>
+            (platformOrder.get(a) ?? Number.MAX_SAFE_INTEGER) -
+            (platformOrder.get(b) ?? Number.MAX_SAFE_INTEGER),
+        )
+        .map(([id, count]) => ({
+          id,
+          displayName: platforms.value.find((platform) => platform.id === id)?.displayName ?? id,
+          count,
+        }))
+      return [projectRoot, projectPlatforms] as [string, ProjectPlatformCount[]]
+    }),
+  )
 })
 
 async function refresh(options: { silent?: boolean } = {}): Promise<void> {
@@ -213,9 +249,10 @@ async function setEnabled(
   name: string,
   targets: InstallTarget[],
   enabled: boolean,
+  options: { refresh?: boolean } = {},
 ): Promise<TargetResult[]> {
   const results = await window.skillsManager.setSkillEnabled(name, targets, enabled)
-  await refresh()
+  if (options.refresh !== false) await refresh()
   return results
 }
 
@@ -231,6 +268,7 @@ export function useSkills() {
     platformFilter,
     projectFilter,
     countByProject,
+    projectPlatformCounts,
     driftOnly,
     groupFilter,
     ownershipFilter,
