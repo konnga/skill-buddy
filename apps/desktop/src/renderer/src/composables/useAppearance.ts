@@ -47,16 +47,46 @@ export const themePresets: ThemePreset[] = [
     dark: { ...defaultAppearance.dark },
   },
   {
+    id: 'absolutely',
+    labelKey: 'settings.appearancePresetAbsolutely',
+    light: { accent: '#d97757', background: '#fbfaf8', foreground: '#2f2b28', contrast: 48 },
+    dark: { accent: '#e38b6d', background: '#1c1917', foreground: '#f5f2ef', contrast: 55 },
+  },
+  {
     id: 'azure',
     labelKey: 'settings.appearancePresetAzure',
     light: { accent: '#2563eb', background: '#ffffff', foreground: '#1f2328', contrast: 50 },
     dark: { accent: '#339cff', background: '#181818', foreground: '#ffffff', contrast: 60 },
   },
   {
+    id: 'cappuccino',
+    labelKey: 'settings.appearancePresetCappuccino',
+    light: { accent: '#7c3aed', background: '#faf7f2', foreground: '#2d2830', contrast: 48 },
+    dark: { accent: '#c4a7e7', background: '#191724', foreground: '#e0def4', contrast: 55 },
+  },
+  {
+    id: 'everforest',
+    labelKey: 'settings.appearancePresetEverforest',
+    light: { accent: '#7f9d55', background: '#fdf6e3', foreground: '#3a4439', contrast: 48 },
+    dark: { accent: '#a7c080', background: '#2d353b', foreground: '#d3c6aa', contrast: 52 },
+  },
+  {
+    id: 'linear',
+    labelKey: 'settings.appearancePresetLinear',
+    light: { accent: '#5e6ad2', background: '#f7f8fa', foreground: '#1f2028', contrast: 52 },
+    dark: { accent: '#8a8fef', background: '#17171b', foreground: '#f1f1f3', contrast: 58 },
+  },
+  {
     id: 'midnight',
     labelKey: 'settings.appearancePresetMidnight',
     light: { accent: '#0969da', background: '#f6f8fa', foreground: '#1f2328', contrast: 55 },
     dark: { accent: '#58a6ff', background: '#0d1117', foreground: '#e6edf3', contrast: 55 },
+  },
+  {
+    id: 'notion',
+    labelKey: 'settings.appearancePresetNotion',
+    light: { accent: '#2383e2', background: '#ffffff', foreground: '#37352f', contrast: 43 },
+    dark: { accent: '#529cca', background: '#191919', foreground: '#f1f1ef', contrast: 50 },
   },
 ]
 

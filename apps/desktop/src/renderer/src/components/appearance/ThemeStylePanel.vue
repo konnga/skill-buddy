@@ -83,7 +83,7 @@ function confirmImport(): void {
         <Button variant="ghost" size="sm" class="text-muted-foreground" @click="copyTheme">
           {{ t('settings.appearanceCopy') }}
         </Button>
-        <Select v-model="preset" :options="presetOptions" class="w-36">
+        <Select v-model="preset" :options="presetOptions" class="w-44">
           <template #value="{ option }">
             <span class="flex items-center gap-2">
               <span

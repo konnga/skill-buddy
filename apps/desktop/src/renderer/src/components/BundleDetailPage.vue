@@ -2,16 +2,12 @@
 import { computed, onMounted, ref, shallowRef } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { ArrowLeft, ChevronRight, Sparkles } from '@lucide/vue'
-import type { McpServerDefinition, McpTarget } from '@skillbuddy/core'
 import type { InstallTarget } from '../../../shared/ipc.js'
-import BundleMcpSection from '@/components/bundles/BundleMcpSection.vue'
-import McpPlanDialog from '@/components/mcp/McpPlanDialog.vue'
 import PlatformTargetPicker from '@/components/PlatformTargetPicker.vue'
 import SidebarToggle from '@/components/SidebarToggle.vue'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import { useMcpServers } from '@/composables/useMcpServers'
 import { useSettings } from '@/composables/useSettings'
 import { useSkills } from '@/composables/useSkills'
 import { showToast } from '@/composables/useToast'
@@ -31,48 +27,23 @@ const emit = defineEmits<{ close: []; openSkill: [item: MarketItem] }>()
 
 const { t, locale } = useI18n()
 const { skills, detectedPlatforms, installSkill, refresh: refreshSkills } = useSkills()
-const { groups, projectRoots } = useSettings()
-const {
-  servers: localMcpServers,
-  platforms: mcpPlatforms,
-  planning,
-  applying,
-  error: mcpError,
-  currentPlan,
-  refresh: refreshMcp,
-  planUpsert,
-  applyPlan,
-  restore,
-  closePlan,
-} = useMcpServers()
+const { groups } = useSettings()
 
 const selectedSkills = ref(new Set(props.bundle.skills.map((skill) => skill.name)))
-const selectedMcp = ref(new Set(props.bundle.mcpServers.map((server) => server.name)))
 const scope = shallowRef('user')
 const agents = ref<string[]>([])
-const mcpTargets = ref<McpTarget[]>([])
 const busy = shallowRef(false)
 const error = shallowRef<string | null>(null)
 const note = shallowRef<string | null>(null)
 const progress = ref<{ n: number; total: number } | null>(null)
-const pendingSkills = ref<BundleSkillRef[]>([])
-const mcpQueue = ref<McpServerDefinition[]>([])
-const mcpOperationIds = ref<string[]>([])
-const appliedMcpCount = shallowRef(0)
 
-const selectedCount = computed(() => selectedSkills.value.size + selectedMcp.value.size)
-const installedMcpNames = computed(() => localMcpServers.value.map((server) => server.name))
+const selectedCount = computed(() => selectedSkills.value.size)
 const installDisabled = computed(
-  () =>
-    busy.value ||
-    selectedCount.value === 0 ||
-    (selectedSkills.value.size > 0 && agents.value.length === 0) ||
-    (selectedMcp.value.size > 0 && mcpTargets.value.length === 0),
+  () => busy.value || selectedCount.value === 0 || agents.value.length === 0,
 )
 
 onMounted(() => {
   agents.value = detectedPlatforms.value.map((platform) => platform.id)
-  if (props.bundle.mcpServers.length > 0) void refreshMcp({ silent: true })
 })
 
 function toggleSkill(name: string): void {
@@ -199,111 +170,22 @@ async function installSelectedSkills(chosen: BundleSkillRef[]): Promise<boolean>
   return false
 }
 
-function offerMcpUndo(): void {
-  const operationIds = [...mcpOperationIds.value]
-  if (operationIds.length === 0) return
-  showToast(
-    {
-      message: t('bundles.mcpApplied', { n: appliedMcpCount.value }),
-      actionLabel: t('common.undo'),
-      onAction: async () => {
-        const outcomes: boolean[] = []
-        for (const operationId of operationIds.reverse()) {
-          outcomes.push(await restore(operationId))
-        }
-        showToast({
-          message: outcomes.every(Boolean) ? t('common.restored') : t('mcp.restoreFailed'),
-        })
-      },
-    },
-    60_000,
-  )
-  mcpOperationIds.value = []
-}
-
-async function finishInstallation(options: { autoClose?: boolean } = {}): Promise<void> {
-  const skillSuccess =
-    pendingSkills.value.length === 0 || (await installSelectedSkills(pendingSkills.value))
-  pendingSkills.value = []
-  mcpQueue.value = []
-  offerMcpUndo()
-  busy.value = false
-  if (skillSuccess && (options.autoClose ?? true)) emit('close')
-}
-
-async function prepareNextMcpPlan(): Promise<void> {
-  const definition = mcpQueue.value[0]
-  if (!definition) {
-    await finishInstallation()
-    return
-  }
-  const plan = await planUpsert(definition, mcpTargets.value)
-  if (!plan) {
-    error.value = mcpError.value ?? t('bundles.mcpPlanFailed')
-    mcpQueue.value = []
-    offerMcpUndo()
-    busy.value = false
-    return
-  }
-  if (!plan.canApply && plan.blockers.length === 0) {
-    closePlan()
-    mcpQueue.value = mcpQueue.value.slice(1)
-    await prepareNextMcpPlan()
-  }
-}
-
 async function beginInstall(): Promise<void> {
   if (installDisabled.value) return
   error.value = null
   note.value = null
   busy.value = true
-  appliedMcpCount.value = 0
-  mcpOperationIds.value = []
-  pendingSkills.value = props.bundle.skills.filter((skill) => selectedSkills.value.has(skill.name))
-  mcpQueue.value = props.bundle.mcpServers.filter((server) => selectedMcp.value.has(server.name))
-  await prepareNextMcpPlan()
-}
-
-async function executeMcpPlan(): Promise<void> {
-  const result = await applyPlan()
-  if (!result) {
-    error.value = mcpError.value ?? t('bundles.mcpPlanFailed')
-    mcpQueue.value = []
-    offerMcpUndo()
-    busy.value = false
-    return
+  const chosen = props.bundle.skills.filter((skill) => selectedSkills.value.has(skill.name))
+  const success = await installSelectedSkills(chosen)
+  busy.value = false
+  if (success) {
+    showToast({
+      message: t('bundles.installSuccess', {
+        name: bundleText(props.bundle.name, locale.value),
+      }),
+    })
+    emit('close')
   }
-
-  const succeeded = result.results.filter((item) => item.ok)
-  const failed = result.results.filter((item) => !item.ok)
-  if (succeeded.length > 0) {
-    mcpOperationIds.value = [...mcpOperationIds.value, result.operationId]
-    appliedMcpCount.value += 1
-  }
-  if (failed.length > 0) {
-    error.value = failed.map((item) => item.error).filter(Boolean).join('；')
-    mcpQueue.value = []
-    offerMcpUndo()
-    busy.value = false
-    return
-  }
-
-  mcpQueue.value = mcpQueue.value.slice(1)
-  await prepareNextMcpPlan()
-}
-
-function cancelMcpPlans(): void {
-  if (applying.value) return
-  closePlan()
-  const skipped = mcpQueue.value.length
-  mcpQueue.value = []
-  // 关闭计划对话框只代表跳过剩余 MCP 步骤，已选 skills 仍然继续安装；
-  // 页面保持打开并提示跳过数量，避免“什么都没装且毫无反馈”。
-  void finishInstallation({ autoClose: false }).then(() => {
-    if (skipped > 0 && !note.value) {
-      note.value = t('bundles.mcpSkipped', { n: skipped })
-    }
-  })
 }
 </script>
 
@@ -332,10 +214,7 @@ function cancelMcpPlans(): void {
         <template v-if="busy && progress">
           {{ t('bundles.installing', { n: progress.n, total: progress.total }) }}
         </template>
-        <template v-else-if="busy">
-          {{ planning ? t('bundles.preparingPlan') : t('bundles.reviewingMcp') }}
-        </template>
-        <template v-else>{{ t('bundles.installResources', { n: selectedCount }) }}</template>
+        <template v-else>{{ t('bundles.install', { n: selectedCount }) }}</template>
       </Button>
     </header>
 
@@ -359,7 +238,7 @@ function cancelMcpPlans(): void {
               {{ bundleText(bundle.description, locale) }}
             </p>
             <span class="text-sm text-muted-foreground">
-              {{ t('bundles.resourceCount', { skills: bundle.skills.length, mcp: bundle.mcpServers.length }) }}
+              {{ t('bundles.skillCount', { n: bundle.skills.length }) }}
             </span>
           </div>
         </div>
@@ -412,17 +291,6 @@ function cancelMcpPlans(): void {
           />
         </section>
 
-        <BundleMcpSection
-          v-if="bundle.mcpServers.length"
-          v-model:selected="selectedMcp"
-          v-model:targets="mcpTargets"
-          :servers="bundle.mcpServers"
-          :platforms="mcpPlatforms"
-          :project-roots="projectRoots"
-          :installed-names="installedMcpNames"
-          :disabled="busy"
-        />
-
         <div v-if="note || error" class="flex flex-col gap-2 border-t pt-4">
           <p v-if="note" class="text-sm text-amber-600 dark:text-amber-400">{{ note }}</p>
           <p v-if="error" class="break-all text-sm text-destructive">{{ error }}</p>
@@ -430,11 +298,5 @@ function cancelMcpPlans(): void {
       </div>
     </ScrollArea>
 
-    <McpPlanDialog
-      :plan="currentPlan"
-      :applying="applying"
-      @close="cancelMcpPlans"
-      @apply="executeMcpPlan"
-    />
   </div>
 </template>

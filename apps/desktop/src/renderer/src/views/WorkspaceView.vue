@@ -177,6 +177,7 @@ watch(skills, (value) => {
       @edit-skill="openSkill($event, null, 'edit')"
       @new-skill="openConversation()"
       @import-skills="emit('importSkills')"
+      @navigate="emit('navigate', $event)"
     />
   </main>
 </template>

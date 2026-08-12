@@ -8,14 +8,25 @@ import {
   DialogPortal,
   DialogRoot,
   DialogTitle,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuPortal,
+  DropdownMenuRoot,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
 } from 'reka-ui'
 import {
+  ArrowLeft,
   Check,
-  ChevronRight,
   CloudDownload,
+  Copy,
+  Ellipsis,
+  FolderPlus,
   FolderOpen,
   Import,
   Layers,
+  ListPlus,
+  Pencil,
   Power,
   PowerOff,
   Plus,
@@ -27,19 +38,22 @@ import {
 import type { AggregatedSkill } from '@skillbuddy/core'
 import type { InstallTarget } from '../../../shared/ipc.js'
 import PlatformTargetPicker from '@/components/PlatformTargetPicker.vue'
+import PlatformIcon from '@/components/PlatformIcon.vue'
 import GroupEmptyState from '@/components/groups/GroupEmptyState.vue'
-import GroupPresetToolbar from '@/components/groups/GroupPresetToolbar.vue'
 import SidebarToggle from '@/components/SidebarToggle.vue'
 import SkillCard from '@/components/SkillCard.vue'
+import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Select } from '@/components/ui/select'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Switch } from '@/components/ui/switch'
 import { useGroups } from '@/composables/useGroups'
+import { useSettings } from '@/composables/useSettings'
 import { useSkills } from '@/composables/useSkills'
 import { showToast } from '@/composables/useToast'
 import { agentLabel } from '@/lib/agents'
+import { pathBasename } from '@/lib/paths'
 import {
   manageableSkillInstallations,
   type SkillInstallation,
@@ -51,6 +65,7 @@ const emit = defineEmits<{
   editSkill: [skill: AggregatedSkill]
   newSkill: []
   importSkills: []
+  navigate: [view: 'groups']
 }>()
 
 const { t } = useI18n()
@@ -67,13 +82,20 @@ const {
   filtered,
   skills,
   refresh,
+  installSkill,
   setEnabled,
 } = useSkills()
+const { projectRoots } = useSettings()
 const removing = ref<Set<string>>(new Set())
 const toggling = ref<Set<string>>(new Set())
 const batchMode = shallowRef(false)
 const selectedNames = ref<Set<string>>(new Set())
 const batchBusy = ref(false)
+const batchProjectOpen = shallowRef(false)
+const batchProjectRoot = shallowRef('')
+const batchProjectAgents = ref<string[]>([])
+const batchGroupOpen = shallowRef(false)
+const batchGroupNames = ref<Set<string>>(new Set())
 type BatchAction = 'enable' | 'disable' | 'uninstall'
 interface BatchItem {
   name: string
@@ -106,6 +128,7 @@ const pendingUninstallIsScopeAgent = computed(
 )
 const {
   groupFilter,
+  groups,
   groupApplyOpen,
   groupApplyScope,
   groupApplyAgents,
@@ -115,12 +138,120 @@ const {
   activeGroupState,
   groupToggleBusy,
   groupCount,
+  filterGroup,
+  renameGroup,
+  deleteGroup,
+  exportGroup,
+  setGroupSkills,
   applyGroup,
   applyGroupTemp,
   endTemp,
-  setGroupEnabled,
+  setGroupEnabledFor,
 } = useGroups()
 const activeGroupEmpty = computed(() => activeGroupState.value?.totalSkills === 0)
+const activeGroup = computed(() => groups.value.find((group) => group.name === groupFilter.value))
+const renameOpen = shallowRef(false)
+const renameValue = ref('')
+const memberEditorOpen = shallowRef(false)
+const memberSearch = ref('')
+const draftMemberNames = ref<Set<string>>(new Set())
+const renameDuplicate = computed(() => {
+  const name = renameValue.value.trim()
+  return Boolean(
+    name && name !== groupFilter.value && groups.value.some((group) => group.name === name),
+  )
+})
+const groupStatusVariant = computed(() => {
+  if (activeGroupState.value?.status === 'enabled') return 'success' as const
+  if (activeGroupState.value?.status === 'partial') return 'default' as const
+  return 'secondary' as const
+})
+const cannotManageGroup = computed(
+  () => groupToggleBusy.value || (activeGroupState.value?.manageableInstallations ?? 0) === 0,
+)
+const memberEditorSkills = computed(() => {
+  const query = memberSearch.value.trim().toLowerCase()
+  if (!query) return skills.value
+  return skills.value.filter((skill) =>
+    [skill.name, skill.description, ...skill.tags].some((field) =>
+      field.toLowerCase().includes(query),
+    ),
+  )
+})
+const memberEditorMissingNames = computed(() => {
+  const query = memberSearch.value.trim().toLowerCase()
+  const localNames = new Set(skills.value.map((skill) => skill.name))
+  return (activeGroup.value?.skills ?? []).filter(
+    (name) => !localNames.has(name) && (!query || name.toLowerCase().includes(query)),
+  )
+})
+
+/** 返回技能包列表并结束当前技能包的筛选上下文。 */
+function backToGroups(): void {
+  filterGroup(null)
+  emit('navigate', 'groups')
+}
+
+function openRenameGroup(): void {
+  if (!groupFilter.value) return
+  renameValue.value = groupFilter.value
+  renameOpen.value = true
+}
+
+function submitRenameGroup(): void {
+  if (!groupFilter.value || renameDuplicate.value) return
+  if (renameGroup(groupFilter.value, renameValue.value)) renameOpen.value = false
+}
+
+async function removeActiveGroup(): Promise<void> {
+  const name = groupFilter.value
+  if (!name) return
+  await deleteGroup(name)
+  if (groupFilter.value === null) emit('navigate', 'groups')
+}
+
+function exportActiveGroup(): void {
+  if (activeGroup.value) void exportGroup(activeGroup.value)
+}
+
+function setActiveGroupEnabled(enabled: boolean): void {
+  const name = groupFilter.value
+  if (name) void setGroupEnabledFor(name, enabled)
+}
+
+/** 打开成员管理器，并以当前技能包成员作为编辑草稿。 */
+function openMemberEditor(): void {
+  if (!activeGroup.value) return
+  memberSearch.value = ''
+  draftMemberNames.value = new Set(activeGroup.value.skills)
+  memberEditorOpen.value = true
+}
+
+function toggleDraftMember(name: string): void {
+  const next = new Set(draftMemberNames.value)
+  if (next.has(name)) next.delete(name)
+  else next.add(name)
+  draftMemberNames.value = next
+}
+
+function saveGroupMembers(): void {
+  const group = activeGroup.value
+  if (!group) return
+
+  const existingMembers = group.skills.filter((name) => draftMemberNames.value.has(name))
+  const addedMembers = skills.value
+    .map((skill) => skill.name)
+    .filter((name) => draftMemberNames.value.has(name) && !group.skills.includes(name))
+  if (setGroupSkills(group.name, [...existingMembers, ...addedMembers])) {
+    memberEditorOpen.value = false
+  }
+}
+
+function removeSkillFromActiveGroup(name: string): void {
+  const group = activeGroup.value
+  if (!group) return
+  setGroupSkills(group.name, group.skills.filter((skillName) => skillName !== name))
+}
 
 const sortOptions = computed(() => [
   { value: 'name', label: t('sort.name') },
@@ -179,6 +310,12 @@ const selectedTargetCount = computed(() =>
     0,
   ),
 )
+const projectCapablePlatforms = computed(() =>
+  detectedPlatforms.value.filter((platform) => platform.hasProjectScope),
+)
+const projectOptions = computed(() =>
+  projectRoots.value.map((root) => ({ value: root, label: pathBasename(root) })),
+)
 
 watch(filtered, (items) => {
   const visible = new Set(items.map((skill) => skill.name))
@@ -211,10 +348,86 @@ function handleBatchModeChange(enabled: boolean): void {
   if (!enabled) clearSelection()
 }
 
-/** 退出技能包详情，返回不带包筛选的 Skills 列表。 */
-function browseAllSkills(): void {
-  groupFilter.value = null
-  search.value = ''
+function openBatchProject(): void {
+  batchProjectRoot.value = projectRoots.value[0] ?? ''
+  batchProjectAgents.value = projectCapablePlatforms.value.map((platform) => platform.id)
+  batchProjectOpen.value = true
+}
+
+function toggleBatchProjectAgent(id: string): void {
+  batchProjectAgents.value = batchProjectAgents.value.includes(id)
+    ? batchProjectAgents.value.filter((agent) => agent !== id)
+    : [...batchProjectAgents.value, id]
+}
+
+async function addSelectedToProject(): Promise<void> {
+  if (!batchProjectRoot.value || batchProjectAgents.value.length === 0 || batchBusy.value) return
+  batchBusy.value = true
+  try {
+    let completed = 0
+    const failures: string[] = []
+    for (const skill of selectedSkills.value) {
+      const targets: InstallTarget[] = batchProjectAgents.value
+        .filter(
+          (agent) =>
+            !skill.installations.some(
+              (installation) =>
+                installation.agent === agent &&
+                installation.scope === 'project' &&
+                installation.projectRoot === batchProjectRoot.value,
+            ),
+        )
+        .map((agent) => ({
+          agent,
+          scope: 'project' as const,
+          projectRoot: batchProjectRoot.value,
+        }))
+      if (targets.length === 0) continue
+      const results = await installSkill(skill.installations[0]!.skill, targets, { refresh: false })
+      completed += results.filter((result) => result.ok).length
+      failures.push(
+        ...results
+          .filter((result) => !result.ok)
+          .map((result) => `${skill.name}: ${result.error ?? ''}`),
+      )
+    }
+    await refresh({ silent: true })
+    batchProjectOpen.value = false
+    clearSelection()
+    showToast({ message: t('batch.addProjectDone', { n: completed }) })
+    if (failures.length > 0) showToast({ message: failures.filter(Boolean).join('；') })
+  } catch {
+    showToast({ message: t('batch.failed') })
+  } finally {
+    batchBusy.value = false
+  }
+}
+
+function openBatchGroups(): void {
+  batchGroupNames.value = new Set()
+  batchGroupOpen.value = true
+}
+
+function toggleBatchGroup(name: string): void {
+  const next = new Set(batchGroupNames.value)
+  if (next.has(name)) next.delete(name)
+  else next.add(name)
+  batchGroupNames.value = next
+}
+
+function addSelectedToGroups(): void {
+  if (batchGroupNames.value.size === 0) return
+  const names = selectedSkills.value.map((skill) => skill.name)
+  let added = 0
+  groups.value = groups.value.map((group) => {
+    if (!batchGroupNames.value.has(group.name)) return group
+    const nextSkills = [...new Set([...group.skills, ...names])]
+    added += nextSkills.length - group.skills.length
+    return { ...group, skills: nextSkills }
+  })
+  batchGroupOpen.value = false
+  clearSelection()
+  showToast({ message: t('batch.addGroupsDone', { n: added }) })
 }
 
 function requestBatch(action: BatchAction): void {
@@ -456,6 +669,16 @@ function updateToggleDialog(open: boolean): void {
     pendingToggle.value = null
   }
 }
+
+watch(groupFilter, (name) => {
+  if (name) {
+    batchMode.value = false
+    clearSelection()
+    pendingBatch.value = null
+  } else {
+    memberEditorOpen.value = false
+  }
+})
 </script>
 
 <template>
@@ -467,115 +690,216 @@ function updateToggleDialog(open: boolean): void {
       ]"
     >
       <SidebarToggle />
-      <div
-        v-if="activeGroupEmpty && activeGroupState"
-        class="app-no-drag flex min-w-0 flex-1 items-center gap-2 text-sm"
-      >
-        <Layers class="size-4 shrink-0 text-muted-foreground" />
-        <span class="shrink-0 text-muted-foreground">{{ t('groups.navTitle') }}</span>
-        <ChevronRight class="size-3.5 shrink-0 text-muted-foreground/60" />
-        <span class="truncate font-medium" :title="activeGroupState.name">
-          {{ activeGroupState.name }}
-        </span>
-      </div>
-      <div v-else class="app-no-drag flex min-w-0 flex-1 flex-wrap items-center gap-2">
-        <div class="relative w-64 max-w-full grow sm:grow-0">
-          <Search
-            class="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
-          />
-          <Input v-model="search" :placeholder="t('app.searchPlaceholder')" class="h-8 pl-8" />
+      <template v-if="groupFilter && activeGroupState">
+        <div class="app-no-drag flex min-w-0 flex-1 items-center gap-2">
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            class="-ml-2 size-8 shrink-0 cursor-pointer"
+            :title="t('groups.backToList')"
+            :aria-label="t('groups.backToList')"
+            @click="backToGroups"
+          >
+            <ArrowLeft />
+          </Button>
+          <div class="min-w-0">
+            <div class="flex min-w-0 items-center gap-2">
+              <h1 class="truncate text-base font-semibold" :title="groupFilter">
+                {{ groupFilter }}
+              </h1>
+              <Badge :variant="groupStatusVariant" class="text-xs">
+                {{ t(`groups.status.${activeGroupState.status}`) }}
+              </Badge>
+            </div>
+            <p class="truncate text-xs text-muted-foreground">
+              {{
+                t('groups.runtimeProgress', {
+                  installed: activeGroupState.installedSkills,
+                  total: activeGroupState.totalSkills,
+                  enabled: activeGroupState.enabledInstallations,
+                  disabled: activeGroupState.disabledInstallations,
+                })
+              }}
+            </p>
+          </div>
         </div>
-        <Select v-model="ownershipModel" :options="ownershipOptions" />
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          :aria-pressed="driftOnly"
-          :class="[
-            'cursor-pointer gap-1.5 px-2.5 font-normal [&_svg]:size-3.5',
-            driftOnly
-              ? 'border-amber-500/50 bg-amber-500/10 text-amber-700 hover:border-amber-500/60 hover:bg-amber-500/15 hover:text-amber-700 dark:text-amber-400 dark:hover:text-amber-400'
-              : 'text-foreground hover:border-foreground/40 hover:bg-background',
-          ]"
-          @click="driftOnly = !driftOnly"
-        >
-          <TriangleAlert class="size-3.5" />
-          {{ t('app.driftOnly') }}
-        </Button>
-        <Select v-model="sortBy" :options="sortOptions" />
-        <label class="flex shrink-0 cursor-pointer items-center gap-2 whitespace-nowrap text-sm text-muted-foreground">
-          <span>{{ t('batch.manage') }}</span>
-          <Switch
-            v-model="batchMode"
+        <div class="app-no-drag ml-auto flex shrink-0 items-center gap-2">
+          <Button variant="outline" size="sm" class="cursor-pointer" @click="openMemberEditor">
+            <ListPlus />
+            {{ t('groups.manageSkills') }}
+          </Button>
+          <Button
+            size="sm"
+            class="cursor-pointer"
+            :disabled="activeGroupEmpty"
+            @click="groupApplyOpen = !groupApplyOpen"
+          >
+            <CloudDownload />
+            {{ t('groups.applyPackage') }}
+          </Button>
+          <DropdownMenuRoot>
+            <DropdownMenuTrigger as-child>
+              <Button
+                variant="outline"
+                size="icon"
+                class="size-8 cursor-pointer"
+                :aria-label="t('groups.actions')"
+              >
+                <Ellipsis />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuPortal>
+              <DropdownMenuContent
+                align="end"
+                :side-offset="6"
+                class="z-50 min-w-44 rounded-md border bg-popover p-1 text-popover-foreground shadow-md outline-none"
+              >
+                <DropdownMenuItem
+                  :disabled="cannotManageGroup || activeGroupState.status === 'enabled'"
+                  class="flex cursor-pointer select-none items-center gap-2 rounded-[5px] px-2.5 py-2 text-sm outline-none data-[disabled]:pointer-events-none data-[disabled]:opacity-40 data-[highlighted]:bg-accent"
+                  @select="setActiveGroupEnabled(true)"
+                >
+                  <Power />
+                  {{ t('groups.enableGroup') }}
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  :disabled="cannotManageGroup || activeGroupState.status === 'disabled'"
+                  class="flex cursor-pointer select-none items-center gap-2 rounded-[5px] px-2.5 py-2 text-sm outline-none data-[disabled]:pointer-events-none data-[disabled]:opacity-40 data-[highlighted]:bg-accent"
+                  @select="setActiveGroupEnabled(false)"
+                >
+                  <PowerOff />
+                  {{ t('groups.disableGroup') }}
+                </DropdownMenuItem>
+                <DropdownMenuSeparator class="my-1 h-px bg-border" />
+                <DropdownMenuItem
+                  class="flex cursor-pointer select-none items-center gap-2 rounded-[5px] px-2.5 py-2 text-sm outline-none data-[highlighted]:bg-accent"
+                  @select="exportActiveGroup"
+                >
+                  <Copy />
+                  {{ t('groups.exportAction') }}
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  class="flex cursor-pointer select-none items-center gap-2 rounded-[5px] px-2.5 py-2 text-sm outline-none data-[highlighted]:bg-accent"
+                  @select="openRenameGroup"
+                >
+                  <Pencil />
+                  {{ t('groups.renameAction') }}
+                </DropdownMenuItem>
+                <DropdownMenuSeparator class="my-1 h-px bg-border" />
+                <DropdownMenuItem
+                  class="flex cursor-pointer select-none items-center gap-2 rounded-[5px] px-2.5 py-2 text-sm text-destructive outline-none data-[highlighted]:bg-destructive/10"
+                  @select="removeActiveGroup"
+                >
+                  <Trash2 />
+                  {{ t('groups.deleteAction') }}
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenuPortal>
+          </DropdownMenuRoot>
+        </div>
+        <div class="app-no-drag flex w-full basis-full items-center gap-2 border-t pt-2">
+          <div class="relative w-64 max-w-full">
+            <Search
+              class="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
+            />
+            <Input v-model="search" :placeholder="t('groups.searchSkillsPh')" class="h-8 pl-8" />
+          </div>
+          <Select v-model="sortBy" :options="sortOptions" />
+        </div>
+      </template>
+      <template v-else>
+        <div class="app-no-drag flex min-w-0 flex-1 flex-wrap items-center gap-2">
+          <div class="relative w-64 max-w-full grow sm:grow-0">
+            <Search
+              class="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
+            />
+            <Input v-model="search" :placeholder="t('app.searchPlaceholder')" class="h-8 pl-8" />
+          </div>
+          <Select v-model="ownershipModel" :options="ownershipOptions" />
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            :aria-pressed="driftOnly"
+            :class="[
+              'cursor-pointer gap-1.5 px-2.5 font-normal [&_svg]:size-3.5',
+              driftOnly
+                ? 'border-amber-500/50 bg-amber-500/10 text-amber-700 hover:border-amber-500/60 hover:bg-amber-500/15 hover:text-amber-700 dark:text-amber-400 dark:hover:text-amber-400'
+                : 'text-foreground hover:border-foreground/40 hover:bg-background',
+            ]"
+            @click="driftOnly = !driftOnly"
+          >
+            <TriangleAlert class="size-3.5" />
+            {{ t('app.driftOnly') }}
+          </Button>
+          <Select v-model="sortBy" :options="sortOptions" />
+          <label class="flex shrink-0 cursor-pointer items-center gap-2 whitespace-nowrap text-sm text-muted-foreground">
+            <span>{{ t('batch.manage') }}</span>
+            <Switch
+              v-model="batchMode"
+              :disabled="batchBusy"
+              @update:model-value="handleBatchModeChange"
+            />
+          </label>
+          <Button
+            v-if="batchMode && filtered.length > 0"
+            variant="ghost"
+            size="sm"
+            class="cursor-pointer gap-1.5 px-2.5 font-normal [&_svg]:size-3.5"
             :disabled="batchBusy"
-            @update:model-value="handleBatchModeChange"
-          />
-        </label>
-        <Button
-          v-if="batchMode && filtered.length > 0"
-          variant="ghost"
-          size="sm"
-          class="cursor-pointer gap-1.5 px-2.5 font-normal [&_svg]:size-3.5"
-          :disabled="batchBusy"
-          @click="toggleSelectAll"
-        >
-          <Check class="size-3.5" />
-          {{ t(allVisibleSelected ? 'batch.clear' : 'batch.selectAll') }}
-        </Button>
-        <Button
-          v-if="groupFilter"
-          variant="outline"
-          size="sm"
-          class="cursor-pointer"
-          @click="groupApplyOpen = !groupApplyOpen"
-        >
-          <CloudDownload class="size-3.5" />
-          {{ t('groups.applyTitle') }}
-        </Button>
-      </div>
-      <div class="app-no-drag ml-auto flex shrink-0 items-center gap-2">
-        <Button
-          variant="outline"
-          size="icon"
-          class="cursor-pointer"
-          :title="t('newSkill.title')"
-          :aria-label="t('newSkill.title')"
-          @click="emit('newSkill')"
-        >
-          <Plus />
-        </Button>
-        <Button
-          variant="outline"
-          size="icon"
-          class="cursor-pointer"
-          :title="t('import.title')"
-          :aria-label="t('import.title')"
-          @click="emit('importSkills')"
-        >
-          <Import />
-        </Button>
-        <Button
-          variant="outline"
-          size="sm"
-          class="cursor-pointer"
-          :disabled="loading"
-          @click="refresh"
-        >
-          <RefreshCw :class="loading ? 'animate-spin' : ''" />
-          {{ t('app.rescan') }}
-        </Button>
-      </div>
+            @click="toggleSelectAll"
+          >
+            <Check class="size-3.5" />
+            {{ t(allVisibleSelected ? 'batch.clear' : 'batch.selectAll') }}
+          </Button>
+          <Button
+            v-if="batchMode && selectedNames.size > 0"
+            variant="ghost"
+            size="sm"
+            class="cursor-pointer px-2.5 font-normal"
+            :disabled="batchBusy"
+            @click="clearSelection"
+          >
+            {{ t('batch.clearSelection') }}
+          </Button>
+        </div>
+        <div class="app-no-drag ml-auto flex shrink-0 items-center gap-2">
+          <Button
+            variant="outline"
+            size="icon"
+            class="cursor-pointer"
+            :title="t('newSkill.title')"
+            :aria-label="t('newSkill.title')"
+            @click="emit('newSkill')"
+          >
+            <Plus />
+          </Button>
+          <Button
+            variant="outline"
+            size="icon"
+            class="cursor-pointer"
+            :title="t('import.title')"
+            :aria-label="t('import.title')"
+            @click="emit('importSkills')"
+          >
+            <Import />
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            class="cursor-pointer"
+            :disabled="loading"
+            @click="refresh"
+          >
+            <RefreshCw :class="loading ? 'animate-spin' : ''" />
+            {{ t('app.rescan') }}
+          </Button>
+        </div>
+      </template>
     </header>
 
     <ScrollArea class="flex-1" viewport-class="px-6 py-5">
-      <GroupPresetToolbar
-        v-if="groupFilter && activeGroupState && !activeGroupEmpty"
-        :state="activeGroupState"
-        :busy="groupToggleBusy"
-        @enable="setGroupEnabled(true)"
-        @disable="setGroupEnabled(false)"
-      />
-
       <div
         v-if="groupFilter && groupApplyOpen"
         class="mb-4 flex flex-col gap-2 rounded-lg border px-4 py-3"
@@ -645,6 +969,26 @@ function updateToggleDialog(open: boolean): void {
             variant="outline"
             size="sm"
             class="cursor-pointer"
+            :disabled="batchBusy || projectRoots.length === 0 || projectCapablePlatforms.length === 0"
+            @click="openBatchProject"
+          >
+            <FolderPlus class="size-3.5" />
+            {{ t('batch.addProject') }}
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            class="cursor-pointer"
+            :disabled="batchBusy || groups.length === 0"
+            @click="openBatchGroups"
+          >
+            <Layers class="size-3.5" />
+            {{ t('batch.addGroups') }}
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            class="cursor-pointer"
             :disabled="batchBusy || selectedTargetCount === 0"
             @click="requestBatch('enable')"
           >
@@ -671,15 +1015,6 @@ function updateToggleDialog(open: boolean): void {
             <Trash2 class="size-3.5" />
             {{ t('batch.uninstall') }}
           </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            class="cursor-pointer"
-            :disabled="batchBusy"
-            @click="clearSelection"
-          >
-            {{ t('batch.clearSelection') }}
-          </Button>
         </div>
       </div>
 
@@ -690,7 +1025,7 @@ function updateToggleDialog(open: boolean): void {
       <GroupEmptyState
         v-else-if="groupFilter && activeGroupState && activeGroupEmpty"
         :name="activeGroupState.name"
-        @browse-skills="browseAllSkills"
+        @browse-skills="openMemberEditor"
         @new-skill="emit('newSkill')"
       />
       <div
@@ -713,6 +1048,7 @@ function updateToggleDialog(open: boolean): void {
           :skill="skill"
           :busy="removing.has(skill.name) || toggling.has(skill.name)"
           :batch-mode="batchMode"
+          :group-context="Boolean(groupFilter)"
           :selected="selectedNames.has(skill.name)"
           :current-platform="platformFilter ?? undefined"
           :scope-filter="
@@ -726,6 +1062,7 @@ function updateToggleDialog(open: boolean): void {
           @edit="emit('editSkill', skill)"
           @toggle-selected="toggleSelected(skill.name)"
           @toggle-enabled="requestToggle(skill)"
+          @remove-from-group="removeSkillFromActiveGroup(skill.name)"
           @uninstall-current="requestUninstall(skill, platformFilter)"
           @uninstall-all="requestUninstall(skill, null)"
         />
@@ -871,6 +1208,222 @@ function updateToggleDialog(open: boolean): void {
             >
               {{ pendingBatchAction }}
             </Button>
+          </div>
+        </DialogContent>
+      </DialogPortal>
+    </DialogRoot>
+
+    <DialogRoot v-model:open="batchProjectOpen">
+      <DialogPortal>
+        <DialogOverlay class="fixed inset-0 z-40 bg-black/40" />
+        <DialogContent
+          class="fixed left-1/2 top-1/2 z-50 w-[440px] -translate-x-1/2 -translate-y-1/2 rounded-xl border bg-background p-5 shadow-xl outline-none"
+        >
+          <DialogTitle class="text-base font-semibold">{{ t('batch.addProjectTitle') }}</DialogTitle>
+          <DialogDescription class="mt-1 text-sm text-muted-foreground">
+            {{ t('batch.addProjectHint', { n: selectedSkills.length }) }}
+          </DialogDescription>
+          <div class="mt-4 flex flex-col gap-4">
+            <div class="flex flex-col gap-2">
+              <span class="text-sm font-medium">{{ t('batch.project') }}</span>
+              <Select v-model="batchProjectRoot" :options="projectOptions" />
+            </div>
+            <div class="flex flex-col gap-2">
+              <span class="text-sm font-medium">{{ t('batch.agents') }}</span>
+              <div class="flex flex-wrap gap-2">
+                <button
+                  v-for="platform in projectCapablePlatforms"
+                  :key="platform.id"
+                  type="button"
+                  :class="[
+                    'flex cursor-pointer items-center gap-2 rounded-md border px-3 py-1.5 text-sm transition-colors',
+                    batchProjectAgents.includes(platform.id)
+                      ? 'border-foreground bg-foreground text-background'
+                      : 'hover:border-foreground/40',
+                  ]"
+                  @click="toggleBatchProjectAgent(platform.id)"
+                >
+                  <PlatformIcon :id="platform.id" :size="14" />
+                  {{ platform.displayName }}
+                </button>
+              </div>
+            </div>
+          </div>
+          <div class="mt-5 flex justify-end gap-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              :disabled="batchBusy"
+              @click="batchProjectOpen = false"
+            >
+              {{ t('common.cancel') }}
+            </Button>
+            <Button
+              size="sm"
+              :disabled="batchBusy || !batchProjectRoot || batchProjectAgents.length === 0"
+              @click="addSelectedToProject"
+            >
+              {{ t('batch.addProjectAction') }}
+            </Button>
+          </div>
+        </DialogContent>
+      </DialogPortal>
+    </DialogRoot>
+
+    <DialogRoot v-model:open="batchGroupOpen">
+      <DialogPortal>
+        <DialogOverlay class="fixed inset-0 z-40 bg-black/40" />
+        <DialogContent
+          class="fixed left-1/2 top-1/2 z-50 w-[440px] -translate-x-1/2 -translate-y-1/2 rounded-xl border bg-background p-5 shadow-xl outline-none"
+        >
+          <DialogTitle class="text-base font-semibold">{{ t('batch.addGroupsTitle') }}</DialogTitle>
+          <DialogDescription class="mt-1 text-sm text-muted-foreground">
+            {{ t('batch.addGroupsHint', { n: selectedSkills.length }) }}
+          </DialogDescription>
+          <div class="mt-4 flex flex-wrap gap-2">
+            <button
+              v-for="group in groups"
+              :key="group.name"
+              type="button"
+              :class="[
+                'cursor-pointer rounded-md border px-3 py-1.5 text-sm transition-colors',
+                batchGroupNames.has(group.name)
+                  ? 'border-foreground bg-foreground text-background'
+                  : 'hover:border-foreground/40',
+              ]"
+              @click="toggleBatchGroup(group.name)"
+            >
+              {{ group.name }}
+            </button>
+          </div>
+          <div class="mt-5 flex justify-end gap-2">
+            <Button variant="ghost" size="sm" @click="batchGroupOpen = false">
+              {{ t('common.cancel') }}
+            </Button>
+            <Button
+              size="sm"
+              :disabled="batchGroupNames.size === 0"
+              @click="addSelectedToGroups"
+            >
+              {{ t('batch.addGroupsAction', { n: batchGroupNames.size }) }}
+            </Button>
+          </div>
+        </DialogContent>
+      </DialogPortal>
+    </DialogRoot>
+
+    <DialogRoot v-model:open="renameOpen">
+      <DialogPortal>
+        <DialogOverlay class="fixed inset-0 z-40 bg-black/40" />
+        <DialogContent
+          class="fixed left-1/2 top-1/2 z-50 w-80 -translate-x-1/2 -translate-y-1/2 rounded-xl border bg-background p-5 shadow-xl outline-none"
+          @open-auto-focus.prevent
+        >
+          <DialogTitle class="text-base font-semibold">{{ t('groups.renameTitle') }}</DialogTitle>
+          <Input
+            v-model="renameValue"
+            class="mt-4"
+            autofocus
+            @keydown.enter.prevent="submitRenameGroup"
+          />
+          <p v-if="renameDuplicate" class="mt-2 text-sm text-destructive">
+            {{ t('groups.renameDuplicate') }}
+          </p>
+          <div class="mt-5 flex justify-end gap-2">
+            <Button variant="ghost" size="sm" @click="renameOpen = false">
+              {{ t('common.cancel') }}
+            </Button>
+            <Button
+              size="sm"
+              :disabled="!renameValue.trim() || renameDuplicate"
+              @click="submitRenameGroup"
+            >
+              {{ t('groups.renameAction') }}
+            </Button>
+          </div>
+        </DialogContent>
+      </DialogPortal>
+    </DialogRoot>
+
+    <DialogRoot v-model:open="memberEditorOpen">
+      <DialogPortal>
+        <DialogOverlay class="fixed inset-0 z-40 bg-black/40" />
+        <DialogContent
+          class="fixed left-1/2 top-1/2 z-50 flex max-h-[min(680px,80vh)] w-[520px] -translate-x-1/2 -translate-y-1/2 flex-col rounded-xl border bg-background p-5 shadow-xl outline-none"
+          @open-auto-focus.prevent
+        >
+          <DialogTitle class="text-base font-semibold">
+            {{ t('groups.manageSkillsTitle', { name: groupFilter }) }}
+          </DialogTitle>
+          <DialogDescription class="mt-1 text-sm text-muted-foreground">
+            {{ t('groups.manageSkillsHint') }}
+          </DialogDescription>
+          <div class="relative mt-4">
+            <Search
+              class="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
+            />
+            <Input
+              v-model="memberSearch"
+              :placeholder="t('groups.manageSkillsSearchPh')"
+              class="pl-8"
+            />
+          </div>
+          <div class="mt-3 min-h-0 flex-1 overflow-y-auto rounded-lg border p-1">
+            <label
+              v-for="name in memberEditorMissingNames"
+              :key="name"
+              class="flex cursor-pointer items-start gap-3 rounded-md px-3 py-2.5 transition-colors hover:bg-accent"
+            >
+              <input
+                type="checkbox"
+                :checked="draftMemberNames.has(name)"
+                class="mt-0.5 size-4 shrink-0 cursor-pointer accent-primary"
+                @change="toggleDraftMember(name)"
+              />
+              <span class="min-w-0">
+                <span class="block truncate text-sm font-medium">{{ name }}</span>
+                <span class="mt-0.5 block text-xs text-muted-foreground">
+                  {{ t('groups.skillNotInstalled') }}
+                </span>
+              </span>
+            </label>
+            <label
+              v-for="skill in memberEditorSkills"
+              :key="skill.name"
+              class="flex w-full cursor-pointer items-start gap-3 rounded-md px-3 py-2.5 text-left transition-colors hover:bg-accent"
+            >
+              <input
+                type="checkbox"
+                :checked="draftMemberNames.has(skill.name)"
+                class="mt-0.5 size-4 shrink-0 cursor-pointer accent-primary"
+                @change="toggleDraftMember(skill.name)"
+              />
+              <span class="min-w-0">
+                <span class="block truncate text-sm font-medium">{{ skill.name }}</span>
+                <span class="mt-0.5 block line-clamp-2 text-xs leading-5 text-muted-foreground">
+                  {{ skill.description }}
+                </span>
+              </span>
+            </label>
+            <p
+              v-if="memberEditorSkills.length === 0 && memberEditorMissingNames.length === 0"
+              class="px-3 py-10 text-center text-sm text-muted-foreground"
+            >
+              {{ t('groups.manageSkillsEmpty') }}
+            </p>
+          </div>
+          <div class="mt-4 flex items-center justify-between gap-3">
+            <p class="text-sm text-muted-foreground">
+              {{ t('groups.selectedSkills', { n: draftMemberNames.size }) }}
+            </p>
+            <div class="flex gap-2">
+              <Button variant="ghost" size="sm" class="cursor-pointer" @click="memberEditorOpen = false">
+                {{ t('common.cancel') }}
+              </Button>
+              <Button size="sm" class="cursor-pointer" @click="saveGroupMembers">
+                {{ t('groups.saveSkills') }}
+              </Button>
+            </div>
           </div>
         </DialogContent>
       </DialogPortal>

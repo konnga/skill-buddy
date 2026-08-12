@@ -25,8 +25,10 @@ export function useGroups() {
   const {
     groupFilter,
     skills,
+    search,
     platformFilter,
     projectFilter,
+    driftOnly,
     ownershipFilter,
     installSkill,
     setEnabled,
@@ -54,6 +56,7 @@ export function useGroups() {
 
   function filterGroup(name: string | null): void {
     groupFilter.value = groupFilter.value === name && name !== null ? null : name
+    if (name === null) search.value = ''
     groupApplyOpen.value = false
     groupApplyNote.value = null
   }
@@ -61,8 +64,11 @@ export function useGroups() {
   /** 无 toggle 语义地选中合集（从管理页进入时使用，重复进入保持选中）。 */
   function openGroupFilter(name: string): void {
     groupFilter.value = name
+    search.value = ''
     platformFilter.value = null
     projectFilter.value = null
+    driftOnly.value = false
+    ownershipFilter.value = null
     groupApplyOpen.value = false
     groupApplyNote.value = null
   }
@@ -121,6 +127,15 @@ export function useGroups() {
     return groups.value.find((group) => group.name === name)?.skills.length ?? 0
   }
 
+  /** 更新技能包成员名单；技能包不存在时返回 false。 */
+  function setGroupSkills(name: string, skillNames: string[]): boolean {
+    if (!groups.value.some((group) => group.name === name)) return false
+    groups.value = groups.value.map((group) =>
+      group.name === name ? { ...group, skills: [...new Set(skillNames)] } : group,
+    )
+    return true
+  }
+
   function buildTargets() {
     return groupApplyAgents.value.map((agent) =>
       groupApplyScope.value === 'user'
@@ -141,14 +156,24 @@ export function useGroups() {
     groupApplyNote.value = null
     try {
       const plan = planAdditiveInstall(group.skills, skills.value, buildTargets())
+      const failures: string[] = []
       for (const { name, targets } of plan.installs) {
         const local = skills.value.find((skill) => skill.name === name)
-        if (local) await installSkill(local.installations[0]!.skill, targets)
+        if (!local) continue
+        const results = await installSkill(local.installations[0]!.skill, targets)
+        failures.push(
+          ...results
+            .filter((result) => !result.ok)
+            .map((result) => `${name}: ${result.error ?? t('batch.failed')}`),
+        )
       }
-      if (plan.missing.length > 0) {
+      if (failures.length > 0) {
+        groupApplyNote.value = failures.join('；')
+      } else if (plan.missing.length > 0) {
         groupApplyNote.value = t('groups.skipped', { names: plan.missing.join(', ') })
       } else {
         groupApplyOpen.value = false
+        showToast({ message: t('groups.installSuccess', { name: group.name }) })
       }
     } finally {
       groupApplyBusy.value = false
@@ -353,6 +378,7 @@ export function useGroups() {
     deleteGroup,
     exportGroup,
     groupCount,
+    setGroupSkills,
     applyGroup,
     applyGroupTemp,
     endTemp,

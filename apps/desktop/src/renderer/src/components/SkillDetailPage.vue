@@ -27,6 +27,7 @@ import PlatformIcon from '@/components/PlatformIcon.vue'
 import ResourcePreviewDialog from '@/components/ResourcePreviewDialog.vue'
 import SkillEditor from '@/components/SkillEditor.vue'
 import { agentLabel } from '@/lib/agents'
+import { pathBasename } from '@/lib/paths'
 import { hasScriptResources, nextPatch } from '@/lib/resources'
 import { useSettings } from '@/composables/useSettings'
 import { useSkills } from '@/composables/useSkills'
@@ -241,7 +242,7 @@ const scopeOptions = computed(() => [
   { value: 'user', label: t('detail.userScope') },
   ...projectRoots.value.map((root) => ({
     value: root,
-    label: t('detail.projectScope', { root }),
+    label: t('detail.projectScope', { root: pathBasename(root) }),
   })),
 ])
 

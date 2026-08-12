@@ -8,54 +8,30 @@ const skill = {
   skillId: 'commit-style',
   name: 'commit-style',
 }
-const mcpServer = {
-  name: 'github',
-  description: 'GitHub tools',
-  transport: {
-    kind: 'stdio',
-    command: 'github-mcp-server',
-    args: [],
-    env: { GITHUB_TOKEN: { kind: 'env', name: 'GITHUB_TOKEN' } },
-  },
-  requiredSecrets: ['GITHUB_TOKEN'],
-}
-
 describe('parseBundlesManifest', () => {
-  it.each([
-    { label: 'Skills-only', skills: [skill], mcpServers: [] },
-    { label: 'MCP-only', skills: [], mcpServers: [mcpServer] },
-    { label: '混合', skills: [skill], mcpServers: [mcpServer] },
-  ])('接受 $label Bundle', ({ skills, mcpServers }) => {
+  it('接受包含 Skills 的推荐技能包', () => {
     expect(
-      parseBundlesManifest([{ id: 'developer-kit', name: text, description: text, skills, mcpServers }]),
+      parseBundlesManifest([{ id: 'developer-kit', name: text, description: text, skills: [skill] }]),
     ).toEqual([
       expect.objectContaining({
         id: 'developer-kit',
-        skills: expect.any(Array),
-        mcpServers: expect.any(Array),
+        skills: [skill],
       }),
     ])
   })
 
-  it('丢弃含明文引用或 Canonical 白名单外字段的 MCP 定义', () => {
+  it('忽略 MCP 字段，并丢弃不含 Skills 的推荐包', () => {
     expect(
       parseBundlesManifest([
         {
-          id: 'unsafe',
+          id: 'skills-with-mcp',
           name: text,
           description: text,
-          mcpServers: [
-            {
-              ...mcpServer,
-              metadata: { token: 'plain-secret' },
-              transport: {
-                ...mcpServer.transport,
-                env: { TOKEN: { kind: 'literal', value: 'plain-secret' } },
-              },
-            },
-          ],
+          skills: [skill],
+          mcpServers: [{ name: 'ignored' }],
         },
+        { id: 'mcp-only', name: text, description: text, mcpServers: [{ name: 'ignored' }] },
       ]),
-    ).toEqual([])
+    ).toEqual([{ id: 'skills-with-mcp', name: text, description: text, skills: [skill] }])
   })
 })

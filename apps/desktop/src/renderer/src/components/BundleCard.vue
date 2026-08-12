@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { ServerCog } from '@lucide/vue'
 import {
   bundleRefToMarketItem,
   bundleText,
@@ -16,23 +15,16 @@ const emit = defineEmits<{ use: [] }>()
 const { t, locale } = useI18n()
 
 const previewMembers = computed(() =>
-  [
-    ...props.bundle.skills.map((skill) => ({
+  props.bundle.skills
+    .map((skill) => ({
       kind: 'skill' as const,
       key: `skill:${skill.name}`,
       name: skillName(skill),
       source: skillSource(skill),
       skill,
       item: bundleRefToMarketItem(skill),
-    })),
-    ...props.bundle.mcpServers.map((server) => ({
-      kind: 'mcp' as const,
-      key: `mcp:${server.name}`,
-      name: server.name,
-      source: server.transport.kind,
-      server,
-    })),
-  ].slice(0, 2),
+    }))
+    .slice(0, 2),
 )
 
 const failedIcons = ref(new Set<string>())
@@ -100,7 +92,6 @@ function skillSource(skill: BundleSkillRef): string {
                 loading="lazy"
                 @error="markIconFailed(entry.item.key)"
               />
-              <ServerCog v-else-if="entry.kind === 'mcp'" class="size-4" />
               <span v-else>{{ marketIconGlyph(entry.name) }}</span>
             </span>
             <span class="flex h-[38px] min-w-0 flex-1 flex-col justify-center">
@@ -116,7 +107,7 @@ function skillSource(skill: BundleSkillRef): string {
       </ul>
 
       <div class="mt-auto flex items-center justify-between gap-3 text-sm leading-5 text-muted-foreground">
-        <span>{{ t('bundles.resourceCount', { skills: bundle.skills.length, mcp: bundle.mcpServers.length }) }}</span>
+        <span>{{ t('bundles.skillCount', { n: bundle.skills.length }) }}</span>
         <button
           type="button"
           class="cursor-pointer transition-colors hover:text-foreground"

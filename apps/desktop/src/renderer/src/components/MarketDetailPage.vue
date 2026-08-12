@@ -30,11 +30,14 @@ import {
   type MarketItem,
 } from '@/lib/market'
 import { useSkills } from '@/composables/useSkills'
+import { useSettings } from '@/composables/useSettings'
+import { showToast } from '@/composables/useToast'
 
 const props = defineProps<{ item: MarketItem; inset?: boolean }>()
 const emit = defineEmits<{ close: [] }>()
 
 const { installSkill, refresh } = useSkills()
+const { groups } = useSettings()
 const { t } = useI18n()
 
 const scope = ref('user')
@@ -42,6 +45,7 @@ const iconBroken = ref(false)
 const agents = ref<string[]>([])
 const busy = ref(false)
 const error = ref<string | null>(null)
+const selectedGroups = ref<Set<string>>(new Set())
 
 /* ---------- source download (shared by overview / files / install) ---------- */
 
@@ -51,6 +55,36 @@ const matched = ref<FoundSkill | null>(null)
 const sourceRoot = ref<string | null>(null)
 
 const overviewContent = computed(() => matched.value?.skill.content ?? null)
+const groupSkillName = computed(() => matched.value?.skill.name ?? props.item.name)
+
+function isGroupMember(name: string): boolean {
+  return (
+    groups.value.find((group) => group.name === name)?.skills.includes(groupSkillName.value) ??
+    false
+  )
+}
+
+function toggleGroup(name: string): void {
+  if (isGroupMember(name)) return
+  const next = new Set(selectedGroups.value)
+  if (next.has(name)) next.delete(name)
+  else next.add(name)
+  selectedGroups.value = next
+}
+
+/** 将 Skill 追加到用户选择的技能包中，不触发任何 Agent 安装。 */
+function addToSelectedGroups(): void {
+  if (selectedGroups.value.size === 0) return
+  const skillName = groupSkillName.value
+  let added = 0
+  groups.value = groups.value.map((group) => {
+    if (!selectedGroups.value.has(group.name) || group.skills.includes(skillName)) return group
+    added += 1
+    return { ...group, skills: [...group.skills, skillName] }
+  })
+  selectedGroups.value = new Set()
+  if (added > 0) showToast({ message: t('market.addedToGroups', { n: added }) })
+}
 
 async function fetchSource(): Promise<{ root: string; items: FoundSkill[] }> {
   const item = props.item
@@ -445,6 +479,42 @@ async function install(): Promise<void> {
             @click="install"
           >
             {{ busy ? t('market.installing') : t('detail.installN', { n: agents.length }) }}
+          </Button>
+        </section>
+
+        <!-- skill packages -->
+        <section class="flex flex-col gap-3 rounded-xl border px-5 py-4">
+          <h3 class="text-sm font-medium">{{ t('market.addToGroups') }}</h3>
+          <div v-if="groups.length > 0" class="flex flex-wrap gap-2">
+            <button
+              v-for="group in groups"
+              :key="group.name"
+              type="button"
+              :disabled="isGroupMember(group.name)"
+              :class="[
+                'flex cursor-pointer items-center rounded-md border px-3 py-1.5 text-sm transition-colors',
+                isGroupMember(group.name)
+                  ? 'cursor-default border-foreground/20 bg-muted text-muted-foreground'
+                  : selectedGroups.has(group.name)
+                    ? 'border-foreground bg-foreground text-background'
+                    : 'hover:border-foreground/40',
+              ]"
+              @click="toggleGroup(group.name)"
+            >
+              {{ group.name }}
+            </button>
+          </div>
+          <p v-else class="text-sm text-muted-foreground">
+            {{ t('market.noGroups') }}
+          </p>
+          <Button
+            v-if="groups.length > 0"
+            variant="outline"
+            class="w-fit cursor-pointer"
+            :disabled="selectedGroups.size === 0"
+            @click="addToSelectedGroups"
+          >
+            {{ t('market.addToGroupsAction', { n: selectedGroups.size }) }}
           </Button>
         </section>
 

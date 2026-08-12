@@ -41,28 +41,37 @@ const {
   refresh,
   skills,
 } = useSkills()
-const { groups } = useGroups()
+const { groups, filterGroup } = useGroups()
 
 const agentsExpanded = shallowRef(true)
 const scopeExpanded = shallowRef(true)
 const expandedProjectRoot = computed(() =>
   projectFilter.value && projectFilter.value !== 'user' ? projectFilter.value : null,
 )
-const groupsActive = computed(() => props.view === 'groups' || groupFilter.value !== null)
+const groupsActive = computed(
+  () => props.view === 'groups' || (props.view === 'skills' && groupFilter.value !== null),
+)
 
 const basename = (path: string): string => path.split('/').filter(Boolean).pop() ?? path
 
 function showAllSkills(): void {
   platformFilter.value = null
   projectFilter.value = null
-  groupFilter.value = null
+  filterGroup(null)
   ownershipFilter.value = null
   emit('navigate', 'skills')
+}
+
+/** 离开技能包上下文并进入指定的一级页面。 */
+function navigatePrimary(view: WorkspaceView): void {
+  filterGroup(null)
+  emit('navigate', view)
 }
 
 function filterPlatform(id: string): void {
   platformFilter.value = platformFilter.value === id ? null : id
   projectFilter.value = null
+  filterGroup(null)
   emit('navigate', 'skills')
 }
 
@@ -70,6 +79,7 @@ function filterProject(root: string): void {
   const isActive = projectFilter.value === root && platformFilter.value === null
   projectFilter.value = isActive ? null : root
   platformFilter.value = null
+  filterGroup(null)
   emit('navigate', 'skills')
 }
 
@@ -77,6 +87,7 @@ function filterProjectPlatform(root: string, id: string): void {
   const isActive = projectFilter.value === root && platformFilter.value === id
   projectFilter.value = root
   platformFilter.value = isActive ? null : id
+  filterGroup(null)
   emit('navigate', 'skills')
 }
 
@@ -130,7 +141,7 @@ async function addProjectRoot(): Promise<void> {
             'flex items-center gap-2 rounded-md px-3 py-1.5 text-sm transition-colors',
             props.view === 'dashboard' ? 'nav-active' : 'hover:bg-accent/60',
           ]"
-          @click="emit('navigate', 'dashboard')"
+          @click="navigatePrimary('dashboard')"
         >
           <LayoutDashboard class="size-4 text-foreground/70" />
           {{ t('dashboard.title') }}
@@ -160,7 +171,7 @@ async function addProjectRoot(): Promise<void> {
             'flex items-center justify-between rounded-md px-3 py-1.5 text-sm transition-colors',
             groupsActive ? 'nav-active' : 'hover:bg-accent/60',
           ]"
-          @click="emit('navigate', 'groups')"
+          @click="navigatePrimary('groups')"
         >
           <span class="flex items-center gap-2">
             <Layers class="size-4 text-foreground/70" />
@@ -174,7 +185,7 @@ async function addProjectRoot(): Promise<void> {
             'flex items-center justify-between rounded-md px-3 py-1.5 text-sm transition-colors',
             props.view === 'mcp' ? 'nav-active' : 'hover:bg-accent/60',
           ]"
-          @click="emit('navigate', 'mcp')"
+          @click="navigatePrimary('mcp')"
         >
           <span class="flex items-center gap-2">
             <ServerCog class="size-4 text-foreground/70" />
@@ -187,7 +198,7 @@ async function addProjectRoot(): Promise<void> {
             'flex items-center gap-2 rounded-md px-3 py-1.5 text-sm transition-colors',
             props.view === 'team' ? 'nav-active' : 'hover:bg-accent/60',
           ]"
-          @click="emit('navigate', 'team')"
+          @click="navigatePrimary('team')"
         >
           <Users class="size-4 text-foreground/70" />
           {{ t('team.title') }}
@@ -249,10 +260,12 @@ async function addProjectRoot(): Promise<void> {
         </section>
 
         <section class="mt-4">
-          <div class="mb-1 flex items-center justify-between px-3">
+          <div
+            class="group/scope mb-1 flex items-center justify-between rounded-lg px-2 transition-colors hover:bg-black/[0.055] focus-within:bg-black/[0.055] dark:hover:bg-white/[0.07] dark:focus-within:bg-white/[0.07]"
+          >
             <button
               type="button"
-              class="-ml-1 flex min-w-0 flex-1 cursor-pointer items-center gap-1 rounded p-1 text-left text-sm font-medium text-muted-foreground transition-colors hover:bg-accent/60 hover:text-foreground"
+              class="flex min-w-0 flex-1 cursor-pointer items-center gap-1 rounded-lg px-1 py-1.5 text-left text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
               aria-controls="sidebar-scope"
               :aria-expanded="scopeExpanded"
               @click="scopeExpanded = !scopeExpanded"
@@ -268,7 +281,7 @@ async function addProjectRoot(): Promise<void> {
             </button>
             <button
               type="button"
-              class="cursor-pointer rounded p-0.5 text-muted-foreground transition-colors hover:bg-accent/60 hover:text-foreground"
+              class="cursor-pointer rounded-md p-1 text-muted-foreground opacity-0 transition-[color,background-color,opacity] hover:bg-black/[0.06] hover:text-foreground focus-visible:opacity-100 group-hover/scope:opacity-100 group-focus-within/scope:opacity-100 dark:hover:bg-white/[0.08]"
               :title="t('app.addScope')"
               :aria-label="t('app.addScope')"
               @click="addProjectRoot"

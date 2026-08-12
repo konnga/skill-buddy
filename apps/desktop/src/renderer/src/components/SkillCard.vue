@@ -22,6 +22,7 @@ const props = defineProps<{
   skill: AggregatedSkill
   busy?: boolean
   batchMode?: boolean
+  groupContext?: boolean
   selected?: boolean
   currentPlatform?: string
   scopeFilter?: 'user' | 'project'
@@ -33,6 +34,7 @@ const emit = defineEmits<{
   edit: []
   toggleSelected: []
   toggleEnabled: []
+  removeFromGroup: []
   uninstallCurrent: []
   uninstallAll: []
 }>()
@@ -125,7 +127,7 @@ const uninstallCurrentLabel = computed(() =>
       visibleAllDisabled && 'opacity-60 saturate-75',
       visibleDisabledCount > 0 && !visibleAllDisabled && 'border-amber-500/20 bg-muted/20',
     ]"
-    @click="$emit('open')"
+    @click="props.batchMode ? emit('toggleSelected') : emit('open')"
   >
     <CardHeader class="gap-3 pb-3">
       <div class="flex items-start justify-between gap-2">
@@ -189,7 +191,15 @@ const uninstallCurrentLabel = computed(() =>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator class="my-1 h-px bg-border" />
                 <DropdownMenuItem
-                  v-if="currentPlatform"
+                  v-if="props.groupContext"
+                  class="flex cursor-pointer select-none items-center gap-2 rounded-[5px] px-2.5 py-2 text-sm text-destructive outline-none data-[highlighted]:bg-destructive/10"
+                  @select="emit('removeFromGroup')"
+                >
+                  <Trash2 class="size-4" />
+                  {{ t('groups.removeSkill') }}
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  v-if="!props.groupContext && currentPlatform"
                   :disabled="currentPlatformReadOnly || busy"
                   class="flex cursor-pointer select-none items-center gap-2 rounded-[5px] px-2.5 py-2 text-sm text-destructive outline-none data-[disabled]:pointer-events-none data-[disabled]:opacity-40 data-[highlighted]:bg-destructive/10"
                   @select="emit('uninstallCurrent')"
@@ -198,7 +208,7 @@ const uninstallCurrentLabel = computed(() =>
                   {{ uninstallCurrentLabel }}
                 </DropdownMenuItem>
                 <DropdownMenuItem
-                  v-if="!currentPlatform || hasOtherWritablePlatform"
+                  v-if="!props.groupContext && (!currentPlatform || hasOtherWritablePlatform)"
                   :disabled="readOnly || busy"
                   class="flex cursor-pointer select-none items-center gap-2 rounded-[5px] px-2.5 py-2 text-sm text-destructive outline-none data-[disabled]:pointer-events-none data-[disabled]:opacity-40 data-[highlighted]:bg-destructive/10"
                   @select="emit('uninstallAll')"

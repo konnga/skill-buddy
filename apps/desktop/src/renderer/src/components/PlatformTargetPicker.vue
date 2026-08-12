@@ -5,6 +5,7 @@ import PlatformIcon from '@/components/PlatformIcon.vue'
 import { Select } from '@/components/ui/select'
 import { useSettings } from '@/composables/useSettings'
 import { useSkills } from '@/composables/useSkills'
+import { pathBasename } from '@/lib/paths'
 
 const scope = defineModel<string>('scope', { default: 'user' })
 const agents = defineModel<string[]>('agents', { default: () => [] })
@@ -33,7 +34,7 @@ const scopeOptions = computed(() => [
   { value: 'user', label: t('detail.userScope') },
   ...projectRoots.value.map((root) => ({
     value: root,
-    label: t('detail.projectScope', { root }),
+    label: t('detail.projectScope', { root: pathBasename(root) }),
   })),
 ])
 
@@ -49,7 +50,7 @@ function toggle(id: string): void {
     <div v-if="label || projectRoots.length > 0" class="flex items-center justify-between gap-3">
       <span
         v-if="label"
-        class="text-sm font-medium uppercase tracking-wide text-muted-foreground"
+        class="text-sm font-medium"
       >
         {{ label }}
       </span>
