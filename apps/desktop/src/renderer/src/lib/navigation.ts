@@ -1,4 +1,4 @@
-export type AppView = 'dashboard' | 'skills' | 'mcp' | 'team' | 'settings'
+export type AppView = 'dashboard' | 'skills' | 'groups' | 'mcp' | 'team' | 'settings'
 
 export type WorkspaceView = Exclude<AppView, 'settings'>
 

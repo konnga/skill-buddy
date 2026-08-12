@@ -12,6 +12,7 @@ import type { SkillBundle } from '@/lib/bundles'
 import type { MarketItem } from '@/lib/market'
 import type { SkillFocus, WorkspaceView as WorkspaceViewName } from '@/lib/navigation'
 import DashboardView from '@/views/DashboardView.vue'
+import GroupsView from '@/views/GroupsView.vue'
 import SkillsView from '@/views/SkillsView.vue'
 import McpServersView from '@/views/McpServersView.vue'
 import TeamView from '@/views/TeamView.vue'
@@ -164,6 +165,11 @@ watch(skills, (value) => {
       @open-settings="emit('openSettings')"
     />
     <McpServersView v-else-if="props.view === 'mcp'" :inset="props.inset" />
+    <GroupsView
+      v-else-if="props.view === 'groups'"
+      :inset="props.inset"
+      @navigate="emit('navigate', $event)"
+    />
     <SkillsView
       v-else
       :inset="props.inset"

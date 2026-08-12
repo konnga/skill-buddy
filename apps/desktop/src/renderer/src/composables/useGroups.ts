@@ -2,10 +2,14 @@ import { computed, ref, shallowRef } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { planAdditiveInstall } from '@skillbuddy/core/planners'
 import { showToast } from '@/composables/useToast'
-import { useSettings } from '@/composables/useSettings'
+import { useSettings, type SkillGroup } from '@/composables/useSettings'
 import { useSkills } from '@/composables/useSkills'
 import { deriveGroupRuntimeState } from '@/lib/group-runtime'
-import { manageableSkillInstallations } from '@/lib/skill-installations'
+import { serializePreset } from '@/lib/preset-format'
+import {
+  manageableSkillInstallations,
+  type SkillInstallationFilter,
+} from '@/lib/skill-installations'
 
 const groupApplyOpen = shallowRef(false)
 const groupApplyScope = shallowRef('user')
@@ -54,9 +58,63 @@ export function useGroups() {
     groupApplyNote.value = null
   }
 
-  function deleteGroup(name: string): void {
-    groups.value = groups.value.filter((group) => group.name !== name)
+  /** 无 toggle 语义地选中合集（从管理页进入时使用，重复进入保持选中）。 */
+  function openGroupFilter(name: string): void {
+    groupFilter.value = name
+    platformFilter.value = null
+    projectFilter.value = null
+    groupApplyOpen.value = false
+    groupApplyNote.value = null
+  }
+
+  /** 确认后删除合集名单，并连带清理其临时应用记录（合集删除后记录再无 UI 出口）。 */
+  async function deleteGroup(name: string): Promise<void> {
+    const group = groups.value.find((item) => item.name === name)
+    if (!group) return
+    const confirmed = await window.skillsManager.confirmDialog({
+      title: t('groups.deleteTitle'),
+      message: t('groups.deleteConfirm', { name: group.name, n: group.skills.length }),
+      confirmLabel: t('groups.deleteAction'),
+      cancelLabel: t('common.cancel'),
+      danger: true,
+    })
+    if (!confirmed) return
+    groups.value = groups.value.filter((item) => item.name !== name)
+    tempApplications.value = tempApplications.value.filter((record) => record.group !== name)
     if (groupFilter.value === name) groupFilter.value = null
+  }
+
+  /** 新建空合集；空名或重名时返回 false。 */
+  function createGroup(name: string): boolean {
+    const trimmed = name.trim()
+    if (!trimmed || groups.value.some((group) => group.name === trimmed)) return false
+    groups.value = [...groups.value, { name: trimmed, skills: [] }]
+    return true
+  }
+
+  /** 重命名合集并同步筛选与临时应用中的引用；与其他合集重名或空名时返回 false。 */
+  function renameGroup(oldName: string, newName: string): boolean {
+    const name = newName.trim()
+    if (!name) return false
+    if (name === oldName) return true
+    if (groups.value.some((group) => group.name === name)) return false
+    groups.value = groups.value.map((group) =>
+      group.name === oldName ? { ...group, name } : group,
+    )
+    tempApplications.value = tempApplications.value.map((record) =>
+      record.group === oldName ? { ...record, group: name } : record,
+    )
+    if (groupFilter.value === oldName) groupFilter.value = name
+    return true
+  }
+
+  async function exportGroup(group: SkillGroup): Promise<void> {
+    try {
+      await navigator.clipboard.writeText(serializePreset(group))
+      showToast({ message: t('groups.exported', { name: group.name }) })
+    } catch {
+      showToast({ message: t('groups.exportFailed') })
+    }
   }
 
   function groupCount(name: string | null): number {
@@ -184,15 +242,19 @@ export function useGroups() {
     }
   }
 
-  /** 按当前筛选快照启用或禁用合集内的所有可写安装。 */
-  async function setGroupEnabled(enabled: boolean): Promise<void> {
-    const group = groups.value.find((item) => item.name === groupFilter.value)
-    if (!group || groupToggleBusy.value) return
+  /** 按给定安装视图启用或禁用合集内的所有可写安装。 */
+  async function toggleGroupInstallations(
+    group: SkillGroup,
+    enabled: boolean,
+    filter: SkillInstallationFilter,
+    confirmMessageKey: string,
+  ): Promise<void> {
+    if (groupToggleBusy.value) return
 
     const targets = group.skills.flatMap((name) => {
       const skill = skills.value.find((item) => item.name === name)
       if (!skill) return []
-      const installations = manageableSkillInstallations(skill, installationFilter.value)
+      const installations = manageableSkillInstallations(skill, filter)
       return installations.length > 0
         ? [{
             name,
@@ -210,7 +272,7 @@ export function useGroups() {
     const action = enabled ? 'enable' : 'disable'
     const confirmed = await window.skillsManager.confirmDialog({
       title: t(`groups.${action}Title`),
-      message: t(`groups.${action}Confirm`, {
+      message: t(confirmMessageKey, {
         name: group.name,
         skills: targets.length,
         installations: installationCount,
@@ -247,6 +309,32 @@ export function useGroups() {
     }
   }
 
+  /** 按当前筛选快照启用或禁用正在查看的合集。 */
+  async function setGroupEnabled(enabled: boolean): Promise<void> {
+    const group = groups.value.find((item) => item.name === groupFilter.value)
+    if (!group) return
+    const action = enabled ? 'enable' : 'disable'
+    await toggleGroupInstallations(
+      group,
+      enabled,
+      installationFilter.value,
+      `groups.${action}Confirm`,
+    )
+  }
+
+  /** 不受筛选影响，按名称启用或禁用任意合集（管理页使用）。 */
+  async function setGroupEnabledFor(name: string, enabled: boolean): Promise<void> {
+    const group = groups.value.find((item) => item.name === name)
+    if (!group) return
+    const action = enabled ? 'enable' : 'disable'
+    await toggleGroupInstallations(
+      group,
+      enabled,
+      { platformId: null, projectFilter: null, ownershipFilter: null },
+      `groups.${action}ConfirmAll`,
+    )
+  }
+
   return {
     groups,
     groupFilter,
@@ -259,11 +347,17 @@ export function useGroups() {
     groupToggleBusy,
     activeTemp,
     filterGroup,
+    openGroupFilter,
+    createGroup,
+    renameGroup,
     deleteGroup,
+    exportGroup,
     groupCount,
     applyGroup,
     applyGroupTemp,
     endTemp,
     setGroupEnabled,
+    setGroupEnabledFor,
+    tempApplications,
   }
 }

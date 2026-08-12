@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, ref, shallowRef, watch } from 'vue'
 import { I18nT, useI18n } from 'vue-i18n'
 import {
   DialogContent,
@@ -11,9 +11,11 @@ import {
 } from 'reka-ui'
 import {
   Check,
+  ChevronRight,
   CloudDownload,
   FolderOpen,
   Import,
+  Layers,
   Power,
   PowerOff,
   Plus,
@@ -25,6 +27,7 @@ import {
 import type { AggregatedSkill } from '@skillbuddy/core'
 import type { InstallTarget } from '../../../shared/ipc.js'
 import PlatformTargetPicker from '@/components/PlatformTargetPicker.vue'
+import GroupEmptyState from '@/components/groups/GroupEmptyState.vue'
 import GroupPresetToolbar from '@/components/groups/GroupPresetToolbar.vue'
 import SidebarToggle from '@/components/SidebarToggle.vue'
 import SkillCard from '@/components/SkillCard.vue'
@@ -32,6 +35,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Select } from '@/components/ui/select'
 import { ScrollArea } from '@/components/ui/scroll-area'
+import { Switch } from '@/components/ui/switch'
 import { useGroups } from '@/composables/useGroups'
 import { useSkills } from '@/composables/useSkills'
 import { showToast } from '@/composables/useToast'
@@ -67,6 +71,7 @@ const {
 } = useSkills()
 const removing = ref<Set<string>>(new Set())
 const toggling = ref<Set<string>>(new Set())
+const batchMode = shallowRef(false)
 const selectedNames = ref<Set<string>>(new Set())
 const batchBusy = ref(false)
 type BatchAction = 'enable' | 'disable' | 'uninstall'
@@ -115,6 +120,7 @@ const {
   endTemp,
   setGroupEnabled,
 } = useGroups()
+const activeGroupEmpty = computed(() => activeGroupState.value?.totalSkills === 0)
 
 const sortOptions = computed(() => [
   { value: 'name', label: t('sort.name') },
@@ -199,6 +205,16 @@ function toggleSelectAll(): void {
 
 function clearSelection(): void {
   selectedNames.value = new Set()
+}
+
+function handleBatchModeChange(enabled: boolean): void {
+  if (!enabled) clearSelection()
+}
+
+/** 退出技能包详情，返回不带包筛选的 Skills 列表。 */
+function browseAllSkills(): void {
+  groupFilter.value = null
+  search.value = ''
 }
 
 function requestBatch(action: BatchAction): void {
@@ -446,78 +462,114 @@ function updateToggleDialog(open: boolean): void {
   <div class="flex h-full flex-col">
     <header
       :class="[
-        'app-drag relative flex h-14 shrink-0 items-center gap-3 px-6',
+        'app-drag relative flex min-h-14 shrink-0 flex-wrap items-center gap-x-3 gap-y-2 border-b px-6 py-2',
         props.inset && 'pl-[118px]',
       ]"
     >
       <SidebarToggle />
-      <div class="app-no-drag relative w-64">
-        <Search
-          class="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
-        />
-        <Input v-model="search" :placeholder="t('app.searchPlaceholder')" class="h-8 pl-8" />
+      <div
+        v-if="activeGroupEmpty && activeGroupState"
+        class="app-no-drag flex min-w-0 flex-1 items-center gap-2 text-sm"
+      >
+        <Layers class="size-4 shrink-0 text-muted-foreground" />
+        <span class="shrink-0 text-muted-foreground">{{ t('groups.navTitle') }}</span>
+        <ChevronRight class="size-3.5 shrink-0 text-muted-foreground/60" />
+        <span class="truncate font-medium" :title="activeGroupState.name">
+          {{ activeGroupState.name }}
+        </span>
       </div>
-      <Select v-model="ownershipModel" class="app-no-drag" :options="ownershipOptions" />
-      <Button
-        type="button"
-        variant="outline"
-        size="sm"
-        :aria-pressed="driftOnly"
-        :class="[
-          'app-no-drag cursor-pointer gap-1.5 px-2.5 font-normal [&_svg]:size-3.5',
-          driftOnly
-            ? 'border-amber-500/50 bg-amber-500/10 text-amber-700 hover:border-amber-500/60 hover:bg-amber-500/15 hover:text-amber-700 dark:text-amber-400 dark:hover:text-amber-400'
-            : 'text-foreground hover:border-foreground/40 hover:bg-background',
-        ]"
-        @click="driftOnly = !driftOnly"
-      >
-        <TriangleAlert class="size-3.5" />
-        {{ t('app.driftOnly') }}
-      </Button>
-      <Select v-model="sortBy" class="app-no-drag" :options="sortOptions" />
-      <Button
-        v-if="filtered.length > 0"
-        variant="ghost"
-        size="sm"
-        class="app-no-drag cursor-pointer gap-1.5 px-2.5 font-normal [&_svg]:size-3.5"
-        :disabled="batchBusy"
-        @click="toggleSelectAll"
-      >
-        <Check class="size-3.5" />
-        {{ t(allVisibleSelected ? 'batch.clear' : 'batch.selectAll') }}
-      </Button>
-      <Button
-        v-if="groupFilter"
-        variant="outline"
-        size="sm"
-        class="app-no-drag"
-        @click="groupApplyOpen = !groupApplyOpen"
-      >
-        <CloudDownload class="size-3.5" />
-        {{ t('groups.applyTitle') }}
-      </Button>
-      <div class="flex-1" />
-      <Button variant="outline" size="sm" class="app-no-drag" @click="emit('newSkill')">
-        <Plus />
-      </Button>
-      <Button variant="outline" size="sm" class="app-no-drag" @click="emit('importSkills')">
-        <Import />
-      </Button>
-      <Button
-        variant="outline"
-        size="sm"
-        class="app-no-drag"
-        :disabled="loading"
-        @click="refresh"
-      >
-        <RefreshCw :class="loading ? 'animate-spin' : ''" />
-        {{ t('app.rescan') }}
-      </Button>
+      <div v-else class="app-no-drag flex min-w-0 flex-1 flex-wrap items-center gap-2">
+        <div class="relative w-64 max-w-full grow sm:grow-0">
+          <Search
+            class="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
+          />
+          <Input v-model="search" :placeholder="t('app.searchPlaceholder')" class="h-8 pl-8" />
+        </div>
+        <Select v-model="ownershipModel" :options="ownershipOptions" />
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          :aria-pressed="driftOnly"
+          :class="[
+            'cursor-pointer gap-1.5 px-2.5 font-normal [&_svg]:size-3.5',
+            driftOnly
+              ? 'border-amber-500/50 bg-amber-500/10 text-amber-700 hover:border-amber-500/60 hover:bg-amber-500/15 hover:text-amber-700 dark:text-amber-400 dark:hover:text-amber-400'
+              : 'text-foreground hover:border-foreground/40 hover:bg-background',
+          ]"
+          @click="driftOnly = !driftOnly"
+        >
+          <TriangleAlert class="size-3.5" />
+          {{ t('app.driftOnly') }}
+        </Button>
+        <Select v-model="sortBy" :options="sortOptions" />
+        <label class="flex shrink-0 cursor-pointer items-center gap-2 whitespace-nowrap text-sm text-muted-foreground">
+          <span>{{ t('batch.manage') }}</span>
+          <Switch
+            v-model="batchMode"
+            :disabled="batchBusy"
+            @update:model-value="handleBatchModeChange"
+          />
+        </label>
+        <Button
+          v-if="batchMode && filtered.length > 0"
+          variant="ghost"
+          size="sm"
+          class="cursor-pointer gap-1.5 px-2.5 font-normal [&_svg]:size-3.5"
+          :disabled="batchBusy"
+          @click="toggleSelectAll"
+        >
+          <Check class="size-3.5" />
+          {{ t(allVisibleSelected ? 'batch.clear' : 'batch.selectAll') }}
+        </Button>
+        <Button
+          v-if="groupFilter"
+          variant="outline"
+          size="sm"
+          class="cursor-pointer"
+          @click="groupApplyOpen = !groupApplyOpen"
+        >
+          <CloudDownload class="size-3.5" />
+          {{ t('groups.applyTitle') }}
+        </Button>
+      </div>
+      <div class="app-no-drag ml-auto flex shrink-0 items-center gap-2">
+        <Button
+          variant="outline"
+          size="icon"
+          class="cursor-pointer"
+          :title="t('newSkill.title')"
+          :aria-label="t('newSkill.title')"
+          @click="emit('newSkill')"
+        >
+          <Plus />
+        </Button>
+        <Button
+          variant="outline"
+          size="icon"
+          class="cursor-pointer"
+          :title="t('import.title')"
+          :aria-label="t('import.title')"
+          @click="emit('importSkills')"
+        >
+          <Import />
+        </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          class="cursor-pointer"
+          :disabled="loading"
+          @click="refresh"
+        >
+          <RefreshCw :class="loading ? 'animate-spin' : ''" />
+          {{ t('app.rescan') }}
+        </Button>
+      </div>
     </header>
 
     <ScrollArea class="flex-1" viewport-class="px-6 py-5">
       <GroupPresetToolbar
-        v-if="groupFilter && activeGroupState"
+        v-if="groupFilter && activeGroupState && !activeGroupEmpty"
         :state="activeGroupState"
         :busy="groupToggleBusy"
         @enable="setGroupEnabled(true)"
@@ -635,6 +687,12 @@ function updateToggleDialog(open: boolean): void {
         {{ t('app.scanning') }}
       </div>
       <div v-else-if="error" class="py-24 text-center text-sm text-destructive">{{ error }}</div>
+      <GroupEmptyState
+        v-else-if="groupFilter && activeGroupState && activeGroupEmpty"
+        :name="activeGroupState.name"
+        @browse-skills="browseAllSkills"
+        @new-skill="emit('newSkill')"
+      />
       <div
         v-else-if="skills.length === 0"
         class="flex flex-col items-center gap-3 py-24 text-muted-foreground"
@@ -654,6 +712,7 @@ function updateToggleDialog(open: boolean): void {
           :key="skill.name"
           :skill="skill"
           :busy="removing.has(skill.name) || toggling.has(skill.name)"
+          :batch-mode="batchMode"
           :selected="selectedNames.has(skill.name)"
           :current-platform="platformFilter ?? undefined"
           :scope-filter="

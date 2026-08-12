@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { Ellipsis, Pencil, Trash2, TriangleAlert } from '@lucide/vue'
+import { Ellipsis, Pencil, Power, PowerOff, Trash2, TriangleAlert } from '@lucide/vue'
 import {
   DropdownMenuContent,
   DropdownMenuItem,
@@ -21,6 +21,7 @@ import { matchesSkillInstallation } from '@/lib/skill-installations'
 const props = defineProps<{
   skill: AggregatedSkill
   busy?: boolean
+  batchMode?: boolean
   selected?: boolean
   currentPlatform?: string
   scopeFilter?: 'user' | 'project'
@@ -119,7 +120,7 @@ const uninstallCurrentLabel = computed(() =>
 <template>
   <Card
     :class="[
-      'group cursor-pointer transition-colors hover:border-foreground/25',
+      'group flex h-full cursor-pointer flex-col transition-colors hover:border-foreground/25',
       props.selected && 'border-primary/60 bg-primary/5 ring-1 ring-primary/20',
       visibleAllDisabled && 'opacity-60 saturate-75',
       visibleDisabledCount > 0 && !visibleAllDisabled && 'border-amber-500/20 bg-muted/20',
@@ -128,8 +129,9 @@ const uninstallCurrentLabel = computed(() =>
   >
     <CardHeader class="gap-3 pb-3">
       <div class="flex items-start justify-between gap-2">
-        <div class="flex min-w-0 items-start gap-2">
+        <div class="flex min-w-0 flex-1 items-start gap-2">
           <input
+            v-if="props.batchMode"
             type="checkbox"
             :checked="props.selected"
             :aria-label="t('batch.selectSkill', { name: skill.name })"
@@ -138,7 +140,7 @@ const uninstallCurrentLabel = computed(() =>
             @change.stop="emit('toggleSelected')"
           />
           <CardTitle
-            class="line-clamp-2 min-w-0 select-text break-words text-base leading-6"
+            class="min-w-0 flex-1 truncate select-text text-base leading-6"
             :title="skill.name"
           >
             {{ skill.name }}
@@ -175,6 +177,16 @@ const uninstallCurrentLabel = computed(() =>
                   <Pencil class="size-4" />
                   {{ t('common.edit') }}
                 </DropdownMenuItem>
+                <DropdownMenuItem
+                  v-if="visibleWritableInstallations.length > 0"
+                  :disabled="busy"
+                  class="flex cursor-pointer select-none items-center gap-2 rounded-[5px] px-2.5 py-2 text-sm outline-none data-[disabled]:pointer-events-none data-[disabled]:opacity-40 data-[highlighted]:bg-accent data-[highlighted]:text-accent-foreground"
+                  @select="emit('toggleEnabled')"
+                >
+                  <PowerOff v-if="visibleHasEnabled" class="size-4" />
+                  <Power v-else class="size-4" />
+                  {{ toggleLabel }}
+                </DropdownMenuItem>
                 <DropdownMenuSeparator class="my-1 h-px bg-border" />
                 <DropdownMenuItem
                   v-if="currentPlatform"
@@ -199,7 +211,7 @@ const uninstallCurrentLabel = computed(() =>
           </DropdownMenuRoot>
         </span>
       </div>
-      <div class="flex min-h-5 items-center justify-between gap-2">
+      <div class="flex min-h-5 items-center gap-2">
         <span class="flex min-w-0 flex-wrap items-center gap-1.5">
           <Badge v-if="readOnly" variant="secondary">
             {{ t('card.readOnly') }}
@@ -228,36 +240,12 @@ const uninstallCurrentLabel = computed(() =>
             {{ t('card.drift') }}
           </Badge>
         </span>
-        <button
-          v-if="visibleWritableInstallations.length > 0"
-          type="button"
-          role="switch"
-          :aria-checked="visibleHasEnabled"
-          :aria-label="toggleLabel"
-          :title="toggleLabel"
-          :disabled="busy"
-          class="relative inline-flex h-5 w-9 shrink-0 cursor-pointer items-center rounded-full transition-all disabled:cursor-not-allowed disabled:opacity-50"
-          :class="
-            visibleHasEnabled
-              ? 'bg-emerald-500 shadow-sm ring-2 ring-emerald-500/20'
-              : 'bg-muted-foreground/25'
-          "
-          @click.stop="emit('toggleEnabled')"
-        >
-          <span
-            class="size-3.5 rounded-full bg-white shadow-sm transition-transform"
-            :class="visibleHasEnabled ? 'translate-x-[18px]' : 'translate-x-[3px]'"
-          />
-        </button>
       </div>
       <CardDescription class="line-clamp-2 min-h-10">
         {{ skill.description || t('card.noDescription') }}
       </CardDescription>
     </CardHeader>
-    <CardContent
-      v-if="agents.length || skill.tags.length"
-      class="flex flex-wrap items-center gap-1.5"
-    >
+    <CardContent class="mt-auto flex h-12 flex-wrap items-end gap-1.5">
       <span
         v-for="agent in agents"
         :key="agent"
