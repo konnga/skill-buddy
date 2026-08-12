@@ -24,16 +24,25 @@ UI 走 headless 路线：**Reka UI + Tailwind CSS v4 + shadcn-vue 约定**（组
 `@lucide/vue`，数据表格规划用 TanStack Table。设计 token（含暗色模式）定义在
 `src/renderer/src/assets/main.css`，暗色跟随系统。
 
-规划中（后续阶段）：
-
-- `apps/registry` — skills 存储与分发服务（可私有化部署，团队/企业共享）
-- `packages/cli` — 命令行工具（CI 下发、脚本化管理）
+当前已经具备：本地 Skills 与 MCP 管理、跨 Agent 分发、漂移同步、Preset、
+skills.sh / SkillHub / GitHub 市场导入、私有 Registry、团队策略与混合资源包、
+CLI 下发，以及用户级 Skills + Preset 的私有 Git 多设备备份与恢复。
 
 ## 核心概念
 
 - **Canonical Skill**：平台中立的统一 skill 格式（`packages/core/src/types.ts`）
 - **Adapter**：每个 agent 平台一个适配器，负责该平台的目录约定与格式转换。
-  已实现：Claude Code；待实现：Codex / OpenCode / Trae / CodeBuddy / WorkBuddy
+  Skills 已覆盖 Claude Code、Codex、Cursor、OpenCode、GitHub Copilot、Gemini CLI、
+  Trae / Trae CN、CodeBuddy、WorkBuddy、豆包、Kimi Code、Z Code；部分平台仍需
+  对应产品真机验证。MCP 采用独立 Adapter 与能力矩阵，豆包不提供 MCP 目标。
+
+## Git 多设备备份
+
+桌面端「设置 → 数据」可将全部可管理的用户级 Skills 和 Preset 推送到私有 Git
+仓库，并在另一台设备预览后恢复到所选 Agent。快照使用版本化 manifest，不包含
+本机绝对路径、项目级 Skill、启停状态、MCP 配置或 Token；Git 认证由系统
+SSH / 凭据管理器负责。检测到同名 Skill 内容漂移时会阻止备份，要求先选择基准
+完成同步。
 
 ## 开发
 

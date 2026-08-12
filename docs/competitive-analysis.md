@@ -65,3 +65,13 @@
   （兼容其安装协议可蹭生态），Phase 2 registry 的参照物
 - 各 agent 官方的 marketplace / plugin 机制（Claude Code plugins 等）：
   可能吸收部分需求，需持续跟踪
+
+## 对齐进展（2026-08-12）
+
+- Preset 已支持实时状态、按当前 Agent / 项目 / 来源筛选整组启停，以及严格版本化
+  JSON 导入导出；Agent 目录仍是唯一真实来源。
+- 市场已接入 skills.sh、SkillHub 和 GitHub。
+- Git 多设备备份已支持用户级 Skills + Preset 的可审计快照、普通 push、恢复预览
+  和目标 Agent 选择；不备份本机路径、运行状态、MCP 配置或密钥。
+- 仍待竞品对齐的主要工程项是多平台真机兼容矩阵和正式发布验收；团队/企业侧
+  的 SSO、Web 控制台、审批流属于后续产品阶段。
