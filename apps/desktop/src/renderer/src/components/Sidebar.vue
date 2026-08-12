@@ -3,6 +3,7 @@ import { computed, ref, shallowRef } from 'vue'
 import { useI18n } from 'vue-i18n'
 import {
   DialogContent,
+  DialogDescription,
   DialogOverlay,
   DialogPortal,
   DialogRoot,
@@ -11,6 +12,8 @@ import {
 import {
   Blocks,
   ChevronRight,
+  Copy,
+  Download,
   FolderOpen,
   LayoutDashboard,
   PanelLeft,
@@ -28,7 +31,9 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import { useGroups } from '@/composables/useGroups'
 import { useSettings } from '@/composables/useSettings'
 import { useSkills } from '@/composables/useSkills'
+import { showToast } from '@/composables/useToast'
 import type { WorkspaceView } from '@/lib/navigation'
+import { mergePreset, parsePresetDocument, serializePreset } from '@/lib/preset-format'
 
 const props = defineProps<{ view: WorkspaceView }>()
 const emit = defineEmits<{
@@ -54,6 +59,9 @@ const { groups, filterGroup, deleteGroup } = useGroups()
 
 const groupCreateOpen = ref(false)
 const newGroupName = ref('')
+const groupImportOpen = shallowRef(false)
+const groupImportContent = ref('')
+const groupImportError = shallowRef<string | null>(null)
 const bundlesExpanded = shallowRef(true)
 const agentsExpanded = shallowRef(true)
 const scopeExpanded = shallowRef(true)
@@ -120,6 +128,49 @@ function createGroup(): void {
   if (!name || groups.value.some((group) => group.name === name)) return
   groups.value = [...groups.value, { name, skills: [] }]
   closeGroupCreate()
+}
+
+function openGroupImport(): void {
+  groupImportContent.value = ''
+  groupImportError.value = null
+  groupImportOpen.value = true
+}
+
+function closeGroupImport(): void {
+  groupImportOpen.value = false
+  groupImportContent.value = ''
+  groupImportError.value = null
+}
+
+function importGroup(): void {
+  try {
+    const imported = parsePresetDocument(groupImportContent.value)
+    const outcome = mergePreset(groups.value, imported)
+    if (outcome.result !== 'unchanged') groups.value = outcome.groups
+    const messageKey = {
+      created: 'groups.importCreated',
+      merged: 'groups.importMerged',
+      unchanged: 'groups.importUnchanged',
+    }[outcome.result]
+    showToast({
+      message: t(messageKey, {
+        name: imported.name,
+        n: outcome.addedSkills,
+      }),
+    })
+    closeGroupImport()
+  } catch {
+    groupImportError.value = t('groups.importInvalid')
+  }
+}
+
+async function exportGroup(group: { name: string; skills: string[] }): Promise<void> {
+  try {
+    await navigator.clipboard.writeText(serializePreset(group))
+    showToast({ message: t('groups.exported', { name: group.name }) })
+  } catch {
+    showToast({ message: t('groups.exportFailed') })
+  }
 }
 </script>
 
@@ -230,15 +281,26 @@ function createGroup(): void {
               />
               <span class="truncate">{{ t('groups.title') }}</span>
             </button>
-            <button
-              type="button"
-              class="cursor-pointer rounded p-0.5 text-muted-foreground transition-colors hover:bg-accent/60 hover:text-foreground"
-              :title="t('groups.createTitle')"
-              :aria-label="t('groups.createTitle')"
-              @click="startAddingGroup"
-            >
-              <Plus class="size-3.5" />
-            </button>
+            <span class="flex items-center gap-0.5">
+              <button
+                type="button"
+                class="cursor-pointer rounded p-0.5 text-muted-foreground transition-colors hover:bg-accent/60 hover:text-foreground"
+                :title="t('groups.importAction')"
+                :aria-label="t('groups.importAction')"
+                @click="openGroupImport"
+              >
+                <Download class="size-3.5" />
+              </button>
+              <button
+                type="button"
+                class="cursor-pointer rounded p-0.5 text-muted-foreground transition-colors hover:bg-accent/60 hover:text-foreground"
+                :title="t('groups.createTitle')"
+                :aria-label="t('groups.createTitle')"
+                @click="startAddingGroup"
+              >
+                <Plus class="size-3.5" />
+              </button>
+            </span>
           </div>
           <div
             id="sidebar-bundles"
@@ -272,6 +334,15 @@ function createGroup(): void {
                   <span class="text-sm tabular-nums text-muted-foreground">
                     {{ group.skills.length }}
                   </span>
+                  <button
+                    type="button"
+                    class="hidden cursor-pointer rounded p-0.5 text-muted-foreground hover:text-foreground group-hover/g:inline-flex"
+                    :title="t('groups.exportAction')"
+                    :aria-label="t('groups.exportAction')"
+                    @click.stop="exportGroup(group)"
+                  >
+                    <Copy class="size-3" />
+                  </button>
                   <button
                     type="button"
                     class="hidden cursor-pointer rounded p-0.5 text-muted-foreground hover:text-destructive group-hover/g:inline-flex"
@@ -500,6 +571,46 @@ function createGroup(): void {
             @click="createGroup"
           >
             {{ t('common.add') }}
+          </Button>
+        </div>
+      </DialogContent>
+    </DialogPortal>
+  </DialogRoot>
+
+  <DialogRoot :open="groupImportOpen" @update:open="(open) => !open && closeGroupImport()">
+    <DialogPortal>
+      <DialogOverlay class="fixed inset-0 z-40 bg-black/40" />
+      <DialogContent
+        class="fixed left-1/2 top-1/2 z-50 w-[440px] -translate-x-1/2 -translate-y-1/2 rounded-xl border bg-background p-5 shadow-xl outline-none"
+        @open-auto-focus.prevent
+      >
+        <DialogTitle class="text-base font-semibold tracking-tight">
+          {{ t('groups.importTitle') }}
+        </DialogTitle>
+        <DialogDescription class="mt-1 text-sm text-muted-foreground">
+          {{ t('groups.importDescription') }}
+        </DialogDescription>
+        <textarea
+          v-model="groupImportContent"
+          class="mt-4 min-h-52 w-full resize-y rounded-md border bg-background p-3 font-mono text-xs outline-none transition-colors focus:border-ring focus:ring-2 focus:ring-ring/20"
+          :placeholder="t('groups.importPlaceholder')"
+          spellcheck="false"
+          @input="groupImportError = null"
+        />
+        <p v-if="groupImportError" class="mt-2 text-sm text-destructive">
+          {{ groupImportError }}
+        </p>
+        <div class="mt-4 flex justify-end gap-2">
+          <Button variant="ghost" size="sm" class="cursor-pointer" @click="closeGroupImport">
+            {{ t('common.cancel') }}
+          </Button>
+          <Button
+            size="sm"
+            class="cursor-pointer"
+            :disabled="!groupImportContent.trim()"
+            @click="importGroup"
+          >
+            {{ t('groups.importAction') }}
           </Button>
         </div>
       </DialogContent>

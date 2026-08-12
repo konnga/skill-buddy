@@ -4,18 +4,43 @@ import { planAdditiveInstall } from '@skillbuddy/core/planners'
 import { showToast } from '@/composables/useToast'
 import { useSettings } from '@/composables/useSettings'
 import { useSkills } from '@/composables/useSkills'
+import { deriveGroupRuntimeState } from '@/lib/group-runtime'
+import { manageableSkillInstallations } from '@/lib/skill-installations'
 
 const groupApplyOpen = shallowRef(false)
 const groupApplyScope = shallowRef('user')
 const groupApplyAgents = ref<string[]>([])
 const groupApplyBusy = shallowRef(false)
 const groupApplyNote = shallowRef<string | null>(null)
+const groupToggleBusy = shallowRef(false)
 
 /** 管理分组筛选、批量应用与临时应用的完整生命周期。 */
 export function useGroups() {
   const { t } = useI18n()
   const { groups, tempApplications } = useSettings()
-  const { groupFilter, skills, installSkill, refresh } = useSkills()
+  const {
+    groupFilter,
+    skills,
+    platformFilter,
+    projectFilter,
+    ownershipFilter,
+    installSkill,
+    setEnabled,
+    refresh,
+  } = useSkills()
+
+  const installationFilter = computed(() => ({
+    platformId: platformFilter.value,
+    projectFilter: projectFilter.value,
+    ownershipFilter: ownershipFilter.value,
+  }))
+
+  const activeGroupState = computed(() => {
+    const group = groups.value.find((item) => item.name === groupFilter.value)
+    return group
+      ? deriveGroupRuntimeState(group, skills.value, installationFilter.value)
+      : null
+  })
 
   const activeTemp = computed(() =>
     groupFilter.value
@@ -159,6 +184,69 @@ export function useGroups() {
     }
   }
 
+  /** 按当前筛选快照启用或禁用合集内的所有可写安装。 */
+  async function setGroupEnabled(enabled: boolean): Promise<void> {
+    const group = groups.value.find((item) => item.name === groupFilter.value)
+    if (!group || groupToggleBusy.value) return
+
+    const targets = group.skills.flatMap((name) => {
+      const skill = skills.value.find((item) => item.name === name)
+      if (!skill) return []
+      const installations = manageableSkillInstallations(skill, installationFilter.value)
+      return installations.length > 0
+        ? [{
+            name,
+            targets: installations.map((installation) => ({
+              agent: installation.agent,
+              scope: installation.scope,
+              projectRoot: installation.projectRoot,
+            })),
+          }]
+        : []
+    })
+    if (targets.length === 0) return
+
+    const installationCount = targets.reduce((count, item) => count + item.targets.length, 0)
+    const action = enabled ? 'enable' : 'disable'
+    const confirmed = await window.skillsManager.confirmDialog({
+      title: t(`groups.${action}Title`),
+      message: t(`groups.${action}Confirm`, {
+        name: group.name,
+        skills: targets.length,
+        installations: installationCount,
+      }),
+      confirmLabel: t(`groups.${action}Action`),
+      cancelLabel: t('common.cancel'),
+      danger: !enabled,
+    })
+    if (!confirmed) return
+
+    groupToggleBusy.value = true
+    try {
+      let completed = 0
+      const failures: string[] = []
+      for (const item of targets) {
+        const results = await setEnabled(item.name, item.targets, enabled, { refresh: false })
+        completed += results.filter((result) => result.ok).length
+        failures.push(
+          ...results
+            .filter((result) => !result.ok)
+            .map((result) => result.error ?? '')
+            .filter(Boolean),
+        )
+      }
+      if (completed > 0) {
+        showToast({ message: t(`groups.${action}Done`, { n: completed }) })
+      }
+      if (failures.length > 0) showToast({ message: failures.join('；') })
+    } catch {
+      showToast({ message: t('groups.toggleFailed') })
+    } finally {
+      await refresh({ silent: true })
+      groupToggleBusy.value = false
+    }
+  }
+
   return {
     groups,
     groupFilter,
@@ -167,6 +255,8 @@ export function useGroups() {
     groupApplyAgents,
     groupApplyBusy,
     groupApplyNote,
+    activeGroupState,
+    groupToggleBusy,
     activeTemp,
     filterGroup,
     deleteGroup,
@@ -174,5 +264,6 @@ export function useGroups() {
     applyGroup,
     applyGroupTemp,
     endTemp,
+    setGroupEnabled,
   }
 }

@@ -35,6 +35,7 @@ import PlatformIcon from '@/components/PlatformIcon.vue'
 import ThemeCodePreview from '@/components/appearance/ThemeCodePreview.vue'
 import ThemeModeCards from '@/components/appearance/ThemeModeCards.vue'
 import ThemeStylePanel from '@/components/appearance/ThemeStylePanel.vue'
+import GitBackupPanel from '@/components/settings/GitBackupPanel.vue'
 import { useSettings, syncCustomPlatforms, type RegistryProfile } from '@/composables/useSettings'
 import { useSkills } from '@/composables/useSkills'
 import { showToast } from '@/composables/useToast'
@@ -792,6 +793,10 @@ async function copyDiagnostics(): Promise<void> {
         <!-- data -->
         <section v-if="showCat('data')" class="mb-10">
           <h2 class="mb-3 text-sm font-medium">{{ t('settings.catData') }}</h2>
+          <GitBackupPanel
+            v-if="!searching || visible(t('settings.backupTitle'), t('settings.backupDesc'))"
+            class="mb-5"
+          />
           <div class="divide-y rounded-xl border">
             <div
               v-if="visible(t('settings.dataExportTitle'), t('settings.dataExportDesc'))"

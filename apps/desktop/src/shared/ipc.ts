@@ -1,9 +1,35 @@
 import type {
   AgentId,
+  FoundSkill,
   InstallScope,
   McpServerDefinition,
   McpTarget,
 } from '@skillbuddy/core'
+
+export interface BackupPreset {
+  name: string
+  skills: string[]
+}
+
+export interface GitBackupRequest {
+  remoteUrl: string
+  branch: string
+  presets: BackupPreset[]
+}
+
+export interface GitBackupResult {
+  committed: boolean
+  skills: number
+  presets: number
+  commit?: string
+}
+
+export interface GitRestorePreview {
+  root: string
+  createdAt: string
+  items: FoundSkill[]
+  presets: BackupPreset[]
+}
 
 /** Minimal existing-skill context exposed to a local AI agent. */
 export interface AiSkillContextItem {

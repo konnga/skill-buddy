@@ -2,6 +2,7 @@ import { app, BrowserWindow } from 'electron'
 import { registerAiConversationIpc } from './ai-conversations.js'
 import { registerBrowserIpc } from './in-app-browser.js'
 import { registerMarketIpc } from './ipc/market.js'
+import { registerBackupIpc } from './ipc/backup.js'
 import { registerMcpIpc } from './ipc/mcp.js'
 import { registerRegistryIpc } from './ipc/registry.js'
 import { registerSkillsIpc } from './ipc/skills.js'
@@ -14,6 +15,7 @@ let disposeMcp: (() => void) | undefined
 
 function registerIpc(): void {
   registerSkillsIpc(pathPolicy)
+  registerBackupIpc(pathPolicy)
   registerAiConversationIpc(pathPolicy)
   registerBrowserIpc()
   registerSystemIpc()

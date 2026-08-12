@@ -25,6 +25,7 @@ import {
 import type { AggregatedSkill } from '@skillbuddy/core'
 import type { InstallTarget } from '../../../shared/ipc.js'
 import PlatformTargetPicker from '@/components/PlatformTargetPicker.vue'
+import GroupPresetToolbar from '@/components/groups/GroupPresetToolbar.vue'
 import SidebarToggle from '@/components/SidebarToggle.vue'
 import SkillCard from '@/components/SkillCard.vue'
 import { Button } from '@/components/ui/button'
@@ -106,10 +107,13 @@ const {
   groupApplyBusy,
   groupApplyNote,
   activeTemp,
+  activeGroupState,
+  groupToggleBusy,
   groupCount,
   applyGroup,
   applyGroupTemp,
   endTemp,
+  setGroupEnabled,
 } = useGroups()
 
 const sortOptions = computed(() => [
@@ -512,6 +516,14 @@ function updateToggleDialog(open: boolean): void {
     </header>
 
     <ScrollArea class="flex-1" viewport-class="px-6 py-5">
+      <GroupPresetToolbar
+        v-if="groupFilter && activeGroupState"
+        :state="activeGroupState"
+        :busy="groupToggleBusy"
+        @enable="setGroupEnabled(true)"
+        @disable="setGroupEnabled(false)"
+      />
+
       <div
         v-if="groupFilter && groupApplyOpen"
         class="mb-4 flex flex-col gap-2 rounded-lg border px-4 py-3"

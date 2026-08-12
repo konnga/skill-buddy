@@ -22,6 +22,9 @@ import type {
   ConfirmOptions,
   CustomPlatformInput,
   FilePreviewResult,
+  GitBackupRequest,
+  GitBackupResult,
+  GitRestorePreview,
   InAppBrowserState,
   InstallTarget,
   LinkOpenMode,
@@ -35,6 +38,11 @@ import type {
 } from '../shared/ipc.js'
 
 const api = {
+  pushGitBackup: (request: GitBackupRequest): Promise<GitBackupResult> =>
+    ipcRenderer.invoke('backup:push', request),
+  prepareGitRestore: (
+    request: Pick<GitBackupRequest, 'remoteUrl' | 'branch'>,
+  ): Promise<GitRestorePreview> => ipcRenderer.invoke('backup:prepare-restore', request),
   scanMcpServers: (projectRoots: string[] = []): Promise<McpScanResult> =>
     ipcRenderer.invoke('mcp:scan', projectRoots),
   createMcpUpsertPlan: (request: McpUpsertPlanRequest): Promise<McpOperationPlanView> =>
