@@ -35,6 +35,7 @@ import type {
   McpTogglePlanRequest,
   McpUpsertPlanRequest,
   ModelScopeMcpDetail,
+  ModelScopeMcpStats,
   ModelScopeMcpSummary,
   RegistryConfig,
   RegistryTestResult,
@@ -190,6 +191,8 @@ const api = {
     page = 1,
   ): Promise<{ items: ModelScopeMcpSummary[]; total: number }> =>
     ipcRenderer.invoke('mcp-market:modelscope-search', q, page),
+  modelscopeMcpStats: (ids: string[]): Promise<ModelScopeMcpStats[]> =>
+    ipcRenderer.invoke('mcp-market:modelscope-stats', ids),
   modelscopeMcpDetail: (id: string): Promise<ModelScopeMcpDetail> =>
     ipcRenderer.invoke('mcp-market:modelscope-detail', id),
   mcpsoSearch: (q: string): Promise<{ items: McpSoCard[] }> =>

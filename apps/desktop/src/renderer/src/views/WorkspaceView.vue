@@ -164,7 +164,10 @@ watch(skills, (value) => {
       :inset="props.inset"
       @open-settings="emit('openSettings')"
     />
-    <McpServersView v-else-if="props.view === 'mcp'" :inset="props.inset" />
+    <McpServersView
+      v-else-if="props.view === 'mcp'"
+      :inset="props.inset"
+    />
     <GroupsView
       v-else-if="props.view === 'groups'"
       :inset="props.inset"

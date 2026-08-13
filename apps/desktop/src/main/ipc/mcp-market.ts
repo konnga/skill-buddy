@@ -5,6 +5,7 @@ import type {
   McpSoCard,
   McpSoDetail,
   ModelScopeMcpDetail,
+  ModelScopeMcpStats,
   ModelScopeMcpSummary,
 } from '../../shared/ipc.js'
 import { marketFetch } from './market.js'
@@ -13,6 +14,7 @@ import {
   firstExternalLink,
   normalizeModelScopeDetail,
   normalizeModelScopeList,
+  parseModelScopeWebStats,
   parseMcpSoCards,
   parseMcpSoConfigs,
   parseMcpSoLdJson,
@@ -22,6 +24,30 @@ import {
 const MODELSCOPE_API = 'https://modelscope.cn/openapi/v1'
 /** mcp.so 无公开 API，搜索与详情均解析其服务端渲染页面。 */
 const MCPSO_ORIGIN = 'https://mcp.so'
+
+async function fetchModelScopeStats(ids: string[]): Promise<ModelScopeMcpStats[]> {
+  const statsList: ModelScopeMcpStats[] = []
+  const batchSize = 6
+  for (let start = 0; start < ids.length; start += batchSize) {
+    const batch = await Promise.all(
+      ids.slice(start, start + batchSize).map(async (id): Promise<ModelScopeMcpStats> => {
+        try {
+          const response = await marketFetch(
+            `https://modelscope.cn/mcp/servers/${id.split('/').map(encodeURIComponent).join('/')}`,
+            { timeoutMs: 8_000 },
+          )
+          if (!response.ok) return { id }
+          const stats = parseModelScopeWebStats(await response.text())
+          return { id, ...stats }
+        } catch {
+          return { id }
+        }
+      }),
+    )
+    statsList.push(...batch)
+  }
+  return statsList
+}
 
 interface ModelScopeEnvelope<T> {
   success?: boolean
@@ -64,6 +90,20 @@ export function registerMcpMarketIpc(): void {
       const payload = (await response.json()) as ModelScopeEnvelope<unknown>
       if (payload.success === false) throw new Error(payload.message || 'modelscope request failed')
       return normalizeModelScopeList(payload.data)
+    },
+  )
+
+  ipcMain.handle(
+    'mcp-market:modelscope-stats',
+    async (_event, ids: string[]): Promise<ModelScopeMcpStats[]> => {
+      if (
+        !Array.isArray(ids) ||
+        ids.length > 24 ||
+        ids.some((id) => typeof id !== 'string' || !/^@?[\w.-]+\/[\w.-]+$/.test(id))
+      ) {
+        throw new Error('invalid modelscope stats request')
+      }
+      return fetchModelScopeStats([...new Set(ids)])
     },
   )
 

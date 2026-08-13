@@ -4,6 +4,7 @@ import {
   firstExternalLink,
   normalizeModelScopeDetail,
   normalizeModelScopeList,
+  parseModelScopeWebStats,
   parseMcpSoCards,
   parseMcpSoConfigs,
   parseMcpSoLdJson,
@@ -75,6 +76,17 @@ describe('mcp.so 页面解析', () => {
 })
 
 describe('魔搭响应归一化', () => {
+  it('解析详情页内嵌的调用量、收藏数和浏览量', () => {
+    const encoded = JSON.stringify({ CallVolume: 776600, Stars: 62, ViewCount: 44800 })
+      .replaceAll('\\', '\\\\')
+      .replaceAll('"', '\\"')
+    expect(parseModelScopeWebStats(`window.__detail_data__ = "${encoded}";`)).toEqual({
+      usageCount: 776600,
+      favoriteCount: 62,
+      viewCount: 44800,
+    })
+  })
+
   it('过滤无效列表项并保留中英文元数据', () => {
     expect(
       normalizeModelScopeList({

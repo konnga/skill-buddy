@@ -11,7 +11,6 @@ import {
   DialogRoot,
   DialogTitle,
 } from 'reka-ui'
-import McpMarketCatalog from '@/components/mcp/McpMarketCatalog.vue'
 import McpPlanDialog from '@/components/mcp/McpPlanDialog.vue'
 import McpServerDetail from '@/components/mcp/McpServerDetail.vue'
 import McpServerForm from '@/components/mcp/McpServerForm.vue'
@@ -23,6 +22,7 @@ import { Input } from '@/components/ui/input'
 import { useMcpServers } from '@/composables/useMcpServers'
 import { useSettings } from '@/composables/useSettings'
 import { showToast } from '@/composables/useToast'
+import McpMarketView from '@/views/McpMarketView.vue'
 
 const props = defineProps<{ inset?: boolean }>()
 const { t } = useI18n()
@@ -49,8 +49,8 @@ const {
 } = useMcpServers()
 
 const selectedName = shallowRef('')
+const marketPageOpen = shallowRef(false)
 const newOpen = shallowRef(false)
-const marketOpen = shallowRef(false)
 const syncSource = shallowRef<McpInstallation | null>(null)
 const syncTargets = ref<McpTarget[]>([])
 
@@ -132,7 +132,7 @@ async function executePlan(): Promise<void> {
         const restored = await restore(result.operationId)
         showToast({ message: restored ? t('common.restored') : t('mcp.restoreFailed') })
       },
-    }, 60_000)
+    }, 6_000)
   }
   if (failed.length > 0) {
     showToast({ message: failed.map((item) => item.error).filter(Boolean).join('; ') })
@@ -141,7 +141,12 @@ async function executePlan(): Promise<void> {
 </script>
 
 <template>
-  <div class="flex h-full min-w-0 flex-col">
+  <McpMarketView
+    v-if="marketPageOpen"
+    :inset="props.inset"
+    @close="marketPageOpen = false"
+  />
+  <div v-else class="flex h-full min-w-0 flex-col">
     <header
       :class="[
         'app-drag relative flex h-14 shrink-0 items-center gap-3 border-b px-6',
@@ -162,7 +167,7 @@ async function executePlan(): Promise<void> {
         class="app-no-drag cursor-pointer"
         :title="t('mcp.market.open')"
         :aria-label="t('mcp.market.open')"
-        @click="marketOpen = true"
+        @click="marketPageOpen = true"
       >
         <Store />
       </Button>
@@ -219,7 +224,12 @@ async function executePlan(): Promise<void> {
             <Plus />
             {{ t('mcp.new') }}
           </Button>
-          <Button variant="outline" size="sm" class="cursor-pointer" @click="marketOpen = true">
+          <Button
+            variant="outline"
+            size="sm"
+            class="cursor-pointer"
+            @click="marketPageOpen = true"
+          >
             <Store />
             {{ t('mcp.market.open') }}
           </Button>
@@ -262,7 +272,6 @@ async function executePlan(): Promise<void> {
       @close="newOpen = false"
       @submit="reviewCreate"
     />
-    <McpMarketCatalog :open="marketOpen" @close="marketOpen = false" />
     <McpPlanDialog
       :plan="currentPlan"
       :applying="applying"

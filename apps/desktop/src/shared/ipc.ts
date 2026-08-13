@@ -174,7 +174,19 @@ export interface ModelScopeMcpSummary {
   tags: string[]
   categories: string[]
   viewCount: number
+  /** 可选统计：不同接口版本可能提供调用/下载/收藏等字段。 */
+  usageCount?: number
+  downloadCount?: number
+  favoriteCount?: number
   publisher: string
+}
+
+/** 魔搭 MCP 网页端提供、公开列表 OpenAPI 缺失的补充统计。 */
+export interface ModelScopeMcpStats {
+  id: string
+  usageCount?: number
+  favoriteCount?: number
+  viewCount?: number
 }
 
 /** 魔搭 MCP 广场服务详情：在摘要之上补充来源仓库、README 与安装配置。 */

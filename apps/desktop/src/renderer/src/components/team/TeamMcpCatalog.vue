@@ -105,7 +105,7 @@ async function executePlan(): Promise<void> {
           showToast({ message: restored ? t('common.restored') : t('mcp.restoreFailed') })
         },
       },
-      60_000,
+      6_000,
     )
   }
   if (failed.length > 0) {

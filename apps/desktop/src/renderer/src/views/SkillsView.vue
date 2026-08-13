@@ -25,6 +25,8 @@ import {
   FolderOpen,
   Import,
   Layers,
+  LayoutGrid,
+  ListTree,
   ListPlus,
   Pencil,
   Power,
@@ -41,6 +43,7 @@ import PlatformTargetPicker from '@/components/PlatformTargetPicker.vue'
 import PlatformIcon from '@/components/PlatformIcon.vue'
 import GroupEmptyState from '@/components/groups/GroupEmptyState.vue'
 import SidebarToggle from '@/components/SidebarToggle.vue'
+import SkillAgentTree from '@/components/SkillAgentTree.vue'
 import SkillCard from '@/components/SkillCard.vue'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -89,6 +92,14 @@ const { projectRoots } = useSettings()
 const removing = ref<Set<string>>(new Set())
 const toggling = ref<Set<string>>(new Set())
 const batchMode = shallowRef(false)
+type SkillViewMode = 'grid' | 'tree'
+let storedViewMode: unknown
+try {
+  storedViewMode = JSON.parse(localStorage.getItem('skm.skillsViewMode') ?? 'null')
+} catch {
+  storedViewMode = null
+}
+const viewMode = shallowRef<SkillViewMode>(storedViewMode === 'tree' ? 'tree' : 'grid')
 const selectedNames = ref<Set<string>>(new Set())
 const batchBusy = ref(false)
 const batchProjectOpen = shallowRef(false)
@@ -316,6 +327,11 @@ const projectCapablePlatforms = computed(() =>
 const projectOptions = computed(() =>
   projectRoots.value.map((root) => ({ value: root, label: pathBasename(root) })),
 )
+const busySkillNames = computed(
+  () => new Set([...removing.value, ...toggling.value]),
+)
+
+watch(viewMode, (value) => localStorage.setItem('skm.skillsViewMode', JSON.stringify(value)))
 
 watch(filtered, (items) => {
   const visible = new Set(items.map((skill) => skill.name))
@@ -564,8 +580,12 @@ async function confirmUninstall(): Promise<void> {
   pendingUninstall.value = null
 }
 
-function requestUninstall(skill: AggregatedSkill, platformId: string | null): void {
-  const scopeFilter = projectFilter.value
+function requestUninstall(
+  skill: AggregatedSkill,
+  platformId: string | null,
+  requestedProjectFilter: string | null = projectFilter.value,
+): void {
+  const scopeFilter = requestedProjectFilter
   const installations = manageableSkillInstallations(skill, {
     platformId,
     projectFilter: scopeFilter,
@@ -637,20 +657,28 @@ async function toggleSkill(request: NonNullable<typeof pendingToggle.value>): Pr
   }
 }
 
-function requestToggle(skill: AggregatedSkill): void {
-  const targets = manageableSkillInstallations(skill, installationFilter.value)
+function requestToggle(
+  skill: AggregatedSkill,
+  requestedPlatformId: string | null = platformFilter.value,
+  requestedProjectFilter: string | null = projectFilter.value,
+): void {
+  const targets = manageableSkillInstallations(skill, {
+    platformId: requestedPlatformId,
+    projectFilter: requestedProjectFilter,
+    ownershipFilter: ownershipFilter.value,
+  })
   if (targets.length === 0) return
   const enabled = targets.every((installation) => installation.enabled === false)
   pendingToggle.value = {
     skill,
-    platformId: platformFilter.value,
+    platformId: requestedPlatformId,
     enabled,
     context:
-      projectFilter.value && platformFilter.value
+      requestedProjectFilter && requestedPlatformId
         ? 'scopeAgent'
-        : projectFilter.value
+        : requestedProjectFilter
           ? 'scope'
-          : platformFilter.value
+          : requestedPlatformId
             ? 'agent'
             : 'global',
     installations: targets,
@@ -806,6 +834,38 @@ watch(groupFilter, (name) => {
             <Input v-model="search" :placeholder="t('groups.searchSkillsPh')" class="h-8 pl-8" />
           </div>
           <Select v-model="sortBy" :options="sortOptions" />
+          <div class="flex shrink-0 items-center rounded-md border bg-background p-0.5">
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              :class="[
+                'size-7 cursor-pointer',
+                viewMode === 'grid' && 'bg-accent text-accent-foreground',
+              ]"
+              :title="t('app.gridView')"
+              :aria-label="t('app.gridView')"
+              :aria-pressed="viewMode === 'grid'"
+              @click="viewMode = 'grid'"
+            >
+              <LayoutGrid class="size-4" />
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              :class="[
+                'size-7 cursor-pointer',
+                viewMode === 'tree' && 'bg-accent text-accent-foreground',
+              ]"
+              :title="t('app.treeView')"
+              :aria-label="t('app.treeView')"
+              :aria-pressed="viewMode === 'tree'"
+              @click="viewMode = 'tree'"
+            >
+              <ListTree class="size-4" />
+            </Button>
+          </div>
         </div>
       </template>
       <template v-else>
@@ -834,6 +894,38 @@ watch(groupFilter, (name) => {
             {{ t('app.driftOnly') }}
           </Button>
           <Select v-model="sortBy" :options="sortOptions" />
+          <div class="flex shrink-0 items-center rounded-md border bg-background p-0.5">
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              :class="[
+                'size-7 cursor-pointer',
+                viewMode === 'grid' && 'bg-accent text-accent-foreground',
+              ]"
+              :title="t('app.gridView')"
+              :aria-label="t('app.gridView')"
+              :aria-pressed="viewMode === 'grid'"
+              @click="viewMode = 'grid'"
+            >
+              <LayoutGrid class="size-4" />
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              :class="[
+                'size-7 cursor-pointer',
+                viewMode === 'tree' && 'bg-accent text-accent-foreground',
+              ]"
+              :title="t('app.treeView')"
+              :aria-label="t('app.treeView')"
+              :aria-pressed="viewMode === 'tree'"
+              @click="viewMode = 'tree'"
+            >
+              <ListTree class="size-4" />
+            </Button>
+          </div>
           <label class="flex shrink-0 cursor-pointer items-center gap-2 whitespace-nowrap text-sm text-muted-foreground">
             <span>{{ t('batch.manage') }}</span>
             <Switch
@@ -1041,6 +1133,23 @@ watch(groupFilter, (name) => {
       <div v-else-if="filtered.length === 0" class="py-24 text-center text-sm text-muted-foreground">
         {{ t('app.noMatch', { q: search }) }}
       </div>
+      <SkillAgentTree
+        v-else-if="viewMode === 'tree'"
+        :skills="filtered"
+        :batch-mode="batchMode"
+        :group-context="Boolean(groupFilter)"
+        :selected-names="selectedNames"
+        :busy-names="busySkillNames"
+        :current-platform="platformFilter ?? undefined"
+        :project-filter="projectFilter ?? undefined"
+        :ownership-filter="ownershipFilter ?? undefined"
+        @open="emit('openSkill', $event)"
+        @edit="emit('editSkill', $event)"
+        @toggle-selected="toggleSelected"
+        @toggle-enabled="requestToggle"
+        @remove-from-group="removeSkillFromActiveGroup"
+        @uninstall="requestUninstall"
+      />
       <div v-else class="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
         <SkillCard
           v-for="skill in filtered"

@@ -22,6 +22,10 @@ export interface McpMarketItem {
   tags: string[]
   /** 魔搭访问量；mcp.so 无此数据 */
   viewCount: number | null
+  /** 魔搭可选统计；接口未返回时保持 null，不使用伪造数据。 */
+  usageCount: number | null
+  downloadCount: number | null
+  favoriteCount: number | null
   /** 市场详情页链接 */
   link: string
 }
@@ -49,6 +53,9 @@ export function mapModelScopeItem(raw: ModelScopeMcpSummary, preferChinese: bool
     icon: raw.iconUrl,
     tags: raw.categories.length > 0 ? raw.categories : raw.tags,
     viewCount: raw.viewCount,
+    usageCount: raw.usageCount ?? null,
+    downloadCount: raw.downloadCount ?? null,
+    favoriteCount: raw.favoriteCount ?? null,
     link: `https://modelscope.cn/mcp/servers/${raw.id}`,
   }
 }
@@ -65,6 +72,9 @@ export function mapMcpSoItem(raw: McpSoCard): McpMarketItem {
     icon: raw.iconUrl,
     tags: [],
     viewCount: null,
+    usageCount: null,
+    downloadCount: null,
+    favoriteCount: null,
     link: `https://mcp.so/servers/${raw.slug}`,
   }
 }

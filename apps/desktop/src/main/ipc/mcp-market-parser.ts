@@ -18,8 +18,42 @@ function numberValue(value: unknown): number {
   return typeof value === 'number' && Number.isFinite(value) ? value : 0
 }
 
+function firstNumber(raw: Record<string, unknown>, keys: string[]): number | undefined {
+  for (const key of keys) {
+    const value = raw[key]
+    if (typeof value === 'number' && Number.isFinite(value)) return value
+  }
+  return undefined
+}
+
 function stringArray(value: unknown): string[] {
   return Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string') : []
+}
+
+/** 解析魔搭 MCP 详情页内嵌的统计数据。网页端字段比公开 OpenAPI 更完整。 */
+export function parseModelScopeWebStats(html: string): {
+  usageCount?: number
+  favoriteCount?: number
+  viewCount?: number
+} {
+  const match = /window\.__detail_data__\s*=\s*("(?:\\.|[^"\\])*");/.exec(html)
+  if (!match) return {}
+  try {
+    const payload = JSON.parse(match[1]) as unknown
+    if (typeof payload !== 'string') return {}
+    const data = recordValue(JSON.parse(payload))
+    if (!data) return {}
+    const usageCount = firstNumber(data, ['CallVolume', 'call_volume', 'usage_count'])
+    const favoriteCount = firstNumber(data, ['Stars', 'stars', 'favorite_count'])
+    const viewCount = firstNumber(data, ['ViewCount', 'view_count'])
+    return {
+      ...(usageCount !== undefined ? { usageCount } : {}),
+      ...(favoriteCount !== undefined ? { favoriteCount } : {}),
+      ...(viewCount !== undefined ? { viewCount } : {}),
+    }
+  } catch {
+    return {}
+  }
 }
 
 /** 将魔搭列表项归一化为稳定的共享 DTO。 */
@@ -27,6 +61,9 @@ export function normalizeModelScopeSummary(value: unknown): ModelScopeMcpSummary
   const raw = recordValue(value) ?? {}
   const english = recordValue(recordValue(raw.locales)?.en) ?? {}
   const id = stringValue(raw.id)
+  const usageCount = firstNumber(raw, ['usage_count', 'call_count', 'invoke_count', 'request_count'])
+  const downloadCount = firstNumber(raw, ['download_count', 'install_count', 'pull_count'])
+  const favoriteCount = firstNumber(raw, ['favorite_count', 'collect_count', 'like_count', 'star_count'])
   return {
     id,
     name: stringValue(raw.name) || id,
@@ -38,6 +75,9 @@ export function normalizeModelScopeSummary(value: unknown): ModelScopeMcpSummary
     tags: stringArray(raw.tags),
     categories: stringArray(raw.categories),
     viewCount: numberValue(raw.view_count),
+    ...(usageCount !== undefined ? { usageCount } : {}),
+    ...(downloadCount !== undefined ? { downloadCount } : {}),
+    ...(favoriteCount !== undefined ? { favoriteCount } : {}),
     publisher: stringValue(raw.publisher),
   }
 }
