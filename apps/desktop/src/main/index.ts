@@ -4,6 +4,7 @@ import { registerBrowserIpc } from './in-app-browser.js'
 import { registerMarketIpc } from './ipc/market.js'
 import { registerBackupIpc } from './ipc/backup.js'
 import { registerMcpIpc } from './ipc/mcp.js'
+import { registerMcpMarketIpc } from './ipc/mcp-market.js'
 import { registerRegistryIpc } from './ipc/registry.js'
 import { registerSkillsIpc } from './ipc/skills.js'
 import { registerSystemIpc } from './ipc/system.js'
@@ -20,6 +21,7 @@ function registerIpc(): void {
   registerBrowserIpc()
   registerSystemIpc()
   registerMarketIpc(pathPolicy)
+  registerMcpMarketIpc()
   registerRegistryIpc(pathPolicy)
   const mcpService = registerMcpIpc()
   disposeMcp = () => mcpService.dispose()

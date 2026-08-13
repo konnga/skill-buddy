@@ -28,9 +28,14 @@ import type {
   InAppBrowserState,
   InstallTarget,
   LinkOpenMode,
+  McpMarketValidationResult,
   McpRemovePlanRequest,
+  McpSoCard,
+  McpSoDetail,
   McpTogglePlanRequest,
   McpUpsertPlanRequest,
+  ModelScopeMcpDetail,
+  ModelScopeMcpSummary,
   RegistryConfig,
   RegistryTestResult,
   TargetResult,
@@ -180,6 +185,21 @@ const api = {
   }> => ipcRenderer.invoke('market:skillhub-search', q, page),
   githubStars: (repos: string[]): Promise<Record<string, number>> =>
     ipcRenderer.invoke('market:github-stars', repos),
+  modelscopeMcpSearch: (
+    q: string,
+    page = 1,
+  ): Promise<{ items: ModelScopeMcpSummary[]; total: number }> =>
+    ipcRenderer.invoke('mcp-market:modelscope-search', q, page),
+  modelscopeMcpDetail: (id: string): Promise<ModelScopeMcpDetail> =>
+    ipcRenderer.invoke('mcp-market:modelscope-detail', id),
+  mcpsoSearch: (q: string): Promise<{ items: McpSoCard[] }> =>
+    ipcRenderer.invoke('mcp-market:mcpso-search', q),
+  mcpsoDetail: (slug: string): Promise<McpSoDetail> =>
+    ipcRenderer.invoke('mcp-market:mcpso-detail', slug),
+  validateMcpMarketDefinitions: (
+    definitions: McpServerDefinition[],
+  ): Promise<McpMarketValidationResult[]> =>
+    ipcRenderer.invoke('mcp-market:validate-definitions', definitions),
   skillhubVersions: (
     slug: string,
     namespace: string,

@@ -161,3 +161,59 @@ export interface RegistryTestResult {
   orgs: string[]
   error?: string
 }
+
+/** 魔搭 MCP 广场服务摘要（列表项）。 */
+export interface ModelScopeMcpSummary {
+  id: string
+  name: string
+  chineseName: string
+  englishName: string
+  description: string
+  englishDescription: string
+  iconUrl: string | null
+  tags: string[]
+  categories: string[]
+  viewCount: number
+  publisher: string
+}
+
+/** 魔搭 MCP 广场服务详情：在摘要之上补充来源仓库、README 与安装配置。 */
+export interface ModelScopeMcpDetail extends ModelScopeMcpSummary {
+  author: string
+  sourceUrl: string | null
+  readme: string
+  githubStars: number
+  isHosted: boolean
+  isVerified: boolean
+  /** env_schema 中声明的必填环境变量名。 */
+  requiredEnv: string[]
+  /** server_config 原样透传，形如 [{ mcpServers: { name: {...} } }]。 */
+  configs: unknown[]
+}
+
+/** mcp.so 搜索结果卡片。 */
+export interface McpSoCard {
+  slug: string
+  name: string
+  author: string
+  description: string
+  iconUrl: string | null
+}
+
+/** mcp.so 详情：页面内嵌的元数据与安装配置 JSON 块。 */
+export interface McpSoDetail {
+  slug: string
+  name: string
+  description: string
+  author: string
+  category: string
+  iconUrl: string | null
+  sourceUrl: string | null
+  configs: unknown[]
+}
+
+/** 市场配置转换为平台中立定义后的主进程校验结果。 */
+export interface McpMarketValidationResult {
+  valid: boolean
+  error?: string
+}

@@ -9,6 +9,8 @@ import { readSecret } from '../secrets.js'
 import type { PathAccessPolicy } from '../path-policy.js'
 
 interface MarketFetchInit {
+  method?: string
+  body?: string
   headers?: Record<string, string>
   redirect?: RequestInit['redirect']
   timeoutMs?: number
@@ -19,7 +21,7 @@ interface MarketFetchInit {
  * HTTP 代理对其生效）；失败（代理不可用、超时等）时退回 Node 直连再试
  * 一次。两次尝试各自使用独立的超时信号。
  */
-async function marketFetch(url: string, init: MarketFetchInit = {}): Promise<Response> {
+export async function marketFetch(url: string, init: MarketFetchInit = {}): Promise<Response> {
   const { timeoutMs = 10_000, ...rest } = init
   try {
     return await session.defaultSession.fetch(url, {

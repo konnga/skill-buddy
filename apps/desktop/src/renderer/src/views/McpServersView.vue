@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, shallowRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { Plus, RefreshCw, Search, ServerCog, TriangleAlert } from '@lucide/vue'
+import { Plus, RefreshCw, Search, ServerCog, Store, TriangleAlert } from '@lucide/vue'
 import type { McpInstallation, McpServerDefinition, McpTarget } from '@skillbuddy/core'
 import {
   DialogContent,
@@ -11,6 +11,7 @@ import {
   DialogRoot,
   DialogTitle,
 } from 'reka-ui'
+import McpMarketCatalog from '@/components/mcp/McpMarketCatalog.vue'
 import McpPlanDialog from '@/components/mcp/McpPlanDialog.vue'
 import McpServerDetail from '@/components/mcp/McpServerDetail.vue'
 import McpServerForm from '@/components/mcp/McpServerForm.vue'
@@ -49,6 +50,7 @@ const {
 
 const selectedName = shallowRef('')
 const newOpen = shallowRef(false)
+const marketOpen = shallowRef(false)
 const syncSource = shallowRef<McpInstallation | null>(null)
 const syncTargets = ref<McpTarget[]>([])
 
@@ -157,6 +159,16 @@ async function executePlan(): Promise<void> {
       <Button
         variant="outline"
         size="icon"
+        class="app-no-drag cursor-pointer"
+        :title="t('mcp.market.open')"
+        :aria-label="t('mcp.market.open')"
+        @click="marketOpen = true"
+      >
+        <Store />
+      </Button>
+      <Button
+        variant="outline"
+        size="icon"
         class="app-no-drag"
         :title="t('mcp.new')"
         :aria-label="t('mcp.new')"
@@ -202,10 +214,16 @@ async function executePlan(): Promise<void> {
       <div class="flex max-w-sm flex-col items-center gap-3 text-muted-foreground">
         <ServerCog class="size-10" />
         <p class="text-sm font-medium text-foreground">{{ t('mcp.empty') }}</p>
-        <Button size="sm" @click="newOpen = true">
-          <Plus />
-          {{ t('mcp.new') }}
-        </Button>
+        <div class="flex items-center gap-2">
+          <Button size="sm" @click="newOpen = true">
+            <Plus />
+            {{ t('mcp.new') }}
+          </Button>
+          <Button variant="outline" size="sm" class="cursor-pointer" @click="marketOpen = true">
+            <Store />
+            {{ t('mcp.market.open') }}
+          </Button>
+        </div>
       </div>
     </div>
     <div v-else class="grid min-h-0 flex-1 grid-cols-[minmax(280px,360px)_minmax(0,1fr)]">
@@ -244,6 +262,7 @@ async function executePlan(): Promise<void> {
       @close="newOpen = false"
       @submit="reviewCreate"
     />
+    <McpMarketCatalog :open="marketOpen" @close="marketOpen = false" />
     <McpPlanDialog
       :plan="currentPlan"
       :applying="applying"
