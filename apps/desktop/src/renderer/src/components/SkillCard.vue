@@ -122,7 +122,7 @@ const uninstallCurrentLabel = computed(() =>
 <template>
   <Card
     :class="[
-      'group flex h-full cursor-pointer flex-col transition-colors hover:border-foreground/25',
+      'group flex h-full cursor-pointer flex-col transition-[background-color,border-color,box-shadow] hover:border-foreground/25 hover:shadow-sm',
       props.selected && 'border-primary/60 bg-primary/5 ring-1 ring-primary/20',
       visibleAllDisabled && 'opacity-60 saturate-75',
       visibleDisabledCount > 0 && !visibleAllDisabled && 'border-amber-500/20 bg-muted/20',

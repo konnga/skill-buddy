@@ -877,6 +877,7 @@ watch(groupFilter, (name) => {
             <Input v-model="search" :placeholder="t('app.searchPlaceholder')" class="h-8 pl-8" />
           </div>
           <Select v-model="ownershipModel" :options="ownershipOptions" />
+          <Select v-model="sortBy" :options="sortOptions" />
           <Button
             type="button"
             variant="outline"
@@ -893,7 +894,6 @@ watch(groupFilter, (name) => {
             <TriangleAlert class="size-3.5" />
             {{ t('app.driftOnly') }}
           </Button>
-          <Select v-model="sortBy" :options="sortOptions" />
           <div class="flex shrink-0 items-center rounded-md border bg-background p-0.5">
             <Button
               type="button"
@@ -979,7 +979,6 @@ watch(groupFilter, (name) => {
           </Button>
           <Button
             variant="outline"
-            size="sm"
             class="cursor-pointer"
             :disabled="loading"
             @click="refresh"
