@@ -15,6 +15,11 @@ const state = shallowRef<InAppBrowserState>(closedState)
 window.skillsManager?.onBrowserState((next) => {
   state.value = next
 })
+if (window.skillsManager) {
+  void window.skillsManager.browserState().then((next) => {
+    state.value = next
+  })
+}
 
 /** 应用内浏览器（主进程 WebContentsView）的导航状态与操作。 */
 export function useInAppBrowser() {

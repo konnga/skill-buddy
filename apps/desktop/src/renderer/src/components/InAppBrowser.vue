@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ArrowLeft, ArrowRight, ExternalLink, RotateCw, X } from '@lucide/vue'
+import { onUnmounted, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { Button } from '@/components/ui/button'
 import { useInAppBrowser } from '@/composables/useInAppBrowser'
@@ -12,6 +13,15 @@ const { t } = useI18n()
 const { state, back, forward, reload, close } = useInAppBrowser()
 
 const isMac = navigator.platform.toLowerCase().includes('mac')
+const browserOpenClass = 'in-app-browser-open'
+
+watch(
+  () => state.value.open,
+  (open) => document.documentElement.classList.toggle(browserOpenClass, open),
+  { immediate: true },
+)
+
+onUnmounted(() => document.documentElement.classList.remove(browserOpenClass))
 
 /** 转到系统浏览器继续看，同时关闭应用内浏览器。 */
 function openExternal(): void {
@@ -23,15 +33,15 @@ function openExternal(): void {
 <template>
   <div
     v-if="state.open"
-    class="app-drag fixed inset-x-0 top-0 z-[90] flex h-12 items-center gap-1 border-b bg-background px-3"
+    class="app-no-drag fixed inset-x-0 top-0 z-[90] flex h-12 items-center gap-1 border-b bg-background px-3"
     :class="isMac ? 'pl-[84px]' : ''"
   >
     <Button
       variant="ghost"
       size="icon"
-      class="app-no-drag size-8"
-      :disabled="!state.canGoBack"
-      :title="t('browser.back')"
+      class="app-no-drag size-8 cursor-pointer"
+      :title="state.canGoBack ? t('browser.back') : t('common.back')"
+      :aria-label="state.canGoBack ? t('browser.back') : t('common.back')"
       @click="back"
     >
       <ArrowLeft class="size-4" />
@@ -39,9 +49,10 @@ function openExternal(): void {
     <Button
       variant="ghost"
       size="icon"
-      class="app-no-drag size-8"
+      class="app-no-drag size-8 cursor-pointer"
       :disabled="!state.canGoForward"
       :title="t('browser.forward')"
+      :aria-label="t('browser.forward')"
       @click="forward"
     >
       <ArrowRight class="size-4" />
@@ -49,14 +60,15 @@ function openExternal(): void {
     <Button
       variant="ghost"
       size="icon"
-      class="app-no-drag size-8"
+      class="app-no-drag size-8 cursor-pointer"
       :title="t('browser.reload')"
+      :aria-label="t('browser.reload')"
       @click="reload"
     >
       <RotateCw class="size-4" />
     </Button>
 
-    <div class="min-w-0 flex-1 px-2 text-center">
+    <div class="flex h-full min-w-0 flex-1 items-center justify-center px-2 text-center">
       <p class="truncate text-sm font-medium" :title="state.url">
         {{ state.title || state.url }}
       </p>
@@ -65,8 +77,9 @@ function openExternal(): void {
     <Button
       variant="ghost"
       size="icon"
-      class="app-no-drag size-8 text-muted-foreground"
+      class="app-no-drag size-8 cursor-pointer text-muted-foreground"
       :title="t('browser.openExternal')"
+      :aria-label="t('browser.openExternal')"
       @click="openExternal"
     >
       <ExternalLink class="size-4" />
@@ -74,8 +87,9 @@ function openExternal(): void {
     <Button
       variant="ghost"
       size="icon"
-      class="app-no-drag size-8"
+      class="app-no-drag size-8 cursor-pointer"
       :title="t('browser.close')"
+      :aria-label="t('browser.close')"
       @click="close"
     >
       <X class="size-4" />
@@ -85,3 +99,9 @@ function openExternal(): void {
     <div v-if="state.loading" class="absolute inset-x-0 bottom-0 h-0.5 animate-pulse bg-primary" />
   </div>
 </template>
+
+<style lang="scss">
+html.in-app-browser-open .app-drag {
+  -webkit-app-region: no-drag;
+}
+</style>

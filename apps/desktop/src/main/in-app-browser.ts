@@ -73,6 +73,13 @@ function closeBrowser(): void {
   host = null
 }
 
+/** 有网页历史时后退，否则退出应用内浏览器并返回 SkillBuddy。 */
+function goBackOrClose(): void {
+  const history = view?.webContents.navigationHistory
+  if (history?.canGoBack()) history.goBack()
+  else closeBrowser()
+}
+
 /**
  * 按用户设置分流打开链接：默认浏览器 external，或应用内浏览器 in-app。
  * 非 http(s) 链接一律忽略。
@@ -97,7 +104,8 @@ export function registerBrowserIpc(): void {
     if (win && /^https?:\/\//.test(url)) openInApp(win, url)
   })
   ipcMain.handle('browser:close', () => closeBrowser())
-  ipcMain.handle('browser:back', () => view?.webContents.navigationHistory.goBack())
+  ipcMain.handle('browser:back', () => goBackOrClose())
   ipcMain.handle('browser:forward', () => view?.webContents.navigationHistory.goForward())
   ipcMain.handle('browser:reload', () => view?.webContents.reload())
+  ipcMain.handle('browser:state', () => currentState())
 }
