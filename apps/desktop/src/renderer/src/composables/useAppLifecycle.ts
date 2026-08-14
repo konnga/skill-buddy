@@ -1,6 +1,7 @@
 import { onMounted, onUnmounted, watch } from 'vue'
 import { setPlatformNames } from '@/lib/agents'
 import { runImportSync } from '@/composables/useImportSync'
+import { useMcpServers } from '@/composables/useMcpServers'
 import { syncCustomPlatforms, useSettings } from '@/composables/useSettings'
 import { useSkills } from '@/composables/useSkills'
 
@@ -8,6 +9,7 @@ import { useSkills } from '@/composables/useSkills'
 export function useAppLifecycle(): void {
   const { sidebarCollapsed } = useSettings()
   const { platforms, skills, refresh } = useSkills()
+  const { refresh: refreshMcpServers } = useMcpServers()
 
   watch(platforms, (value) => setPlatformNames(value))
   watch(skills, () => void runImportSync())
@@ -27,7 +29,7 @@ export function useAppLifecycle(): void {
   onMounted(async () => {
     window.addEventListener('keydown', onSidebarShortcut)
     await syncCustomPlatforms()
-    await refresh()
+    await Promise.all([refresh(), refreshMcpServers()])
   })
 
   onUnmounted(() => window.removeEventListener('keydown', onSidebarShortcut))

@@ -21,6 +21,13 @@ function transport(server: AggregatedMcpServer): string {
   return server.installations[0]?.definition.transport.kind ?? 'unknown'
 }
 
+function allDisabled(server: AggregatedMcpServer): boolean {
+  return (
+    server.installations.length > 0 &&
+    server.installations.every((installation) => installation.enabled === false)
+  )
+}
+
 const selected = computed(() => props.selectedName ?? '')
 </script>
 
@@ -37,8 +44,17 @@ const selected = computed(() => props.selectedName ?? '')
       @click="emit('select', server)"
     >
       <span class="flex w-full items-start justify-between gap-3">
-        <span class="min-w-0 truncate text-sm font-semibold">{{ server.name }}</span>
-        <Badge variant="secondary" class="px-2 py-0 text-xs font-normal">
+        <span class="flex min-w-0 flex-1 items-center gap-2">
+          <span class="min-w-0 truncate text-sm font-semibold">{{ server.name }}</span>
+          <Badge
+            v-if="allDisabled(server)"
+            variant="secondary"
+            class="shrink-0 px-2 py-0 text-xs font-normal text-amber-600 dark:text-amber-400"
+          >
+            {{ t('mcp.disabled') }}
+          </Badge>
+        </span>
+        <Badge variant="secondary" class="shrink-0 px-2 py-0 text-xs font-normal">
           {{ transport(server) }}
         </Badge>
       </span>

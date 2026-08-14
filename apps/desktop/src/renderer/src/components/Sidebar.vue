@@ -17,6 +17,7 @@ import skillbuddyMarkUrl from '@/assets/skillbuddy-mark.svg'
 import PlatformIcon from '@/components/PlatformIcon.vue'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { useGroups } from '@/composables/useGroups'
+import { useMcpServers } from '@/composables/useMcpServers'
 import { useSettings } from '@/composables/useSettings'
 import { useSkills } from '@/composables/useSkills'
 import type { WorkspaceView } from '@/lib/navigation'
@@ -42,9 +43,16 @@ const {
   skills,
 } = useSkills()
 const { groups, filterGroup } = useGroups()
+const { servers: mcpServers } = useMcpServers()
 
 const agentsExpanded = shallowRef(true)
 const scopeExpanded = shallowRef(true)
+const activeMcpServerCount = computed(
+  () =>
+    mcpServers.value.filter((server) =>
+      server.installations.some((installation) => installation.enabled !== false),
+    ).length,
+)
 const expandedProjectRoot = computed(() =>
   projectFilter.value && projectFilter.value !== 'user' ? projectFilter.value : null,
 )
@@ -190,6 +198,12 @@ async function addProjectRoot(): Promise<void> {
           <span class="flex items-center gap-2">
             <ServerCog class="size-4 text-foreground/70" />
             {{ t('mcp.title') }}
+          </span>
+          <span
+            aria-hidden="true"
+            class="text-sm tabular-nums text-muted-foreground"
+          >
+            {{ activeMcpServerCount }}
           </span>
         </button>
         <button
