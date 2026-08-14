@@ -1,5 +1,6 @@
 import type {
   McpSoCard,
+  ModelScopeMcpCategory,
   ModelScopeMcpDetail,
   ModelScopeMcpSummary,
 } from '../../shared/ipc.js'
@@ -95,6 +96,64 @@ export function normalizeModelScopeList(value: unknown): {
   return { items, total: numberValue(data.total_count) || items.length }
 }
 
+/** 将魔搭 Dolphin 列表项归一化为稳定的共享 DTO。 */
+function normalizeModelScopeDolphinSummary(value: unknown): ModelScopeMcpSummary {
+  const raw = recordValue(value) ?? {}
+  const id = stringValue(raw.Publisher)
+  return {
+    id,
+    name: stringValue(raw.ChineseName) || stringValue(raw.Name) || id,
+    chineseName: stringValue(raw.ChineseName),
+    englishName: stringValue(raw.Name),
+    description:
+      stringValue(raw.AbstractCN) ||
+      stringValue(raw.TranslatedAbstract) ||
+      stringValue(raw.Abstract),
+    englishDescription: stringValue(raw.Abstract),
+    iconUrl: stringValue(raw.FromSiteIcon) || null,
+    tags: stringArray(raw.Tags),
+    categories: stringArray(raw.Category),
+    viewCount: numberValue(raw.ViewCount),
+    usageCount: numberValue(raw.CallVolume),
+    favoriteCount: numberValue(raw.Stars),
+    publisher: id,
+  }
+}
+
+/** 校验并归一化魔搭 Dolphin 列表响应及分类聚合。 */
+export function normalizeModelScopeDolphinList(value: unknown): {
+  items: ModelScopeMcpSummary[]
+  total: number
+  categories: ModelScopeMcpCategory[]
+} {
+  const root = recordValue(value)
+  const data = recordValue(root?.Data)
+  const server = recordValue(data?.McpServer)
+  if (!server || !Array.isArray(server.McpServers)) {
+    throw new Error('modelscope response invalid')
+  }
+
+  const items = server.McpServers.map(normalizeModelScopeDolphinSummary).filter(
+    (item) => item.id.length > 0,
+  )
+  const categoryAgg = recordValue(data?.FiledAgg)?.Category
+  const categories = Array.isArray(categoryAgg)
+    ? categoryAgg
+        .map((value): ModelScopeMcpCategory | null => {
+          const raw = recordValue(value)
+          const category = stringValue(raw?.Value)
+          return category ? { value: category, count: numberValue(raw?.Count) } : null
+        })
+        .filter((value): value is ModelScopeMcpCategory => value !== null)
+    : []
+
+  return {
+    items,
+    total: numberValue(server.TotalCount) || items.length,
+    categories,
+  }
+}
+
 /** 校验并归一化魔搭详情响应 data。 */
 export function normalizeModelScopeDetail(value: unknown, fallbackId: string): ModelScopeMcpDetail {
   const raw = recordValue(value)
@@ -178,6 +237,7 @@ export function parseMcpSoCards(html: string): McpSoCard[] {
       name,
       author: textByClasses(chunk, 'p', ['truncate', 'text-xs']),
       description: textByClasses(chunk, 'p', ['line-clamp-2']),
+      category: textByClasses(chunk, 'span', ['tracking-wide', 'uppercase']),
       iconUrl: imageUrl?.startsWith('https://') ? decodeHtmlEntities(imageUrl) : null,
     })
   }

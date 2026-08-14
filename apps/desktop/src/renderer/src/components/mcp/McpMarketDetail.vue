@@ -18,9 +18,10 @@ import {
   type McpMarketCandidate,
   type McpMarketItem,
 } from '@/lib/mcp-market'
+import { cachedMcpMarketRequest, mcpMarketCacheKey } from '@/lib/mcp-market-cache'
 
-const props = defineProps<{ item: McpMarketItem; inset?: boolean }>()
-const emit = defineEmits<{ close: [] }>()
+const props = defineProps<{ item: McpMarketItem; inset?: boolean; installOnly?: boolean }>()
+const emit = defineEmits<{ close: []; reviewed: [] }>()
 
 const { t, locale } = useI18n()
 const { projectRoots } = useSettings()
@@ -62,7 +63,10 @@ async function loadDetail(): Promise<void> {
   error.value = null
   try {
     if (props.item.source === 'modelscope') {
-      const detail = await window.skillsManager.modelscopeMcpDetail(props.item.id)
+      const detail = await cachedMcpMarketRequest(
+        mcpMarketCacheKey('modelscope-detail', props.item.id),
+        () => window.skillsManager.modelscopeMcpDetail(props.item.id),
+      )
       const validated = await validatedCandidates(
         candidatesFromModelScope(detail, preferChinese.value),
       )
@@ -75,7 +79,10 @@ async function loadDetail(): Promise<void> {
         verified: detail.isVerified,
       }
     } else {
-      const detail = await window.skillsManager.mcpsoDetail(props.item.id)
+      const detail = await cachedMcpMarketRequest(
+        mcpMarketCacheKey('mcpso-detail', props.item.id),
+        () => window.skillsManager.mcpsoDetail(props.item.id),
+      )
       const validated = await validatedCandidates(
         candidatesFromMcpSo(detail, props.item.description),
       )
@@ -97,7 +104,8 @@ function openPage(url: string): void {
 
 async function reviewInstall(): Promise<void> {
   if (!currentCandidate.value || targets.value.length === 0) return
-  await planUpsert(currentCandidate.value.definition, targets.value)
+  const plan = await planUpsert(currentCandidate.value.definition, targets.value)
+  if (plan) emit('reviewed')
 }
 
 onMounted(() => {
@@ -107,8 +115,9 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="flex h-full min-w-0 flex-col">
+  <div :class="['flex min-w-0 flex-col', installOnly ? 'min-h-0 flex-1' : 'h-full']">
     <header
+      v-if="!installOnly"
       :class="[
         'app-drag relative flex h-14 shrink-0 items-center gap-3 border-b px-6',
         props.inset && 'pl-[118px]',
@@ -138,9 +147,17 @@ onMounted(() => {
       </Button>
     </header>
 
-    <ScrollArea class="flex-1" viewport-class="px-6 py-6">
-      <div class="mx-auto flex max-w-3xl flex-col gap-5">
-        <div class="flex items-start gap-4">
+    <ScrollArea
+      class="flex-1"
+      :viewport-class="installOnly ? 'px-5 py-4' : 'px-6 py-6'"
+    >
+      <div
+        :class="[
+          'mx-auto flex flex-col gap-5',
+          installOnly ? 'max-w-none' : 'max-w-3xl',
+        ]"
+      >
+        <div v-if="!installOnly" class="flex items-start gap-4">
           <img
             v-if="item.icon"
             :src="item.icon"
@@ -254,7 +271,7 @@ onMounted(() => {
           </template>
         </section>
 
-        <section v-if="!loading" class="rounded-lg border p-5">
+        <section v-if="!installOnly && !loading" class="rounded-lg border p-5">
           <h2 class="text-base font-semibold">{{ t('mcp.market.overview') }}</h2>
           <div v-if="overview" class="mt-4">
             <MarkdownView :content="overview" preview-id="mcp-market-overview" />

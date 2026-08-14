@@ -181,6 +181,12 @@ export interface ModelScopeMcpSummary {
   publisher: string
 }
 
+/** 魔搭 MCP 广场分类聚合项。 */
+export interface ModelScopeMcpCategory {
+  value: string
+  count: number
+}
+
 /** 魔搭 MCP 网页端提供、公开列表 OpenAPI 缺失的补充统计。 */
 export interface ModelScopeMcpStats {
   id: string
@@ -209,6 +215,7 @@ export interface McpSoCard {
   name: string
   author: string
   description: string
+  category: string
   iconUrl: string | null
 }
 

@@ -4,6 +4,7 @@ import { useI18n } from 'vue-i18n'
 import { ArrowLeft } from '@lucide/vue'
 import McpMarketCatalog from '@/components/mcp/McpMarketCatalog.vue'
 import McpMarketDetail from '@/components/mcp/McpMarketDetail.vue'
+import McpMarketInstallDialog from '@/components/mcp/McpMarketInstallDialog.vue'
 import McpPlanDialog from '@/components/mcp/McpPlanDialog.vue'
 import SidebarToggle from '@/components/SidebarToggle.vue'
 import { Button } from '@/components/ui/button'
@@ -17,6 +18,7 @@ const emit = defineEmits<{ close: [] }>()
 const { t } = useI18n()
 const { currentPlan, applying, applyPlan, restore, closePlan } = useMcpServers()
 const selectedItem = shallowRef<McpMarketItem | null>(null)
+const installItem = shallowRef<McpMarketItem | null>(null)
 
 async function executePlan(): Promise<void> {
   const result = await applyPlan()
@@ -75,8 +77,17 @@ async function executePlan(): Promise<void> {
       </div>
     </header>
 
-    <McpMarketCatalog @open-detail="selectedItem = $event" />
+    <McpMarketCatalog
+      @open-detail="selectedItem = $event"
+      @install="installItem = $event"
+    />
   </div>
+  <McpMarketInstallDialog
+    v-if="installItem"
+    :key="installItem.key"
+    :item="installItem"
+    @close="installItem = null"
+  />
   <McpPlanDialog
     :plan="currentPlan"
     :applying="applying"

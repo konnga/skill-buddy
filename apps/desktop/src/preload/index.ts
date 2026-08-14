@@ -34,6 +34,7 @@ import type {
   McpSoDetail,
   McpTogglePlanRequest,
   McpUpsertPlanRequest,
+  ModelScopeMcpCategory,
   ModelScopeMcpDetail,
   ModelScopeMcpStats,
   ModelScopeMcpSummary,
@@ -138,6 +139,7 @@ const api = {
   browserBack: (): Promise<void> => ipcRenderer.invoke('browser:back'),
   browserForward: (): Promise<void> => ipcRenderer.invoke('browser:forward'),
   browserReload: (): Promise<void> => ipcRenderer.invoke('browser:reload'),
+  browserState: (): Promise<InAppBrowserState> => ipcRenderer.invoke('browser:state'),
   onBrowserState: (callback: (state: InAppBrowserState) => void): void => {
     ipcRenderer.on('browser:state', (_event, state: InAppBrowserState) => callback(state))
   },
@@ -189,14 +191,18 @@ const api = {
   modelscopeMcpSearch: (
     q: string,
     page = 1,
-  ): Promise<{ items: ModelScopeMcpSummary[]; total: number }> =>
-    ipcRenderer.invoke('mcp-market:modelscope-search', q, page),
+    category = '',
+  ): Promise<{
+    items: ModelScopeMcpSummary[]
+    total: number
+    categories: ModelScopeMcpCategory[]
+  }> => ipcRenderer.invoke('mcp-market:modelscope-search', q, page, category),
   modelscopeMcpStats: (ids: string[]): Promise<ModelScopeMcpStats[]> =>
     ipcRenderer.invoke('mcp-market:modelscope-stats', ids),
   modelscopeMcpDetail: (id: string): Promise<ModelScopeMcpDetail> =>
     ipcRenderer.invoke('mcp-market:modelscope-detail', id),
-  mcpsoSearch: (q: string): Promise<{ items: McpSoCard[] }> =>
-    ipcRenderer.invoke('mcp-market:mcpso-search', q),
+  mcpsoSearch: (q: string, category = ''): Promise<{ items: McpSoCard[] }> =>
+    ipcRenderer.invoke('mcp-market:mcpso-search', q, category),
   mcpsoDetail: (slug: string): Promise<McpSoDetail> =>
     ipcRenderer.invoke('mcp-market:mcpso-detail', slug),
   validateMcpMarketDefinitions: (

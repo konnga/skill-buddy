@@ -1,32 +1,65 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, shallowRef, watch } from 'vue'
+import {
+  computed,
+  onMounted,
+  onUnmounted,
+  ref,
+  shallowRef,
+  useTemplateRef,
+  watch,
+} from 'vue'
 import { useI18n } from 'vue-i18n'
 import { Search } from '@lucide/vue'
 import McpMarketCardSummary from '@/components/mcp/McpMarketCardSummary.vue'
-import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { ScrollArea } from '@/components/ui/scroll-area'
+import { Select, type SelectOption } from '@/components/ui/select'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useMcpServers } from '@/composables/useMcpServers'
 import {
   mapMcpSoItem,
   mapModelScopeItem,
+  MCP_SO_CATEGORY_KEYS,
+  MODELSCOPE_CATEGORY_KEYS,
+  type McpMarketCategory,
   type McpMarketItem,
   type McpMarketSourceId,
 } from '@/lib/mcp-market'
+import {
+  cachedMcpMarketRequest,
+  mcpMarketCacheKey,
+  readMcpMarketCatalogCache,
+  writeMcpMarketCatalogCache,
+} from '@/lib/mcp-market-cache'
 
 const { t, locale } = useI18n()
-const emit = defineEmits<{ openDetail: [item: McpMarketItem] }>()
+const emit = defineEmits<{
+  openDetail: [item: McpMarketItem]
+  install: [item: McpMarketItem]
+}>()
 const { refresh, error: mcpError } = useMcpServers()
 
-/** 魔搭分页约束：page_number * page_size <= 100，接口按 24 条分页，最多加载 4 页。 */
-const MODELSCOPE_MAX = 96
+const ALL_CATEGORIES = 'all'
+const preferChinese = computed(() => locale.value.toLowerCase().startsWith('zh'))
+const cachedCatalog = readMcpMarketCatalogCache()
+const initialCatalog =
+  cachedCatalog?.preferChinese === preferChinese.value ? cachedCatalog : undefined
 
-const source = shallowRef<McpMarketSourceId>('modelscope')
-const query = shallowRef('')
-const items = ref<McpMarketItem[]>([])
-const total = shallowRef(0)
-const page = shallowRef(1)
+const source = shallowRef<McpMarketSourceId>(initialCatalog?.source ?? 'modelscope')
+const query = shallowRef(initialCatalog?.query ?? '')
+const modelScopeCategory = shallowRef(initialCatalog?.modelScopeCategory || ALL_CATEGORIES)
+const mcpSoCategory = shallowRef(initialCatalog?.mcpSoCategory || ALL_CATEGORIES)
+const category = computed({
+  get: () => (source.value === 'modelscope' ? modelScopeCategory.value : mcpSoCategory.value),
+  set: (value: string) => {
+    if (source.value === 'modelscope') modelScopeCategory.value = value
+    else mcpSoCategory.value = value
+  },
+})
+const categories = ref<McpMarketCategory[]>(initialCatalog?.categories ?? [])
+const items = ref<McpMarketItem[]>(initialCatalog?.items ?? [])
+const total = shallowRef(initialCatalog?.total ?? 0)
+const page = shallowRef(initialCatalog?.page ?? 1)
 const loading = shallowRef(false)
 const loadingMore = shallowRef(false)
 const error = shallowRef<string | null>(null)
@@ -34,35 +67,74 @@ const brokenIcons = ref(new Set<string>())
 
 let searchRequestId = 0
 
-const preferChinese = computed(() => locale.value.toLowerCase().startsWith('zh'))
 const visibleError = computed(() => error.value ?? mcpError.value)
+const categoryOptions = computed<SelectOption[]>(() => {
+  const countByValue = new Map(categories.value.map((item) => [item.value, item.count]))
+  const categoryKeys: readonly string[] =
+    source.value === 'modelscope' ? MODELSCOPE_CATEGORY_KEYS : MCP_SO_CATEGORY_KEYS
+  return [
+    { value: ALL_CATEGORIES, label: t('mcp.market.allCategories') },
+    ...categoryKeys.map((value) => {
+      const label = t(`mcp.market.categories.${value}`)
+      const count = source.value === 'modelscope' ? countByValue.get(value) : undefined
+      return { value, label: count === undefined ? label : `${label} (${count})` }
+    }),
+  ]
+})
 const canLoadMore = computed(
   () =>
     source.value === 'modelscope' &&
     items.value.length > 0 &&
-    items.value.length < Math.min(total.value, MODELSCOPE_MAX),
+    items.value.length < total.value,
 )
 
 async function fetchPage(
   requestedSource: McpMarketSourceId,
   requestedQuery: string,
+  requestedCategory: string,
   pageNumber: number,
   preferChineseNames: boolean,
-): Promise<{ items: McpMarketItem[]; total: number }> {
+): Promise<{ items: McpMarketItem[]; total: number; categories: McpMarketCategory[] }> {
   if (requestedSource === 'modelscope') {
-    const result = await window.skillsManager.modelscopeMcpSearch(requestedQuery, pageNumber)
+    const result = await cachedMcpMarketRequest(
+      mcpMarketCacheKey('modelscope-search', requestedQuery, requestedCategory, pageNumber),
+      () =>
+        window.skillsManager.modelscopeMcpSearch(requestedQuery, pageNumber, requestedCategory),
+    )
     return {
       items: result.items.map((item) => mapModelScopeItem(item, preferChineseNames)),
       total: result.total,
+      categories: result.categories,
     }
   }
-  const result = await window.skillsManager.mcpsoSearch(requestedQuery)
-  return { items: result.items.map(mapMcpSoItem), total: result.items.length }
+  const result = await cachedMcpMarketRequest(
+    mcpMarketCacheKey('mcpso-search', requestedQuery, requestedCategory),
+    () => window.skillsManager.mcpsoSearch(requestedQuery, requestedCategory),
+  )
+  return { items: result.items.map(mapMcpSoItem), total: result.items.length, categories: [] }
+}
+
+function cacheCatalog(): void {
+  writeMcpMarketCatalogCache({
+    source: source.value,
+    query: query.value,
+    modelScopeCategory: modelScopeCategory.value,
+    mcpSoCategory: mcpSoCategory.value,
+    categories: categories.value,
+    items: items.value,
+    total: total.value,
+    page: page.value,
+    preferChinese: preferChinese.value,
+  })
 }
 
 async function fillModelScopeStats(ids: string[], requestId: number): Promise<void> {
   try {
-    const stats = await window.skillsManager.modelscopeMcpStats(ids)
+    const uniqueIds = [...new Set(ids)].sort()
+    const stats = await cachedMcpMarketRequest(
+      mcpMarketCacheKey('modelscope-stats', ...uniqueIds),
+      () => window.skillsManager.modelscopeMcpStats(uniqueIds),
+    )
     if (requestId !== searchRequestId || source.value !== 'modelscope') return
     const byId = new Map(stats.map((item) => [item.id, item]))
     items.value = items.value.map((item) => {
@@ -76,6 +148,7 @@ async function fillModelScopeStats(ids: string[], requestId: number): Promise<vo
         viewCount: value.viewCount ?? item.viewCount,
       }
     })
+    cacheCatalog()
   } catch {
     // 补充统计失败不影响市场基础列表展示
   }
@@ -85,15 +158,26 @@ async function search(): Promise<void> {
   const requestId = ++searchRequestId
   const requestedSource = source.value
   const requestedQuery = query.value.trim()
+  const requestedCategory = category.value !== ALL_CATEGORIES ? category.value : ''
   loading.value = true
   loadingMore.value = false
   error.value = null
   page.value = 1
   try {
-    const result = await fetchPage(requestedSource, requestedQuery, 1, preferChinese.value)
+    const result = await fetchPage(
+      requestedSource,
+      requestedQuery,
+      requestedCategory,
+      1,
+      preferChinese.value,
+    )
     if (requestId !== searchRequestId) return
     items.value = result.items
     total.value = result.total
+    if (requestedSource === 'modelscope' && (!requestedCategory || categories.value.length === 0)) {
+      categories.value = result.categories
+    }
+    cacheCatalog()
     if (requestedSource === 'modelscope') {
       void fillModelScopeStats(result.items.map((item) => item.id), requestId)
     }
@@ -107,16 +191,18 @@ async function search(): Promise<void> {
 }
 
 async function loadMore(): Promise<void> {
-  if (loadingMore.value || !canLoadMore.value) return
+  if (loading.value || loadingMore.value || !canLoadMore.value) return
   const requestId = searchRequestId
   const requestedSource = source.value
   const requestedQuery = query.value.trim()
+  const requestedCategory = category.value !== ALL_CATEGORIES ? category.value : ''
   const nextPage = page.value + 1
   loadingMore.value = true
   try {
     const result = await fetchPage(
       requestedSource,
       requestedQuery,
+      requestedCategory,
       nextPage,
       preferChinese.value,
     )
@@ -126,6 +212,7 @@ async function loadMore(): Promise<void> {
     const known = new Set(items.value.map((item) => item.key))
     const nextItems = result.items.filter((item) => !known.has(item.key))
     items.value = [...items.value, ...nextItems]
+    cacheCatalog()
     if (requestedSource === 'modelscope') {
       void fillModelScopeStats(nextItems.map((item) => item.id), requestId)
     }
@@ -141,11 +228,29 @@ function openPage(url: string): void {
   void window.skillsManager.openLink(url)
 }
 
-watch(source, () => void search())
-onMounted(() => {
-  void refresh({ silent: true })
-  void search()
+/** 提前 200px 观察列表尾部，进入视区后自动加载下一页。 */
+const loadMoreTrigger = useTemplateRef<HTMLElement>('loadMoreTrigger')
+let loadMoreObserver: IntersectionObserver | undefined
+
+watch([source, modelScopeCategory, mcpSoCategory], () => void search())
+watch(loadMoreTrigger, (element, previousElement) => {
+  if (previousElement) loadMoreObserver?.unobserve(previousElement)
+  if (element) loadMoreObserver?.observe(element)
 })
+
+onMounted(() => {
+  loadMoreObserver = new IntersectionObserver(
+    (entries) => {
+      if (entries.some((entry) => entry.isIntersecting)) void loadMore()
+    },
+    { rootMargin: '200px' },
+  )
+  if (loadMoreTrigger.value) loadMoreObserver.observe(loadMoreTrigger.value)
+  void refresh({ silent: true })
+  if (!initialCatalog) void search()
+})
+
+onUnmounted(() => loadMoreObserver?.disconnect())
 </script>
 
 <template>
@@ -177,6 +282,11 @@ onMounted(() => {
           {{ t('mcp.market.sourceMcpSo') }}
         </button>
       </div>
+      <Select
+        v-model="category"
+        :options="categoryOptions"
+        class="h-9 w-52 cursor-pointer"
+      />
       <div class="relative flex-1">
         <Search
           class="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
@@ -209,7 +319,7 @@ onMounted(() => {
         <li
           v-for="item in items"
           :key="item.key"
-          class="h-44 cursor-pointer rounded-xl border bg-card px-5 py-4 shadow-sm transition-colors hover:border-foreground/20 hover:bg-accent/20"
+          class="h-44 cursor-pointer rounded-xl border bg-card px-5 py-4 transition-[background-color,border-color,box-shadow] hover:border-foreground/20 hover:bg-accent/20 hover:shadow-sm"
           @click="emit('openDetail', item)"
         >
           <McpMarketCardSummary
@@ -218,20 +328,17 @@ onMounted(() => {
             @icon-error="brokenIcons.add(item.key)"
             @open-page="openPage(item.link)"
             @open-detail="emit('openDetail', item)"
+            @install="emit('install', item)"
           />
         </li>
       </ul>
 
-      <div v-if="canLoadMore" class="mt-3 flex justify-center">
-        <Button
-          variant="outline"
-          size="sm"
-          class="cursor-pointer"
-          :disabled="loadingMore"
-          @click="loadMore"
-        >
-          {{ t('mcp.market.loadMore') }}
-        </Button>
+      <div v-if="canLoadMore" ref="loadMoreTrigger" class="pt-3">
+        <ul v-if="loadingMore" class="grid grid-cols-2 gap-3">
+          <li v-for="index in 2" :key="index">
+            <Skeleton class="h-44 rounded-xl" />
+          </li>
+        </ul>
       </div>
     </ScrollArea>
   </section>

@@ -1,9 +1,10 @@
-import { ipcMain } from 'electron'
+import { BrowserWindow, ipcMain, session } from 'electron'
 import { validateMcpDefinition } from '@skillbuddy/core'
 import type { McpServerDefinition } from '@skillbuddy/core'
 import type {
   McpSoCard,
   McpSoDetail,
+  ModelScopeMcpCategory,
   ModelScopeMcpDetail,
   ModelScopeMcpStats,
   ModelScopeMcpSummary,
@@ -13,6 +14,7 @@ import {
   decodeHtmlEntities,
   firstExternalLink,
   normalizeModelScopeDetail,
+  normalizeModelScopeDolphinList,
   normalizeModelScopeList,
   parseModelScopeWebStats,
   parseMcpSoCards,
@@ -22,8 +24,117 @@ import {
 
 /** 魔搭 OpenAPI 根地址；搜索与详情为公开接口，无需令牌。 */
 const MODELSCOPE_API = 'https://modelscope.cn/openapi/v1'
+/** 魔搭官网列表接口，支持分类聚合与服务端筛选。 */
+const MODELSCOPE_DOLPHIN_API = 'https://modelscope.cn/api/v1/dolphin'
 /** mcp.so 无公开 API，搜索与详情均解析其服务端渲染页面。 */
 const MCPSO_ORIGIN = 'https://mcp.so'
+
+let modelScopeSessionWarmup: Promise<void> | undefined
+
+/**
+ * 在沙箱化隐藏窗口中完成魔搭网页的 WAF/CSRF 会话初始化。
+ * 窗口只在 Cookie 缺失或失效时短暂存在，后续请求复用默认 session。
+ */
+async function ensureModelScopeSession(force = false): Promise<void> {
+  if (!force) {
+    const cookies = await session.defaultSession.cookies.get({ url: 'https://modelscope.cn' })
+    if (cookies.some((cookie) => cookie.name === 'acw_sc__v2')) return
+  }
+  if (modelScopeSessionWarmup) return modelScopeSessionWarmup
+
+  modelScopeSessionWarmup = (async () => {
+    const window = new BrowserWindow({
+      show: false,
+      webPreferences: {
+        sandbox: true,
+        contextIsolation: true,
+        nodeIntegration: false,
+      },
+    })
+    window.webContents.setAudioMuted(true)
+    window.webContents.setWindowOpenHandler(() => ({ action: 'deny' }))
+    try {
+      await window.loadURL('https://modelscope.cn/mcp')
+      const ready = await window.webContents.executeJavaScript(`
+        new Promise((resolve) => {
+          const deadline = Date.now() + 15000
+          const timer = setInterval(() => {
+            const cookies = document.cookie
+            if (cookies.includes('csrf_token=') && cookies.includes('acw_sc__v2=')) {
+              clearInterval(timer)
+              resolve(true)
+            } else if (Date.now() >= deadline) {
+              clearInterval(timer)
+              resolve(false)
+            }
+          }, 200)
+        })
+      `)
+      if (ready !== true) throw new Error('modelscope session warmup timed out')
+    } finally {
+      if (!window.isDestroyed()) window.destroy()
+    }
+  })().finally(() => {
+    modelScopeSessionWarmup = undefined
+  })
+  return modelScopeSessionWarmup
+}
+
+async function fetchModelScopeDolphin(body: string): Promise<unknown> {
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    await ensureModelScopeSession(attempt > 0)
+    const csrfCookie = (
+      await session.defaultSession.cookies.get({
+        url: 'https://modelscope.cn',
+        name: 'csrf_token',
+      })
+    )[0]
+    const csrfToken = csrfCookie ? decodeURIComponent(csrfCookie.value) : ''
+    const response = await marketFetch(`${MODELSCOPE_DOLPHIN_API}/mcpServers`, {
+      method: 'PUT',
+      credentials: 'include',
+      headers: {
+        accept: 'application/json, text/plain, */*',
+        'content-type': 'application/json',
+        origin: 'https://modelscope.cn',
+        referer: 'https://modelscope.cn/mcp',
+        'x-csrf-token': csrfToken,
+        'x-modelscope-accept-language': 'zh_CN',
+      },
+      body,
+    })
+    if (!response.ok) {
+      if (attempt === 0) continue
+      throw new Error(`modelscope ${response.status}`)
+    }
+    const contentType = response.headers.get('content-type')?.toLowerCase() ?? ''
+    if (contentType.includes('application/json')) {
+      const payload = (await response.json()) as { Code?: number }
+      if (payload.Code === 200 || attempt > 0) return payload
+    }
+  }
+  throw new Error('modelscope session unavailable')
+}
+
+async function fetchModelScopeLegacy(
+  term: string,
+  pageNumber: number,
+): Promise<{
+  items: ModelScopeMcpSummary[]
+  total: number
+  categories: ModelScopeMcpCategory[]
+}> {
+  const response = await marketFetch(`${MODELSCOPE_API}/mcp/servers`, {
+    method: 'PUT',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ search: term, page_number: pageNumber, page_size: 24 }),
+  })
+  if (!response.ok) throw new Error(`modelscope ${response.status}`)
+  const payload = (await response.json()) as ModelScopeEnvelope<unknown>
+  if (payload.success === false) throw new Error(payload.message || 'modelscope request failed')
+  const result = normalizeModelScopeList(payload.data)
+  return { ...result, total: Math.min(result.total, 96), categories: [] }
+}
 
 async function fetchModelScopeStats(ids: string[]): Promise<ModelScopeMcpStats[]> {
   const statsList: ModelScopeMcpStats[] = []
@@ -77,19 +188,44 @@ async function fetchMcpSoPage(url: string): Promise<string> {
 export function registerMcpMarketIpc(): void {
   ipcMain.handle(
     'mcp-market:modelscope-search',
-    async (_event, query: string, page = 1): Promise<{ items: ModelScopeMcpSummary[]; total: number }> => {
+    async (
+      _event,
+      query: string,
+      page = 1,
+      category = '',
+    ): Promise<{
+      items: ModelScopeMcpSummary[]
+      total: number
+      categories: ModelScopeMcpCategory[]
+    }> => {
       const term = typeof query === 'string' ? query.trim().slice(0, 200) : ''
-      const pageNumber = Number.isInteger(page) ? Math.min(4, Math.max(1, page)) : 1
-      // 官方 OpenAPI 的列表接口即为 PUT 语义（body 携带筛选条件）
-      const response = await marketFetch(`${MODELSCOPE_API}/mcp/servers`, {
-        method: 'PUT',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ search: term, page_number: pageNumber, page_size: 24 }),
-      })
-      if (!response.ok) throw new Error(`modelscope ${response.status}`)
-      const payload = (await response.json()) as ModelScopeEnvelope<unknown>
-      if (payload.success === false) throw new Error(payload.message || 'modelscope request failed')
-      return normalizeModelScopeList(payload.data)
+      const pageNumber = Number.isInteger(page) ? Math.min(1_000, Math.max(1, page)) : 1
+      const categoryValue =
+        typeof category === 'string' && /^[\w-]{1,80}$/.test(category) ? category : ''
+      const criterion = categoryValue
+        ? [
+            {
+              Category: 'Category',
+              Predicate: 'contains',
+              StringValues: [categoryValue],
+            },
+          ]
+        : []
+      try {
+        const payload = (await fetchModelScopeDolphin(
+          JSON.stringify({
+            PageSize: 24,
+            PageNumber: pageNumber,
+            Query: term,
+            Criterion: criterion,
+          }),
+        )) as { Code?: number; Message?: string }
+        if (payload.Code !== 200) throw new Error(payload.Message || 'modelscope request failed')
+        return normalizeModelScopeDolphinList(payload)
+      } catch (cause) {
+        if (categoryValue) throw cause
+        return fetchModelScopeLegacy(term, Math.min(4, pageNumber))
+      }
     },
   )
 
@@ -129,12 +265,25 @@ export function registerMcpMarketIpc(): void {
 
   ipcMain.handle(
     'mcp-market:mcpso-search',
-    async (_event, query: string): Promise<{ items: McpSoCard[] }> => {
+    async (_event, query: string, category = ''): Promise<{ items: McpSoCard[] }> => {
       const term = typeof query === 'string' ? query.trim().slice(0, 200) : ''
-      const url = term
-        ? `${MCPSO_ORIGIN}/search?q=${encodeURIComponent(term)}`
-        : `${MCPSO_ORIGIN}/servers`
-      return { items: parseMcpSoCards(await fetchMcpSoPage(url)) }
+      const categoryValue =
+        typeof category === 'string' && /^[\w-]{1,80}$/.test(category) ? category : ''
+      const url = categoryValue
+        ? `${MCPSO_ORIGIN}/servers?category=${encodeURIComponent(categoryValue)}`
+        : term
+          ? `${MCPSO_ORIGIN}/search?q=${encodeURIComponent(term)}`
+          : `${MCPSO_ORIGIN}/servers`
+      const items = parseMcpSoCards(await fetchMcpSoPage(url))
+      if (!categoryValue || !term) return { items }
+      const normalizedTerm = term.toLocaleLowerCase()
+      return {
+        items: items.filter((item) =>
+          [item.name, item.author, item.description, item.category].some((value) =>
+            value.toLocaleLowerCase().includes(normalizedTerm),
+          ),
+        ),
+      }
     },
   )
 

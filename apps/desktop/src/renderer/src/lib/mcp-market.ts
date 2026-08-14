@@ -8,6 +8,46 @@ import type {
 
 export type McpMarketSourceId = 'modelscope' | 'mcp-so'
 
+export const MODELSCOPE_CATEGORY_KEYS = [
+  'browser-automation',
+  'search',
+  'communication',
+  'developer-tools',
+  'entertainment-and-media',
+  'file-systems',
+  'finance',
+  'knowledge-and-memory',
+  'location-services',
+  'art-and-culture',
+  'research-and-data',
+  'calendar-management',
+  'other',
+] as const
+
+export const MCP_SO_CATEGORY_KEYS = [
+  'ai-agents',
+  'reasoning',
+  'memory-knowledge',
+  'search',
+  'browser-automation',
+  'data-analytics',
+  'developer-tools',
+  'version-control',
+  'productivity',
+  'databases',
+  'cloud-infra',
+  'files-storage',
+  'communication',
+  'media-design',
+  'finance-commerce',
+  'other',
+] as const
+
+export interface McpMarketCategory {
+  value: string
+  count: number
+}
+
 /** 统一后的 MCP 市场列表项（两个数据源共用一套 UI）。 */
 export interface McpMarketItem {
   key: string
@@ -70,7 +110,7 @@ export function mapMcpSoItem(raw: McpSoCard): McpMarketItem {
     description: raw.description,
     author: raw.author,
     icon: raw.iconUrl,
-    tags: [],
+    tags: raw.category ? [raw.category] : [],
     viewCount: null,
     usageCount: null,
     downloadCount: null,

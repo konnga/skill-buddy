@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import { candidatesFromModelScope, extractCandidates, mapModelScopeItem } from './mcp-market.js'
+import {
+  candidatesFromModelScope,
+  extractCandidates,
+  mapMcpSoItem,
+  mapModelScopeItem,
+} from './mcp-market.js'
 
 describe('MCP 市场配置转换', () => {
   it('按界面语言映射魔搭名称与描述', () => {
@@ -25,6 +30,19 @@ describe('MCP 市场配置转换', () => {
       name: 'fetch',
       description: 'Fetch web pages',
     })
+  })
+
+  it('将 mcp.so 分类映射为统一卡片标签', () => {
+    expect(
+      mapMcpSoItem({
+        slug: 'firecrawl',
+        name: 'Firecrawl',
+        author: 'mendableai',
+        description: 'Search and scrape',
+        category: 'Browser & Automation',
+        iconUrl: null,
+      }),
+    ).toMatchObject({ tags: ['Browser & Automation'] })
   })
 
   it('stdio 配置丢弃明文值并保留环境变量引用名', () => {

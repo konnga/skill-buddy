@@ -3,6 +3,7 @@ import {
   decodeHtmlEntities,
   firstExternalLink,
   normalizeModelScopeDetail,
+  normalizeModelScopeDolphinList,
   normalizeModelScopeList,
   parseModelScopeWebStats,
   parseMcpSoCards,
@@ -19,6 +20,7 @@ describe('mcp.so 页面解析', () => {
           <h3 class='truncate font-semibold'>Firecrawl &amp; Search</h3>
           <p class='text-xs text-muted-foreground truncate'>mendableai</p>
           <p class='min-h-10 line-clamp-2 text-sm'>Search &lt;and&gt; scrape</p>
+          <span class='bg-secondary tracking-wide uppercase'>Browser &amp; Automation</span>
         </a>
       </body></html>
     `
@@ -29,6 +31,7 @@ describe('mcp.so 页面解析', () => {
         name: 'Firecrawl & Search',
         author: 'mendableai',
         description: 'Search <and> scrape',
+        category: 'Browser & Automation',
         iconUrl: 'https://example.com/firecrawl.png',
       },
     ])
@@ -113,6 +116,54 @@ describe('魔搭响应归一化', () => {
           englishDescription: 'Fetch web pages',
           viewCount: 10,
           tags: ['browser'],
+        }),
+      ],
+    })
+  })
+
+  it('解析 Dolphin 分类聚合、列表数据与统计字段', () => {
+    expect(
+      normalizeModelScopeDolphinList({
+        Code: 200,
+        Data: {
+          FiledAgg: {
+            Category: [
+              { Value: 'browser-automation', Count: 594 },
+              { Value: '', Count: 1 },
+            ],
+          },
+          McpServer: {
+            TotalCount: 1,
+            McpServers: [
+              {
+                Publisher: '@modelcontextprotocol/fetch',
+                Name: 'fetch',
+                ChineseName: 'Fetch网页内容抓取',
+                Abstract: 'Fetch web pages',
+                AbstractCN: '抓取网页',
+                FromSiteIcon: 'https://example.com/fetch.png',
+                Category: ['browser-automation'],
+                Tags: ['web'],
+                CallVolume: 310_000,
+                ViewCount: 580_000,
+                Stars: 856,
+              },
+            ],
+          },
+        },
+      }),
+    ).toEqual({
+      total: 1,
+      categories: [{ value: 'browser-automation', count: 594 }],
+      items: [
+        expect.objectContaining({
+          id: '@modelcontextprotocol/fetch',
+          chineseName: 'Fetch网页内容抓取',
+          englishName: 'fetch',
+          categories: ['browser-automation'],
+          usageCount: 310_000,
+          viewCount: 580_000,
+          favoriteCount: 856,
         }),
       ],
     })

@@ -7,7 +7,7 @@ import { marketIconColor, marketIconGlyph } from '@/lib/market'
 import type { McpMarketItem } from '@/lib/mcp-market'
 
 const props = defineProps<{ item: McpMarketItem; iconBroken: boolean }>()
-const emit = defineEmits<{ openDetail: []; openPage: []; iconError: [] }>()
+const emit = defineEmits<{ openDetail: []; openPage: []; install: []; iconError: [] }>()
 const { t } = useI18n()
 const visibleTags = computed(() => props.item.tags.slice(0, 2))
 const hiddenTagCount = computed(() => Math.max(0, props.item.tags.length - visibleTags.value.length))
@@ -93,7 +93,7 @@ function formatMetricCount(value: number): string {
           variant="outline"
           size="sm"
           class="cursor-pointer"
-          @click.stop="emit('openDetail')"
+          @click.stop="emit('install')"
         >
           <CloudDownload />
           {{ t('mcp.market.install') }}
