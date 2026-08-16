@@ -96,6 +96,11 @@ function closeConversation(): void {
   conversationSkill.value = null
 }
 
+function openTeamFromAttention(): void {
+  attentionOpen.value = false
+  emit('navigate', 'team')
+}
+
 watch([() => props.view, () => props.navigationRevision], closeDetails)
 watch(skills, (value) => {
   if (selected.value) {
@@ -127,6 +132,7 @@ watch(skills, (value) => {
       :inset="props.inset"
       @close="attentionOpen = false"
       @open-skill="openSkill"
+      @open-team="openTeamFromAttention"
     />
     <BundleDetailPage
       v-else-if="bundleSelected"

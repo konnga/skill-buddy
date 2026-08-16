@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import SidebarToggle from '@/components/SidebarToggle.vue'
 import {
@@ -17,19 +17,20 @@ import PlatformIcon from '@/components/PlatformIcon.vue'
 import { agentLabel } from '@/lib/agents'
 import type { SkillFocus } from '@/lib/navigation'
 import { useSkills } from '@/composables/useSkills'
-import { installRequired, upgradeSkill, useTeam } from '@/composables/useTeam'
+import { useTeamLibraries } from '@/composables/useTeamLibraries'
+import { useTeamProjects } from '@/composables/useTeamProjects'
 
 const props = defineProps<{ inset?: boolean }>()
 const emit = defineEmits<{
   close: []
   openSkill: [skill: AggregatedSkill, focus?: SkillFocus]
+  openTeam: []
 }>()
 
 const { skills, detectedPlatforms } = useSkills()
-const { updates, missingRequired } = useTeam()
+const { compliance } = useTeamLibraries()
+const { attentionCount: projectAttentionCount } = useTeamProjects()
 const { t } = useI18n()
-
-const teamBusy = ref<string | null>(null)
 
 const driftSkills = computed(() =>
   skills.value.filter(
@@ -49,8 +50,10 @@ const todoCount = computed(
   () =>
     driftSkills.value.length +
     singleEndSkills.value.length +
-    updates.value.length +
-    missingRequired.value.length,
+    compliance.value.missingRequired.length +
+    compliance.value.blockedInstalled.length +
+    compliance.value.updateAvailable +
+    projectAttentionCount.value,
 )
 
 const recentSkills = computed(() =>
@@ -79,23 +82,6 @@ function otherAgentCount(s: AggregatedSkill): number {
   return detectedPlatforms.value.filter((p) => !agents.has(p.id)).length
 }
 
-async function runUpgrade(item: (typeof updates.value)[number]): Promise<void> {
-  teamBusy.value = `${item.org}/${item.name}`
-  try {
-    await upgradeSkill(item)
-  } finally {
-    teamBusy.value = null
-  }
-}
-
-async function runInstallRequired(item: (typeof missingRequired.value)[number]): Promise<void> {
-  teamBusy.value = `${item.org}/${item.name}`
-  try {
-    await installRequired(item)
-  } finally {
-    teamBusy.value = null
-  }
-}
 </script>
 
 <template>
@@ -125,52 +111,60 @@ async function runInstallRequired(item: (typeof missingRequired.value)[number]):
           </p>
           <ul v-else class="flex flex-col gap-2">
             <li
-              v-for="item in missingRequired"
-              :key="`required-${item.org}/${item.name}`"
+              v-if="compliance.blockedInstalled.length > 0"
               class="flex items-center justify-between gap-3 rounded-md border border-red-500/30 bg-red-500/5 px-4 py-2.5"
             >
               <span class="flex min-w-0 items-center gap-2 text-sm">
                 <ShieldAlert class="size-4 shrink-0 text-red-500" />
-                <span class="truncate">
-                  {{ t('dashboard.todoRequired', { org: item.org, name: item.name }) }}
-                </span>
+                <span class="truncate">{{ t('dashboard.todoTeamBlocked', { n: compliance.blockedInstalled.length }) }}</span>
               </span>
               <Button
                 variant="outline"
                 size="sm"
                 class="shrink-0"
-                :disabled="teamBusy === `${item.org}/${item.name}`"
-                @click="runInstallRequired(item)"
+                @click="emit('openTeam')"
               >
-                {{ t('dashboard.todoRequiredAction') }}
+                {{ t('dashboard.todoTeamAction') }}
+                <ArrowRight />
               </Button>
             </li>
             <li
-              v-for="item in updates"
-              :key="`update-${item.org}/${item.name}`"
+              v-if="compliance.missingRequired.length > 0"
+              class="flex items-center justify-between gap-3 rounded-md border border-amber-500/30 bg-amber-500/5 px-4 py-2.5"
+            >
+              <span class="flex min-w-0 items-center gap-2 text-sm">
+                <ShieldAlert class="size-4 shrink-0 text-amber-500" />
+                <span class="truncate">{{ t('dashboard.todoTeamMissing', { n: compliance.missingRequired.length }) }}</span>
+              </span>
+              <Button variant="outline" size="sm" class="shrink-0" @click="emit('openTeam')">
+                {{ t('dashboard.todoTeamAction') }}
+                <ArrowRight />
+              </Button>
+            </li>
+            <li
+              v-if="compliance.updateAvailable > 0"
               class="flex items-center justify-between gap-3 rounded-md border px-4 py-2.5"
             >
               <span class="flex min-w-0 items-center gap-2 text-sm">
                 <ArrowUpCircle class="size-4 shrink-0 text-sky-500" />
-                <span class="truncate">
-                  {{
-                    t('dashboard.todoUpdate', {
-                      org: item.org,
-                      name: item.name,
-                      remote: item.remoteVersion,
-                      local: item.localVersion,
-                    })
-                  }}
-                </span>
+                <span class="truncate">{{ t('dashboard.todoTeamUpdates', { n: compliance.updateAvailable }) }}</span>
               </span>
-              <Button
-                variant="outline"
-                size="sm"
-                class="shrink-0"
-                :disabled="teamBusy === `${item.org}/${item.name}`"
-                @click="runUpgrade(item)"
-              >
-                {{ t('dashboard.todoUpdateAction') }}
+              <Button variant="outline" size="sm" class="shrink-0" @click="emit('openTeam')">
+                {{ t('dashboard.todoTeamAction') }}
+                <ArrowRight />
+              </Button>
+            </li>
+            <li
+              v-if="projectAttentionCount > 0"
+              class="flex items-center justify-between gap-3 rounded-md border px-4 py-2.5"
+            >
+              <span class="flex min-w-0 items-center gap-2 text-sm">
+                <TriangleAlert class="size-4 shrink-0 text-amber-500" />
+                <span class="truncate">{{ t('dashboard.todoTeamProjects', { n: projectAttentionCount }) }}</span>
+              </span>
+              <Button variant="outline" size="sm" class="shrink-0" @click="emit('openTeam')">
+                {{ t('dashboard.todoTeamAction') }}
+                <ArrowRight />
               </Button>
             </li>
             <li

@@ -28,7 +28,7 @@ import ResourcePreviewDialog from '@/components/ResourcePreviewDialog.vue'
 import SkillEditor from '@/components/SkillEditor.vue'
 import { agentLabel } from '@/lib/agents'
 import { pathBasename } from '@/lib/paths'
-import { hasScriptResources, nextPatch } from '@/lib/resources'
+import { hasScriptResources } from '@/lib/resources'
 import { useSettings } from '@/composables/useSettings'
 import { useSkills } from '@/composables/useSkills'
 import { showToast } from '@/composables/useToast'
@@ -43,7 +43,7 @@ const props = defineProps<{
 const emit = defineEmits<{ close: [] }>()
 
 const { detectedPlatforms, install, installSkill, refresh, setEnabled } = useSkills()
-const { projectRoots, registryUrl, registryToken, groups } = useSettings()
+const { projectRoots, groups } = useSettings()
 
 const driftSection = useTemplateRef<HTMLElement>('driftSection')
 const installSection = useTemplateRef<HTMLElement>('installSection')
@@ -143,74 +143,6 @@ function installationLocationLabel(installation: Installation): string {
         })
       : t('detail.userScope')
   return `${agentLabel(installation.agent)} · ${scopeLabel}`
-}
-
-/* ---------- publish to registry ---------- */
-
-const registryConfigured = computed(() => Boolean(registryUrl.value && registryToken.value))
-const registryCfg = computed(() => ({ url: registryUrl.value, token: registryToken.value }))
-const orgs = ref<{ name: string }[]>([])
-const publishOrg = ref('')
-const publishVersion = ref(props.skill.version ?? '1.0.0')
-const publishBusy = ref(false)
-const publishMessage = ref<string | null>(null)
-const publishError = ref<string | null>(null)
-const latestPublished = ref<string | null>(null)
-
-async function loadOrgs(): Promise<void> {
-  if (!registryConfigured.value) return
-  try {
-    orgs.value = await window.skillsManager.registryOrgs(registryCfg.value)
-    if (!publishOrg.value && orgs.value[0]) publishOrg.value = orgs.value[0].name
-    await suggestVersion()
-  } catch {
-    orgs.value = []
-  }
-}
-
-/** Suggest next patch after the latest published version of this skill. */
-async function suggestVersion(): Promise<void> {
-  latestPublished.value = null
-  if (!publishOrg.value) return
-  try {
-    const versions = await window.skillsManager.registryVersions(
-      registryCfg.value,
-      publishOrg.value,
-      props.skill.name,
-    )
-    if (versions[0]) {
-      latestPublished.value = versions[0].version
-      publishVersion.value = nextPatch(versions[0].version)
-    }
-  } catch {
-    /* not published yet — keep local default */
-  }
-}
-
-watch(publishOrg, () => void suggestVersion())
-onMounted(() => void loadOrgs())
-
-async function publish(): Promise<void> {
-  if (!publishOrg.value || !/^\d+\.\d+\.\d+$/.test(publishVersion.value)) return
-  publishBusy.value = true
-  publishError.value = null
-  publishMessage.value = null
-  try {
-    await window.skillsManager.registryPublish(
-      registryCfg.value,
-      publishOrg.value,
-      primaryInstallation.value.skill,
-      publishVersion.value,
-    )
-    publishMessage.value = t('team.publishOk', {
-      ref: `${publishOrg.value}/${props.skill.name}@${publishVersion.value}`,
-    })
-    await suggestVersion()
-  } catch (e) {
-    publishError.value = e instanceof Error ? e.message : String(e)
-  } finally {
-    publishBusy.value = false
-  }
 }
 
 /* ---------- resources ---------- */
@@ -762,38 +694,6 @@ async function runUninstall(): Promise<void> {
             {{ busy ? t('detail.installing') : t('detail.installN', { n: selectedTargets.size }) }}
           </Button>
           <p v-if="actionError" class="mt-2 text-sm text-destructive">{{ actionError }}</p>
-        </section>
-
-        <!-- publish -->
-        <section v-if="registryConfigured" class="mb-8">
-          <h3 class="mb-2 text-sm font-medium uppercase tracking-wide text-muted-foreground">
-            {{ t('team.publish') }}
-          </h3>
-          <div class="flex flex-wrap items-center gap-2">
-            <Select
-              v-model="publishOrg"
-              :options="orgs.map((o) => ({ value: o.name, label: o.name }))"
-            />
-            <Input
-              v-model="publishVersion"
-              :placeholder="t('team.publishVersion')"
-              class="h-8 w-28 text-sm"
-            />
-            <Button
-              size="sm"
-              :disabled="publishBusy || !publishOrg || !/^\d+\.\d+\.\d+$/.test(publishVersion)"
-              @click="publish"
-            >
-              {{ t('team.publish') }}
-            </Button>
-            <span v-if="latestPublished" class="text-sm text-muted-foreground">
-              {{ t('team.suggestedVersion', { v: latestPublished }) }}
-            </span>
-          </div>
-          <p v-if="publishMessage" class="mt-2 text-sm text-emerald-600 dark:text-emerald-400">
-            {{ publishMessage }}
-          </p>
-          <p v-if="publishError" class="mt-2 text-sm text-destructive">{{ publishError }}</p>
         </section>
 
         <!-- resources -->

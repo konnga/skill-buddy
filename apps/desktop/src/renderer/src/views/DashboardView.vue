@@ -8,7 +8,8 @@ import SidebarToggle from '@/components/SidebarToggle.vue'
 import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { useSkills } from '@/composables/useSkills'
-import { useTeam } from '@/composables/useTeam'
+import { useTeamLibraries } from '@/composables/useTeamLibraries'
+import { useTeamProjects } from '@/composables/useTeamProjects'
 import type { SkillBundle } from '@/lib/bundles'
 import type { MarketItem } from '@/lib/market'
 
@@ -25,7 +26,8 @@ const emit = defineEmits<{
 
 const { t } = useI18n()
 const { skills, detectedPlatforms, loading, refresh } = useSkills()
-const { updates, missingRequired } = useTeam()
+const { compliance } = useTeamLibraries()
+const { attentionCount: projectAttentionCount } = useTeamProjects()
 
 const todoCount = computed(() => {
   const drift = skills.value.filter(
@@ -36,7 +38,9 @@ const todoCount = computed(() => {
     const agents = new Set(skill.installations.map((installation) => installation.agent))
     return agents.size === 1 && detectedPlatforms.value.length > 1
   }).length
-  return drift + singleEnd + updates.value.length + missingRequired.value.length
+  return drift + singleEnd + compliance.value.missingRequired.length +
+    compliance.value.blockedInstalled.length + compliance.value.updateAvailable +
+    projectAttentionCount.value
 })
 </script>
 
@@ -86,7 +90,6 @@ const todoCount = computed(() => {
         @click="refresh"
       >
         <RefreshCw :class="loading ? 'animate-spin' : ''" />
-        {{ t('app.rescan') }}
       </Button>
     </header>
 

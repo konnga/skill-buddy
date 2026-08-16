@@ -7,6 +7,7 @@ import {
   Database,
   FolderGit2,
   FolderPlus,
+  GitBranch,
   Globe,
   Info,
   Palette,
@@ -20,9 +21,10 @@ import {
 import type {
   AppInfo,
   CustomPlatformInput,
-  RegistryTestResult,
+  TeamLibraryConfig,
   UpdateCheckResult,
 } from '../../../shared/ipc.js'
+import { teamLibraryConfigKey } from '../../../shared/team-library.js'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -36,8 +38,10 @@ import ThemeCodePreview from '@/components/appearance/ThemeCodePreview.vue'
 import ThemeModeCards from '@/components/appearance/ThemeModeCards.vue'
 import ThemeStylePanel from '@/components/appearance/ThemeStylePanel.vue'
 import GitBackupPanel from '@/components/settings/GitBackupPanel.vue'
-import { useSettings, syncCustomPlatforms, type RegistryProfile } from '@/composables/useSettings'
+import TeamLibrarySetupPanel from '@/components/settings/TeamLibrarySetupPanel.vue'
+import { useSettings, syncCustomPlatforms } from '@/composables/useSettings'
 import { useSkills } from '@/composables/useSkills'
+import { useTeamLibraries } from '@/composables/useTeamLibraries'
 import { showToast } from '@/composables/useToast'
 
 const emit = defineEmits<{ back: [] }>()
@@ -47,8 +51,6 @@ const {
   customPlatforms,
   theme,
   language,
-  registryUrl,
-  registryToken,
   githubToken,
   systemDark,
   linkOpenMode,
@@ -60,16 +62,17 @@ const {
   globalShortcut,
   globalShortcutOk,
   launchAtLogin,
-  registryProfiles,
+  teamLibraries,
 } = useSettings()
 const { t } = useI18n()
 const { platforms, refresh } = useSkills()
+const { catalogs: teamLibraryCatalogs, errors: teamLibraryErrors, warnings: teamLibraryWarnings } = useTeamLibraries()
 
 type Category =
   | 'general'
   | 'appearance'
   | 'behavior'
-  | 'registry'
+  | 'team-library'
   | 'platforms'
   | 'network'
   | 'projects'
@@ -91,7 +94,7 @@ const groups: { labelKey: string; items: { id: Category; labelKey: string; icon:
     {
       labelKey: 'settings.groupIntegrations',
       items: [
-        { id: 'registry', labelKey: 'settings.catRegistry', icon: Users },
+        { id: 'team-library', labelKey: 'settings.catTeamLibrary', icon: Users },
         { id: 'platforms', labelKey: 'settings.catPlatforms', icon: Blocks },
         { id: 'network', labelKey: 'settings.catNetwork', icon: Globe },
       ],
@@ -189,45 +192,38 @@ async function removeCustomPlatform(id: string): Promise<void> {
   await refresh()
 }
 
-/* registry：连接测试与已保存连接 */
-const registryTesting = ref(false)
-const registryTestResult = ref<RegistryTestResult | null>(null)
+function repositoryLabel(remoteUrl: string): string {
+  return remoteUrl.replace(/\/$/, '').split(/[/:]/).pop()?.replace(/\.git$/, '') || remoteUrl
+}
 
-async function testRegistry(): Promise<void> {
-  registryTesting.value = true
-  registryTestResult.value = null
-  try {
-    registryTestResult.value = await window.skillsManager.registryTest({
-      url: registryUrl.value,
-      token: registryToken.value,
-    })
-  } finally {
-    registryTesting.value = false
+const teamLibraryRows = computed(() => teamLibraries.value.map((library) => {
+  const key = teamLibraryConfigKey(library)
+  const catalog = teamLibraryCatalogs.value.find(
+    (candidate) => teamLibraryConfigKey(candidate.source) === key,
+  )
+  return {
+    key,
+    config: library,
+    name: catalog?.source.libraryName ?? repositoryLabel(library.remoteUrl),
+    id: catalog?.source.libraryId,
+    error: teamLibraryErrors.value[key],
+    warning: teamLibraryWarnings.value[key],
   }
-}
+}))
 
-const profileName = ref('')
-
-async function saveProfile(): Promise<void> {
-  const name = profileName.value.trim()
-  if (!name || !registryUrl.value.trim()) return
-  await window.skillsManager.secureSet(`registryToken:${name}`, registryToken.value)
-  registryProfiles.value = [
-    ...registryProfiles.value.filter((p) => p.name !== name),
-    { name, url: registryUrl.value.trim() },
+function addTeamLibrary(library: TeamLibraryConfig): void {
+  teamLibraries.value = [
+    ...teamLibraries.value.filter(
+      (item) => item.remoteUrl.trim() !== library.remoteUrl.trim(),
+    ),
+    library,
   ]
-  profileName.value = ''
 }
 
-async function useProfile(profile: RegistryProfile): Promise<void> {
-  registryUrl.value = profile.url
-  registryToken.value = await window.skillsManager.secureGet(`registryToken:${profile.name}`)
-  registryTestResult.value = null
-}
-
-async function removeProfile(profile: RegistryProfile): Promise<void> {
-  registryProfiles.value = registryProfiles.value.filter((p) => p.name !== profile.name)
-  await window.skillsManager.secureSet(`registryToken:${profile.name}`, '')
+function removeTeamLibrary(key: string): void {
+  teamLibraries.value = teamLibraries.value.filter(
+    (library) => teamLibraryConfigKey(library) !== key,
+  )
 }
 
 /* data：配置导出 / 导入 / 重置 */
@@ -536,116 +532,57 @@ async function copyDiagnostics(): Promise<void> {
           </div>
         </section>
 
-        <!-- registry -->
-        <section v-if="showCat('registry')" class="mb-10">
-          <h2 class="mb-3 text-sm font-medium">{{ t('settings.sectionRegistry') }}</h2>
-          <p class="mb-3 text-sm text-muted-foreground">{{ t('settings.registryDesc') }}</p>
-          <div class="divide-y rounded-xl border">
-            <div
-              v-if="visible(t('settings.registryUrlTitle'))"
-              class="flex flex-col gap-2 px-5 py-4"
-            >
-              <p class="text-sm font-medium">{{ t('settings.registryUrlTitle') }}</p>
-              <Input
-                v-model="registryUrl"
-                class="text-sm"
-                :placeholder="t('settings.registryUrlPh')"
-              />
-            </div>
-            <div
-              v-if="visible(t('settings.registryTokenTitle'))"
-              class="flex flex-col gap-2 px-5 py-4"
-            >
-              <p class="text-sm font-medium">{{ t('settings.registryTokenTitle') }}</p>
-              <Input
-                v-model="registryToken"
-                type="password"
-                class="text-sm"
-                :placeholder="t('settings.registryTokenPh')"
-              />
-            </div>
-            <div v-if="visible(t('settings.registryTest'))" class="flex flex-col gap-2 px-5 py-4">
-              <div class="flex items-center justify-between gap-6">
-                <p class="text-sm font-medium">{{ t('settings.registryTest') }}</p>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  :disabled="registryTesting || !registryUrl.trim()"
-                  @click="testRegistry"
-                >
-                  {{ registryTesting ? t('settings.registryTesting') : t('settings.registryTest') }}
-                </Button>
-              </div>
-              <p
-                v-if="registryTestResult"
-                :class="[
-                  'text-sm',
-                  registryTestResult.ok && registryTestResult.authOk
-                    ? 'text-muted-foreground'
-                    : 'text-destructive',
-                ]"
-              >
-                <template v-if="registryTestResult.ok && registryTestResult.authOk">
-                  {{
-                    t('settings.registryTestOk', {
-                      ms: registryTestResult.latencyMs,
-                      orgs: registryTestResult.orgs.join(', ') || '—',
-                    })
-                  }}
-                </template>
-                <template v-else-if="registryTestResult.ok">
-                  {{ t('settings.registryTestAuthFail', { ms: registryTestResult.latencyMs }) }}
-                </template>
-                <template v-else>
-                  {{ t('settings.registryTestFail', { msg: registryTestResult.error ?? '' }) }}
-                </template>
-              </p>
-            </div>
-            <div
-              v-if="visible(t('settings.registryProfilesTitle'))"
-              class="flex flex-col gap-2 px-5 py-4"
-            >
-              <p class="text-sm font-medium">{{ t('settings.registryProfilesTitle') }}</p>
-              <p class="text-sm text-muted-foreground">{{ t('settings.registryProfilesDesc') }}</p>
+        <!-- team library -->
+        <section v-if="showCat('team-library')" class="mb-10">
+          <h2 v-if="searching" class="mb-3 text-sm font-medium">
+            {{ t('settings.sectionTeamLibrary') }}
+          </h2>
+          <p class="mb-3 text-sm text-muted-foreground">{{ t('settings.teamLibraryDesc') }}</p>
+          <div class="space-y-4">
+            <div v-if="teamLibraryRows.length > 0" class="divide-y rounded-xl border">
               <div
-                v-for="profile in registryProfiles"
-                :key="profile.name"
-                class="flex items-center justify-between gap-2 rounded-md border px-3 py-2"
+                v-for="library in teamLibraryRows"
+                :key="library.key"
+                class="flex items-center gap-3 px-4 py-3.5"
               >
-                <div class="min-w-0">
-                  <p class="truncate text-sm font-medium">{{ profile.name }}</p>
-                  <p class="truncate text-xs text-muted-foreground">{{ profile.url }}</p>
+                <div class="flex size-9 shrink-0 items-center justify-center rounded-md bg-muted">
+                  <GitBranch class="size-4 text-muted-foreground" />
                 </div>
-                <span class="flex shrink-0 items-center gap-1">
-                  <Button variant="outline" size="sm" @click="useProfile(profile)">
-                    {{ t('settings.registryUseProfile') }}
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    class="size-7 text-muted-foreground"
-                    @click="removeProfile(profile)"
-                  >
-                    <Trash2 class="size-3.5" />
-                  </Button>
-                </span>
-              </div>
-              <div class="flex items-center gap-2">
-                <Input
-                  v-model="profileName"
-                  class="h-8 flex-1 text-sm"
-                  :placeholder="t('settings.registryProfileNamePh')"
-                />
+                <div class="min-w-0 flex-1">
+                  <div class="flex min-w-0 items-center gap-2">
+                    <p class="truncate text-sm font-medium">{{ library.name }}</p>
+                    <Badge v-if="library.id" variant="secondary" class="shrink-0 font-mono text-[10px]">
+                      {{ library.id }}
+                    </Badge>
+                  </div>
+                  <p class="mt-1 truncate font-mono text-xs text-muted-foreground">
+                    {{ library.config.remoteUrl }}
+                  </p>
+                  <p class="mt-1 flex items-center gap-1 text-xs text-muted-foreground">
+                    <GitBranch class="size-3" />
+                    {{ library.config.branch }}
+                  </p>
+                  <p v-if="library.error" class="mt-1 break-all text-xs text-destructive">
+                    {{ library.error }}
+                  </p>
+                  <p v-else-if="library.warning" class="mt-1 break-all text-xs text-amber-600 dark:text-amber-400">
+                    {{ library.warning }}
+                  </p>
+                </div>
                 <Button
-                  variant="outline"
-                  size="sm"
-                  :disabled="!profileName.trim() || !registryUrl.trim()"
-                  @click="saveProfile"
+                  variant="ghost"
+                  size="icon"
+                  class="size-8 shrink-0 text-muted-foreground hover:text-destructive"
+                  :title="t('settings.teamLibraryRemove')"
+                  :aria-label="t('settings.teamLibraryRemove')"
+                  @click="removeTeamLibrary(library.key)"
                 >
-                  {{ t('settings.registrySaveProfile') }}
+                  <Trash2 class="size-3.5" />
                 </Button>
               </div>
             </div>
+
+            <TeamLibrarySetupPanel @connected="addTeamLibrary" />
           </div>
         </section>
 
