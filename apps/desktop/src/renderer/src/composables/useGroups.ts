@@ -1,6 +1,7 @@
 import { computed, ref, shallowRef } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { planAdditiveInstall } from '@skillbuddy/core/planners'
+import type { InstallTarget } from '../../../shared/ipc.js'
 import { showToast } from '@/composables/useToast'
 import { useSettings, type SkillGroup } from '@/composables/useSettings'
 import { useSkills } from '@/composables/useSkills'
@@ -12,8 +13,7 @@ import {
 } from '@/lib/skill-installations'
 
 const groupApplyOpen = shallowRef(false)
-const groupApplyScope = shallowRef('user')
-const groupApplyAgents = ref<string[]>([])
+const groupApplyTargets = ref<InstallTarget[]>([])
 const groupApplyBusy = shallowRef(false)
 const groupApplyNote = shallowRef<string | null>(null)
 const groupToggleBusy = shallowRef(false)
@@ -136,26 +136,14 @@ export function useGroups() {
     return true
   }
 
-  function buildTargets() {
-    return groupApplyAgents.value.map((agent) =>
-      groupApplyScope.value === 'user'
-        ? { agent, scope: 'user' as const }
-        : {
-            agent,
-            scope: 'project' as const,
-            projectRoot: groupApplyScope.value,
-          },
-    )
-  }
-
   async function applyGroup(): Promise<void> {
     const group = groups.value.find((item) => item.name === groupFilter.value)
-    if (!group || groupApplyAgents.value.length === 0) return
+    if (!group || groupApplyTargets.value.length === 0) return
 
     groupApplyBusy.value = true
     groupApplyNote.value = null
     try {
-      const plan = planAdditiveInstall(group.skills, skills.value, buildTargets())
+      const plan = planAdditiveInstall(group.skills, skills.value, groupApplyTargets.value)
       const failures: string[] = []
       for (const { name, targets } of plan.installs) {
         const local = skills.value.find((skill) => skill.name === name)
@@ -182,12 +170,12 @@ export function useGroups() {
 
   async function applyGroupTemp(): Promise<void> {
     const group = groups.value.find((item) => item.name === groupFilter.value)
-    if (!group || groupApplyAgents.value.length === 0) return
+    if (!group || groupApplyTargets.value.length === 0) return
 
     groupApplyBusy.value = true
     groupApplyNote.value = null
     try {
-      const plan = planAdditiveInstall(group.skills, skills.value, buildTargets())
+      const plan = planAdditiveInstall(group.skills, skills.value, groupApplyTargets.value)
       for (const { name, targets } of plan.installs) {
         const local = skills.value.find((skill) => skill.name === name)
         if (local) await installSkill(local.installations[0]!.skill, targets)
@@ -364,8 +352,7 @@ export function useGroups() {
     groups,
     groupFilter,
     groupApplyOpen,
-    groupApplyScope,
-    groupApplyAgents,
+    groupApplyTargets,
     groupApplyBusy,
     groupApplyNote,
     activeGroupState,

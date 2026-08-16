@@ -20,8 +20,7 @@ const branch = ref(localStorage.getItem('skm.backupBranch')?.replace(/^"|"$/g, '
 const busy = shallowRef(false)
 const error = shallowRef<string | null>(null)
 const preview = shallowRef<GitRestorePreview | null>(null)
-const restoreAgents = ref<string[]>([])
-const restoreScope = shallowRef('user')
+const restoreTargets = ref<InstallTarget[]>([])
 
 const canRun = computed(() => Boolean(remoteUrl.value.trim() && branch.value.trim() && !busy.value))
 
@@ -81,17 +80,9 @@ onBeforeUnmount(() => {
   if (preview.value) void window.skillsManager.cleanupImport(preview.value.root)
 })
 
-function restoreTargets(): InstallTarget[] {
-  return restoreAgents.value.map((agent) =>
-    restoreScope.value === 'user'
-      ? { agent, scope: 'user' }
-      : { agent, scope: 'project', projectRoot: restoreScope.value },
-  )
-}
-
 async function restore(): Promise<void> {
   const snapshot = preview.value
-  const targets = restoreTargets()
+  const targets = restoreTargets.value
   if (!snapshot || targets.length === 0 || busy.value) return
   const confirmed = await window.skillsManager.confirmDialog({
     title: t('settings.restoreConfirmTitle'),
@@ -191,16 +182,12 @@ async function restore(): Promise<void> {
           })
         }}
       </p>
-      <PlatformTargetPicker
-        v-model:scope="restoreScope"
-        v-model:agents="restoreAgents"
-        :label="t('settings.restoreTargets')"
-      />
+      <PlatformTargetPicker v-model="restoreTargets" :label="t('settings.restoreTargets')" />
       <Button
         class="cursor-pointer"
         variant="destructive"
         size="sm"
-        :disabled="busy || restoreAgents.length === 0"
+        :disabled="busy || restoreTargets.length === 0"
         @click="restore"
       >
         {{ t('settings.restoreAction') }}

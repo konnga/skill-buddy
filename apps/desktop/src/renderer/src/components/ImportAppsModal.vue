@@ -31,8 +31,7 @@ const step = ref<1 | 2>(1)
 const enabled = ref<Set<string>>(new Set())
 const keepSync = ref(true)
 
-const targetScope = ref('user')
-const targetAgents = ref<string[]>([])
+const targets = ref<InstallTarget[]>([])
 const busy = ref(false)
 const message = ref<string | null>(null)
 
@@ -43,8 +42,7 @@ watch(
       step.value = 1
       enabled.value = new Set(detectedPlatforms.value.map((p) => p.id))
       keepSync.value = true
-      targetScope.value = 'user'
-      targetAgents.value = []
+      targets.value = []
       message.value = null
     }
   },
@@ -60,24 +58,20 @@ function toggleSource(id: string, on: boolean): void {
 const sources = computed(() => [...enabled.value])
 
 async function runImport(): Promise<void> {
-  if (targetAgents.value.length === 0) return
+  if (targets.value.length === 0) return
   busy.value = true
   message.value = null
   try {
-    const targets: InstallTarget[] = targetAgents.value
-      .filter((agent) => !(targetScope.value === 'user' && sources.value.includes(agent)))
-      .map((agent) =>
-        targetScope.value === 'user'
-          ? { agent, scope: 'user' }
-          : { agent, scope: 'project', projectRoot: targetScope.value },
-      )
+    const installTargets = targets.value.filter(
+      (target) => !(target.scope === 'user' && sources.value.includes(target.agent)),
+    )
     let imported = 0
     for (const s of skills.value) {
       const sourceInst = s.installations.find(
         (i) => sources.value.includes(i.agent) && i.scope === 'user',
       )
       if (!sourceInst) continue
-      const need = targets.filter(
+      const need = installTargets.filter(
         (tg) =>
           !s.installations.some(
             (i) =>
@@ -97,7 +91,7 @@ async function runImport(): Promise<void> {
           .filter((s) => s.installations.some((i) => i.agent === src && i.scope === 'user'))
           .map((s) => s.name)
       for (const src of sources.value) {
-        for (const tg of targets) {
+        for (const tg of installTargets) {
           if (tg.agent === src && tg.scope === 'user') continue
           const exists = importSyncPairs.value.some(
             (pr) =>
@@ -198,11 +192,7 @@ async function runImport(): Promise<void> {
               <ArrowLeft class="size-4" />
               {{ t('importApps.back') }}
             </button>
-            <PlatformTargetPicker
-              v-model:scope="targetScope"
-              v-model:agents="targetAgents"
-              :label="t('importApps.targetsTitle')"
-            />
+            <PlatformTargetPicker v-model="targets" :label="t('importApps.targetsTitle')" />
             <p
               v-if="message"
               class="mt-4 text-sm"
@@ -226,7 +216,7 @@ async function runImport(): Promise<void> {
           <Button v-if="step === 1" :disabled="enabled.size === 0" @click="step = 2">
             {{ t('importApps.continue') }}
           </Button>
-          <Button v-else :disabled="busy || targetAgents.length === 0" @click="runImport">
+          <Button v-else :disabled="busy || targets.length === 0" @click="runImport">
             {{ busy ? t('importApps.running') : t('importApps.run') }}
           </Button>
         </footer>

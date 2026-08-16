@@ -54,8 +54,7 @@ const scrollElement = ref<HTMLElement | null>(null)
 const activeAssistantId = ref<string | null>(null)
 
 const artifact = ref<FoundSkill | null>(null)
-const scope = ref('user')
-const targetAgents = ref<string[]>([])
+const targets = ref<InstallTarget[]>([])
 const installing = ref(false)
 const installError = ref<string | null>(null)
 const installedKey = ref<string | null>(null)
@@ -78,8 +77,9 @@ const artifactRevision = computed(() => {
 const currentInstallKey = computed(() =>
   JSON.stringify({
     revision: artifactRevision.value,
-    scope: scope.value,
-    agents: [...targetAgents.value].sort(),
+    targets: [...targets.value]
+      .map((target) => [target.agent, target.scope, target.projectRoot ?? ''].join(':'))
+      .sort(),
   }),
 )
 
@@ -220,16 +220,11 @@ async function cancelGeneration(): Promise<void> {
 }
 
 async function installArtifact(): Promise<void> {
-  if (!artifact.value || targetAgents.value.length === 0 || installing.value) return
+  if (!artifact.value || targets.value.length === 0 || installing.value) return
   installing.value = true
   installError.value = null
   try {
-    const targets: InstallTarget[] = targetAgents.value.map((agent) =>
-      scope.value === 'user'
-        ? { agent, scope: 'user' }
-        : { agent, scope: 'project', projectRoot: scope.value },
-    )
-    const results = await installSkill(artifact.value.skill, targets)
+    const results = await installSkill(artifact.value.skill, targets.value)
     const failed = results.filter((result) => !result.ok)
     if (failed.length > 0) {
       installError.value = failed
@@ -252,7 +247,10 @@ function onComposerKeydown(event: KeyboardEvent): void {
 }
 
 onMounted(async () => {
-  targetAgents.value = detectedPlatforms.value.map((platform) => platform.id)
+  targets.value = detectedPlatforms.value.map((platform) => ({
+    agent: platform.id,
+    scope: 'user',
+  }))
   window.skillsManager.onAiConversationEvent(handleConversationEvent)
   try {
     availableAgents.value = await window.skillsManager.aiConversationAgents()
@@ -389,15 +387,11 @@ onBeforeUnmount(() => {
               />
             </div>
             <div class="flex flex-col gap-3 border-t px-4 py-3">
-              <PlatformTargetPicker
-                v-model:scope="scope"
-                v-model:agents="targetAgents"
-                :label="t('team.installTo')"
-              />
+              <PlatformTargetPicker v-model="targets" :label="t('team.installTo')" />
               <div class="flex flex-wrap items-center gap-3">
                 <Button
                   size="sm"
-                  :disabled="installing || targetAgents.length === 0 || artifactInstalled"
+                  :disabled="installing || targets.length === 0 || artifactInstalled"
                   @click="installArtifact"
                 >
                   <LoaderCircle v-if="installing" class="size-3.5 animate-spin" />
@@ -407,7 +401,7 @@ onBeforeUnmount(() => {
                       ? t('newSkill.installed')
                       : installing
                         ? t('newSkill.installing')
-                        : t('newSkill.installN', { n: targetAgents.length })
+                        : t('newSkill.installN', { n: targets.length })
                   }}
                 </Button>
                 <p v-if="installError" class="break-all text-sm text-destructive">

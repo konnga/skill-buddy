@@ -30,8 +30,7 @@ const { skills, detectedPlatforms, installSkill, refresh: refreshSkills } = useS
 const { groups } = useSettings()
 
 const selectedSkills = ref(new Set(props.bundle.skills.map((skill) => skill.name)))
-const scope = shallowRef('user')
-const agents = ref<string[]>([])
+const targets = ref<InstallTarget[]>([])
 const busy = shallowRef(false)
 const error = shallowRef<string | null>(null)
 const note = shallowRef<string | null>(null)
@@ -39,11 +38,14 @@ const progress = ref<{ n: number; total: number } | null>(null)
 
 const selectedCount = computed(() => selectedSkills.value.size)
 const installDisabled = computed(
-  () => busy.value || selectedCount.value === 0 || agents.value.length === 0,
+  () => busy.value || selectedCount.value === 0 || targets.value.length === 0,
 )
 
 onMounted(() => {
-  agents.value = detectedPlatforms.value.map((platform) => platform.id)
+  targets.value = detectedPlatforms.value.map((platform) => ({
+    agent: platform.id,
+    scope: 'user',
+  }))
 })
 
 function toggleSkill(name: string): void {
@@ -60,11 +62,6 @@ const refSourceLabel = (ref: BundleSkillRef): string =>
   ref.source === 'skills-sh' ? ref.repo : `SkillHub · ${ref.namespace}/${ref.slug}`
 
 async function installSelectedSkills(chosen: BundleSkillRef[]): Promise<boolean> {
-  const targets: InstallTarget[] = agents.value.map((agent) =>
-    scope.value === 'user'
-      ? { agent, scope: 'user' }
-      : { agent, scope: 'project', projectRoot: scope.value },
-  )
   const failures: string[] = []
   const installedNames: string[] = []
   const roots: string[] = []
@@ -79,7 +76,7 @@ async function installSelectedSkills(chosen: BundleSkillRef[]): Promise<boolean>
       try {
         const local = skills.value.find((skill) => skill.name === skillRef.name)
         if (local) {
-          const missingTargets = targets.filter(
+          const missingTargets = targets.value.filter(
             (target) =>
               !local.installations.some(
                 (installation) =>
@@ -130,7 +127,7 @@ async function installSelectedSkills(chosen: BundleSkillRef[]): Promise<boolean>
           failures.push(`${skillRef.name}: ${t('market.notFound')}`)
           continue
         }
-        const results = await installSkill(found.skill, targets, { refresh: false })
+        const results = await installSkill(found.skill, targets.value, { refresh: false })
         failures.push(
           ...results
             .filter((result) => !result.ok)
@@ -284,11 +281,7 @@ async function beginInstall(): Promise<void> {
               <ChevronRight class="size-4 shrink-0 text-muted-foreground" />
             </div>
           </div>
-          <PlatformTargetPicker
-            v-model:scope="scope"
-            v-model:agents="agents"
-            :label="t('bundles.skillTargets')"
-          />
+          <PlatformTargetPicker v-model="targets" :label="t('bundles.skillTargets')" />
         </section>
 
         <div v-if="note || error" class="flex flex-col gap-2 border-t pt-4">

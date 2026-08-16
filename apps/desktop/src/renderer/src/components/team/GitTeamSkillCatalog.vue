@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, shallowRef } from 'vue'
-import { CloudDownload, GitCommitHorizontal, Search } from '@lucide/vue'
+import { ChevronDown, CloudDownload, GitCommitHorizontal, Search } from '@lucide/vue'
 import type { InstallTarget, TeamLibrarySkillSummary } from '../../../../shared/ipc.js'
 import { teamLibraryConfigKey } from '../../../../shared/team-library.js'
 import MarkdownView from '@/components/MarkdownView.vue'
@@ -8,7 +8,6 @@ import PlatformTargetPicker from '@/components/PlatformTargetPicker.vue'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { ScrollArea } from '@/components/ui/scroll-area'
 import { useSkills } from '@/composables/useSkills'
 import { useSettings } from '@/composables/useSettings'
 import { useTeamLibraries } from '@/composables/useTeamLibraries'
@@ -19,9 +18,9 @@ const { skills: localSkills, refresh } = useSkills()
 const { skills, catalogs, installations, refreshInstallations, policyState } = useTeamLibraries()
 const query = shallowRef('')
 const expanded = shallowRef<string | null>(null)
+const overviewExpanded = shallowRef(true)
 const detail = shallowRef<Awaited<ReturnType<typeof window.skillsManager.teamLibraryGetSkill>> | null>(null)
-const agents = shallowRef<string[]>([])
-const scope = shallowRef('user')
+const targets = shallowRef<InstallTarget[]>([])
 const busy = shallowRef(false)
 const error = shallowRef<string | null>(null)
 
@@ -60,9 +59,9 @@ function configFor(item: TeamLibrarySkillSummary) {
 async function toggle(item: TeamLibrarySkillSummary): Promise<void> {
   const key = `${item.libraryId}:${item.path}`
   expanded.value = expanded.value === key ? null : key
+  overviewExpanded.value = true
   detail.value = null
-  agents.value = []
-  scope.value = 'user'
+  targets.value = []
   error.value = null
   if (expanded.value !== key) return
   try {
@@ -73,7 +72,7 @@ async function toggle(item: TeamLibrarySkillSummary): Promise<void> {
 }
 
 async function install(item: TeamLibrarySkillSummary): Promise<void> {
-  if (agents.value.length === 0) return
+  if (targets.value.length === 0) return
   const state = policyState(item)
   if (state.blockedReason) {
     error.value = `该 Skill 已被团队策略禁用：${state.blockedReason}`
@@ -82,12 +81,11 @@ async function install(item: TeamLibrarySkillSummary): Promise<void> {
   busy.value = true
   error.value = null
   try {
-    const targets: InstallTarget[] = agents.value.map((agent) =>
-      scope.value === 'user'
-        ? { agent, scope: 'user' }
-        : { agent, scope: 'project', projectRoot: scope.value },
+    const results = await window.skillsManager.teamLibraryInstallSkill(
+      configFor(item),
+      item.path,
+      targets.value,
     )
-    const results = await window.skillsManager.teamLibraryInstallSkill(configFor(item), item.path, targets)
     const failed = results.filter((result) => !result.ok)
     if (failed.length > 0) {
       error.value = failed.map((result) => `${agentLabel(result.target.agent)}: ${result.error}`).join('；')
@@ -161,22 +159,39 @@ async function install(item: TeamLibrarySkillSummary): Promise<void> {
             <div v-if="detail.hasScripts" class="rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm text-amber-700 dark:text-amber-400">
               该 Skill 包含脚本资源，请确认内容后再安装。
             </div>
-            <ScrollArea class="max-h-64 rounded-md border bg-muted/40" viewport-class="max-h-64 px-4 py-3">
-              <MarkdownView :content="detail.content" preview-id="git-team-skill-detail" />
-            </ScrollArea>
           </template>
-          <PlatformTargetPicker v-model:scope="scope" v-model:agents="agents" label="安装到" />
+          <PlatformTargetPicker v-model="targets" label="安装到" />
           <p v-if="policyState(item).blockedReason" class="text-sm text-destructive">
             禁用原因：{{ policyState(item).blockedReason }}
           </p>
           <Button
             size="sm"
             class="w-fit cursor-pointer"
-            :disabled="busy || agents.length === 0 || Boolean(policyState(item).blockedReason)"
+            :disabled="busy || targets.length === 0 || Boolean(policyState(item).blockedReason)"
             @click="install(item)"
           >
-            {{ busy ? '安装中…' : `安装到 ${agents.length} 个目标` }}
+            {{ busy ? '安装中…' : `安装到 ${targets.length} 个目标` }}
           </Button>
+          <section v-if="detail" class="flex flex-col gap-2 pt-1">
+            <button
+              type="button"
+              class="flex w-full cursor-pointer items-center justify-between gap-3 rounded px-1 py-1 text-left transition-colors hover:bg-muted/40"
+              :title="overviewExpanded ? '收起概述' : '展开概述'"
+              :aria-expanded="overviewExpanded"
+              @click="overviewExpanded = !overviewExpanded"
+            >
+              <span class="text-sm font-medium">概述</span>
+              <ChevronDown
+                :class="[
+                  'size-4 shrink-0 text-muted-foreground transition-transform',
+                  overviewExpanded && 'rotate-180',
+                ]"
+              />
+            </button>
+            <div v-show="overviewExpanded" class="px-1 py-1">
+              <MarkdownView :content="detail.content" preview-id="git-team-skill-detail" />
+            </div>
+          </section>
         </div>
       </li>
     </ul>

@@ -19,15 +19,14 @@ import type { InstallTarget } from '../../../shared/ipc.js'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Select } from '@/components/ui/select'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import CopyButton from '@/components/CopyButton.vue'
 import DiffView from '@/components/DiffView.vue'
 import PlatformIcon from '@/components/PlatformIcon.vue'
+import PlatformTargetPicker from '@/components/PlatformTargetPicker.vue'
 import ResourcePreviewDialog from '@/components/ResourcePreviewDialog.vue'
 import SkillEditor from '@/components/SkillEditor.vue'
 import { agentLabel } from '@/lib/agents'
-import { pathBasename } from '@/lib/paths'
 import { hasScriptResources } from '@/lib/resources'
 import { useSettings } from '@/composables/useSettings'
 import { useSkills } from '@/composables/useSkills'
@@ -42,8 +41,8 @@ const props = defineProps<{
 }>()
 const emit = defineEmits<{ close: [] }>()
 
-const { detectedPlatforms, install, installSkill, refresh, setEnabled } = useSkills()
-const { projectRoots, groups } = useSettings()
+const { install, installSkill, refresh, setEnabled } = useSkills()
+const { groups } = useSettings()
 
 const driftSection = useTemplateRef<HTMLElement>('driftSection')
 const installSection = useTemplateRef<HTMLElement>('installSection')
@@ -167,34 +166,14 @@ watch(
 
 /* ---------- install to ---------- */
 
-/** 'user' or a project root path */
-const installScope = ref<string>('user')
-
-const scopeOptions = computed(() => [
-  { value: 'user', label: t('detail.userScope') },
-  ...projectRoots.value.map((root) => ({
-    value: root,
-    label: t('detail.projectScope', { root: pathBasename(root) }),
+const installedTargets = computed<InstallTarget[]>(() =>
+  props.skill.installations.map((installation) => ({
+    agent: installation.agent,
+    scope: installation.scope,
+    projectRoot: installation.projectRoot,
   })),
-])
-
-const installedKeys = computed(
-  () =>
-    new Set(
-      props.skill.installations.map((i) => `${i.agent}:${i.scope}:${i.projectRoot ?? ''}`),
-    ),
 )
-
-const installableTargets = computed(() =>
-  detectedPlatforms.value.filter((p) => {
-    if (installScope.value !== 'user' && !p.hasProjectScope) return false
-    const key =
-      installScope.value === 'user' ? `${p.id}:user:` : `${p.id}:project:${installScope.value}`
-    return !installedKeys.value.has(key)
-  }),
-)
-
-const selectedTargets = ref<Set<string>>(new Set())
+const targets = ref<InstallTarget[]>([])
 const busy = ref(false)
 const actionError = ref<string | null>(null)
 const confirmUninstall = ref(false)
@@ -203,31 +182,19 @@ function reveal(path: string): void {
   void window.skillsManager.revealInFolder(path)
 }
 
-function toggleTarget(id: string): void {
-  const next = new Set(selectedTargets.value)
-  if (next.has(id)) next.delete(id)
-  else next.add(id)
-  selectedTargets.value = next
-}
-
 async function runInstall(): Promise<void> {
-  if (selectedTargets.value.size === 0) return
+  if (targets.value.length === 0) return
   busy.value = true
   actionError.value = null
   try {
-    const targets: InstallTarget[] = [...selectedTargets.value].map((agent) =>
-      installScope.value === 'user'
-        ? { agent, scope: 'user' }
-        : { agent, scope: 'project', projectRoot: installScope.value },
-    )
-    const results = await install(props.skill, targets)
+    const results = await install(props.skill, targets.value)
     const failed = results.filter((r) => !r.ok)
     if (failed.length > 0) {
       actionError.value = failed
         .map((f) => `${agentLabel(f.target.agent)}: ${f.error}`)
         .join('；')
     }
-    selectedTargets.value = new Set()
+    targets.value = []
   } finally {
     busy.value = false
   }
@@ -655,43 +622,18 @@ async function runUninstall(): Promise<void> {
             props.focus === 'install' && 'border-l-2 border-foreground/30 pl-4',
           ]"
         >
-          <div class="mb-2 flex items-center justify-between gap-4">
-            <h3 class="text-sm font-medium uppercase tracking-wide text-muted-foreground">
-              {{ t('detail.installTo') }}
-            </h3>
-            <Select
-              v-if="projectRoots.length > 0"
-              v-model="installScope"
-              class="max-w-[60%] shrink-0"
-              :options="scopeOptions"
-            />
-          </div>
-          <div v-if="installableTargets.length > 0" class="flex flex-wrap gap-2">
-            <button
-              v-for="p in installableTargets"
-              :key="p.id"
-              type="button"
-              :class="[
-                'flex items-center gap-2 rounded-md border px-3 py-1.5 text-sm transition-colors',
-                selectedTargets.has(p.id)
-                  ? 'border-foreground bg-foreground text-background'
-                  : 'hover:border-foreground/40',
-              ]"
-              @click="toggleTarget(p.id)"
-            >
-              <PlatformIcon :id="p.id" :size="14" />
-              {{ p.displayName }}
-            </button>
-          </div>
-          <p v-else class="text-sm text-muted-foreground">{{ t('detail.allInstalled') }}</p>
+          <PlatformTargetPicker
+            v-model="targets"
+            :label="t('detail.installTo')"
+            :excluded="installedTargets"
+          />
           <Button
-            v-if="installableTargets.length > 0"
             class="mt-3"
             size="sm"
-            :disabled="selectedTargets.size === 0 || busy"
+            :disabled="targets.length === 0 || busy"
             @click="runInstall"
           >
-            {{ busy ? t('detail.installing') : t('detail.installN', { n: selectedTargets.size }) }}
+            {{ busy ? t('detail.installing') : t('detail.installN', { n: targets.length }) }}
           </Button>
           <p v-if="actionError" class="mt-2 text-sm text-destructive">{{ actionError }}</p>
         </section>

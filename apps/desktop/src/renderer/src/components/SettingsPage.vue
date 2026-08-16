@@ -57,7 +57,6 @@ const {
   proxyUrl,
   autoRefresh,
   notifyDrift,
-  defaultInstallScope,
   confirmUninstall,
   globalShortcut,
   globalShortcutOk,
@@ -468,25 +467,6 @@ async function copyDiagnostics(): Promise<void> {
                 </p>
               </div>
               <Switch v-model="notifyDrift" />
-            </div>
-            <div
-              v-if="visible(t('settings.defaultScopeTitle'), t('settings.defaultScopeDesc'))"
-              class="flex items-center justify-between gap-6 px-5 py-4"
-            >
-              <div class="min-w-0">
-                <p class="text-sm font-medium">{{ t('settings.defaultScopeTitle') }}</p>
-                <p class="mt-0.5 text-sm text-muted-foreground">
-                  {{ t('settings.defaultScopeDesc') }}
-                </p>
-              </div>
-              <Select
-                v-model="defaultInstallScope"
-                class="w-44 shrink-0"
-                :options="[
-                  { value: 'user', label: t('settings.defaultScopeUser') },
-                  { value: 'project', label: t('settings.defaultScopeProject') },
-                ]"
-              />
             </div>
             <div
               v-if="visible(t('settings.confirmUninstallTitle'), t('settings.confirmUninstallDesc'))"

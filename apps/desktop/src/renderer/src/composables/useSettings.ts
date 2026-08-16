@@ -51,12 +51,6 @@ watch(autoRefresh, (v) => localStorage.setItem('skm.autoRefresh', JSON.stringify
 const notifyDrift = ref<boolean>(load('skm.notifyDrift', false))
 watch(notifyDrift, (v) => localStorage.setItem('skm.notifyDrift', JSON.stringify(v)))
 
-/** 安装目标选择器默认的安装范围。 */
-const defaultInstallScope = ref<'user' | 'project'>(load('skm.defaultInstallScope', 'user'))
-watch(defaultInstallScope, (v) =>
-  localStorage.setItem('skm.defaultInstallScope', JSON.stringify(v)),
-)
-
 /** 卸载 skill 前弹原生确认框。 */
 const confirmUninstall = ref<boolean>(load('skm.confirmUninstall', false))
 watch(confirmUninstall, (v) => localStorage.setItem('skm.confirmUninstall', JSON.stringify(v)))
@@ -187,7 +181,6 @@ export function useSettings() {
     proxyUrl,
     autoRefresh,
     notifyDrift,
-    defaultInstallScope,
     confirmUninstall,
     globalShortcut,
     globalShortcutOk,

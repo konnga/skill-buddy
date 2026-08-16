@@ -37,8 +37,7 @@ const cloneRoot = ref<string | null>(null)
 
 const selected = ref<Set<string>>(new Set())
 const previewDir = ref<string | null>(null)
-const scope = ref('user')
-const agents = ref<string[]>([])
+const targets = ref<InstallTarget[]>([])
 const busy = ref(false)
 const error = ref<string | null>(null)
 
@@ -51,8 +50,7 @@ watch(
       items.value = []
       searched.value = false
       selected.value = new Set()
-      agents.value = []
-      scope.value = 'user'
+      targets.value = []
       error.value = null
     } else if (cloneRoot.value) {
       await window.skillsManager.cleanupImport(cloneRoot.value)
@@ -121,20 +119,15 @@ function toggleItem(dir: string): void {
 async function runImport(): Promise<void> {
   error.value = null
   const chosen = items.value.filter((f) => selected.value.has(f.dir))
-  if (chosen.length === 0 || agents.value.length === 0) {
+  if (chosen.length === 0 || targets.value.length === 0) {
     error.value = t('import.errTargets')
     return
   }
   busy.value = true
   try {
-    const targets: InstallTarget[] = agents.value.map((agent) =>
-      scope.value === 'user'
-        ? { agent, scope: 'user' }
-        : { agent, scope: 'project', projectRoot: scope.value },
-    )
     const failures: string[] = []
     for (const f of chosen) {
-      const results = await installSkill(f.skill, targets)
+      const results = await installSkill(f.skill, targets.value)
       failures.push(
         ...results
           .filter((r) => !r.ok)
@@ -287,11 +280,7 @@ async function runImport(): Promise<void> {
                 </span>
               </label>
 
-              <PlatformTargetPicker
-                v-model:scope="scope"
-                v-model:agents="agents"
-                :label="t('import.targets')"
-              />
+              <PlatformTargetPicker v-model="targets" :label="t('import.targets')" />
             </div>
           </template>
 
@@ -305,7 +294,7 @@ async function runImport(): Promise<void> {
           </Button>
           <Button
             size="sm"
-            :disabled="busy || selected.size === 0 || agents.length === 0"
+            :disabled="busy || selected.size === 0 || targets.length === 0"
             @click="runImport"
           >
             {{ busy ? t('import.importing') : t('import.install', { n: selected.size }) }}

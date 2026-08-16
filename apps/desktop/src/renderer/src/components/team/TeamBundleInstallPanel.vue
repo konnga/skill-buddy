@@ -43,8 +43,7 @@ interface PreparedBundlePlan {
   mcpPlans: PreparedMcpPlan[]
 }
 
-const agents = shallowRef<string[]>([])
-const scope = shallowRef('user')
+const skillTargets = shallowRef<InstallTarget[]>([])
 const mcpTargets = shallowRef<McpTarget[]>([])
 const preparing = shallowRef(false)
 const installing = shallowRef(false)
@@ -90,15 +89,16 @@ function targetKey(target: McpTarget): string {
 }
 
 const selectionSignature = computed(() => JSON.stringify({
-  agents: [...agents.value].sort(),
-  scope: scope.value,
+  skillTargets: skillTargets.value
+    .map((target) => [target.agent, target.scope, target.projectRoot ?? ''].join(':'))
+    .sort(),
   mcpTargets: mcpTargets.value.map(targetKey).sort(),
 }))
 
 const selectionReady = computed(() =>
   !hasMissing.value &&
   blockedEntries.value.length === 0 &&
-  (skillMembers.value.length === 0 || agents.value.length > 0) &&
+  (skillMembers.value.length === 0 || skillTargets.value.length > 0) &&
   (mcpMembers.value.length === 0 || mcpTargets.value.length > 0),
 )
 
@@ -162,14 +162,13 @@ async function installPrepared(): Promise<void> {
   let installedMcp = 0
   try {
     const config = configForBundle()
-    const skillTargets: InstallTarget[] = agents.value.map((agent) =>
-      scope.value === 'user'
-        ? { agent, scope: 'user' }
-        : { agent, scope: 'project', projectRoot: scope.value },
-    )
     for (const item of skillMembers.value) {
       try {
-        const results = await window.skillsManager.teamLibraryInstallSkill(config, item.path, skillTargets)
+        const results = await window.skillsManager.teamLibraryInstallSkill(
+          config,
+          item.path,
+          skillTargets.value,
+        )
         if (results.some((result) => result.ok)) installedSkills += 1
         failures.push(...results
           .filter((result) => !result.ok)
@@ -244,8 +243,7 @@ async function installPrepared(): Promise<void> {
 
     <PlatformTargetPicker
       v-if="skillMembers.length"
-      v-model:scope="scope"
-      v-model:agents="agents"
+      v-model="skillTargets"
       :label="t('team.bundleSkillTargets')"
     />
 
@@ -263,7 +261,7 @@ async function installPrepared(): Promise<void> {
       <p class="mt-1 text-xs text-muted-foreground">
         {{ t('team.bundlePlanSummary', {
           skills: skillMembers.length,
-          skillTargets: agents.length,
+          skillTargets: skillTargets.length,
           mcp: mcpMembers.length,
           mcpTargets: mcpTargets.length,
         }) }}

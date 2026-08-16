@@ -142,8 +142,7 @@ const {
   groupFilter,
   groups,
   groupApplyOpen,
-  groupApplyScope,
-  groupApplyAgents,
+  groupApplyTargets,
   groupApplyBusy,
   groupApplyNote,
   activeTemp,
@@ -1025,14 +1024,13 @@ watch(groupFilter, (name) => {
         class="mb-4 flex flex-col gap-2 rounded-lg border px-4 py-3"
       >
         <PlatformTargetPicker
-          v-model:scope="groupApplyScope"
-          v-model:agents="groupApplyAgents"
+          v-model="groupApplyTargets"
           :label="t('groups.applyTitle')"
         />
         <div class="flex items-center gap-2">
           <Button
             size="sm"
-            :disabled="groupApplyBusy || groupApplyAgents.length === 0 || groupCount(groupFilter) === 0"
+            :disabled="groupApplyBusy || groupApplyTargets.length === 0 || groupCount(groupFilter) === 0"
             @click="applyGroup"
           >
             {{
@@ -1044,7 +1042,7 @@ watch(groupFilter, (name) => {
           <Button
             variant="outline"
             size="sm"
-            :disabled="groupApplyBusy || groupApplyAgents.length === 0 || groupCount(groupFilter) === 0"
+            :disabled="groupApplyBusy || groupApplyTargets.length === 0 || groupCount(groupFilter) === 0"
             @click="applyGroupTemp"
           >
             {{ t('groups.applyTemp') }}

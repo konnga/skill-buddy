@@ -40,9 +40,8 @@ const { installSkill, refresh } = useSkills()
 const { groups } = useSettings()
 const { t } = useI18n()
 
-const scope = ref('user')
 const iconBroken = ref(false)
-const agents = ref<string[]>([])
+const targets = ref<InstallTarget[]>([])
 const busy = ref(false)
 const error = ref<string | null>(null)
 const selectedGroups = ref<Set<string>>(new Set())
@@ -308,7 +307,7 @@ function openLink(): void {
 /* ---------- install ---------- */
 
 async function install(): Promise<void> {
-  if (agents.value.length === 0) return
+  if (targets.value.length === 0) return
   busy.value = true
   error.value = null
   let tempRoot: string | null = null
@@ -323,12 +322,7 @@ async function install(): Promise<void> {
       error.value = t('market.notFound')
       return
     }
-    const targets: InstallTarget[] = agents.value.map((agent) =>
-      scope.value === 'user'
-        ? { agent, scope: 'user' }
-        : { agent, scope: 'project', projectRoot: scope.value },
-    )
-    const results = await installSkill(found.skill, targets)
+    const results = await installSkill(found.skill, targets.value)
     const failed = results.filter((r) => !r.ok)
     if (failed.length > 0) {
       error.value = failed.map((f) => `${agentLabel(f.target.agent)}: ${f.error}`).join('；')
@@ -467,18 +461,14 @@ async function install(): Promise<void> {
 
         <!-- install -->
         <section class="flex flex-col gap-2 rounded-xl border bg-muted/20 px-5 py-4">
-          <PlatformTargetPicker
-            v-model:scope="scope"
-            v-model:agents="agents"
-            :label="t('team.installTo')"
-          />
+          <PlatformTargetPicker v-model="targets" :label="t('team.installTo')" />
           <p v-if="error" class="break-all text-sm text-destructive">{{ error }}</p>
           <Button
             class="mt-1 w-fit"
-            :disabled="busy || agents.length === 0"
+            :disabled="busy || targets.length === 0"
             @click="install"
           >
-            {{ busy ? t('market.installing') : t('detail.installN', { n: agents.length }) }}
+            {{ busy ? t('market.installing') : t('detail.installN', { n: targets.length }) }}
           </Button>
         </section>
 
