@@ -21,3 +21,4 @@
 - css class 尽量使用tailwindcss 的原子 class 进行开发
 - 可点击的内容，鼠标的样式是 cursor: pointer
 - 注释使用 tsdoc 规范
+- 滚动条使用自定义的滚动条
