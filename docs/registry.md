@@ -66,8 +66,8 @@ skm sync --org acme --agents claude-code,cursor,codex \
   --registry $REG --token $MEMBER
 ```
 
-桌面端对应能力：设置里配置 Registry 地址 + 令牌 → 「团队库」页浏览/搜索/
-安装；skill 详情页可直接发布。
+桌面端团队库已改为纯 Git 仓库方案，不再接入 Registry。该服务与客户端仅保留给
+CLI 或独立部署场景使用。
 
 ## 尚未实现（诚实边界）
 

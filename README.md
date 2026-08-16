@@ -16,8 +16,8 @@ apps/desktop      # 桌面端（Electron + Vue 3 + TS）——可视化管理主
 apps/registry     # 自托管 registry（Fastify + SQLite：org/令牌/版本/策略/审计）
 ```
 
-团队/企业：`docker compose up` 起私有 registry（见 [docs/registry.md](docs/registry.md)），
-桌面端「团队库」+ `skm sync` 完成共享与策略下发。
+团队/企业默认使用 Git 团队库管理经过审核的 Skills、MCP 和策略，见
+[docs/team-library.md](docs/team-library.md)。团队库不依赖 Registry 服务。
 
 UI 走 headless 路线：**Reka UI + Tailwind CSS v4 + shadcn-vue 约定**（组件源码在
 `apps/desktop/src/renderer/src/components/ui/`，归本仓库所有），图标用
@@ -25,7 +25,7 @@ UI 走 headless 路线：**Reka UI + Tailwind CSS v4 + shadcn-vue 约定**（组
 `src/renderer/src/assets/main.css`，暗色跟随系统。
 
 当前已经具备：本地 Skills 与 MCP 管理、跨 Agent 分发、漂移同步、Preset、
-skills.sh / SkillHub / GitHub 市场导入、私有 Registry、团队策略与混合资源包、
+skills.sh / SkillHub / GitHub 市场导入、可选 Registry 服务与 CLI、Git 团队库、团队策略与混合资源包、
 CLI 下发，以及用户级 Skills + Preset 的私有 Git 多设备备份与恢复。
 
 ## 核心概念
