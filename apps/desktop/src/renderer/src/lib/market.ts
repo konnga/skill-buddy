@@ -1,3 +1,5 @@
+import type { FoundSkill } from '@skillbuddy/core'
+
 export type MarketSourceId = 'skills-sh' | 'skillhub' | 'github'
 
 export interface MarketItem {
@@ -56,4 +58,25 @@ export function formatMarketCount(n: number): string {
   if (n >= 10000) return `${(n / 1000).toFixed(0)}k`
   if (n >= 1000) return `${(n / 1000).toFixed(1)}k`
   return String(n)
+}
+
+/** 下载市场资源，并返回临时目录中的全部 Skill。调用方负责清理 root。 */
+export function fetchMarketSkillSource(
+  item: MarketItem,
+): Promise<{ root: string; items: FoundSkill[] }> {
+  return item.kind === 'skills-sh' || item.kind === 'github'
+    ? window.skillsManager.importFromGit(`https://github.com/${item.repo}`)
+    : window.skillsManager.skillhubFetch(item.slug!, item.namespace ?? '')
+}
+
+/** 从市场下载结果中定位用户选择的具体 Skill。 */
+export function matchMarketSkill(item: MarketItem, items: FoundSkill[]): FoundSkill | undefined {
+  const wanted = item.kind === 'skills-sh'
+    ? item.skillId!
+    : item.kind === 'skillhub'
+      ? item.slug!
+      : item.name
+  return items.find((found) => found.skill.name === wanted) ??
+    items.find((found) => found.dir.endsWith(`/${wanted}`)) ??
+    (item.kind !== 'skills-sh' ? items[0] : undefined)
 }

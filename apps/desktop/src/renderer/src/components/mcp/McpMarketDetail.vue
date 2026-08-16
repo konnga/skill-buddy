@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import { computed, onMounted, shallowRef } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { ArrowLeft, CloudDownload, ExternalLink } from '@lucide/vue'
+import { ArrowLeft, CloudDownload, ExternalLink, LibraryBig } from '@lucide/vue'
 import type { McpTarget } from '@skillbuddy/core'
+import type { TeamLibraryMcpDraft } from '../../../../shared/ipc.js'
 import McpTargetPicker from '@/components/mcp/McpTargetPicker.vue'
 import SidebarToggle from '@/components/SidebarToggle.vue'
 import { Badge } from '@/components/ui/badge'
@@ -20,8 +21,20 @@ import {
 } from '@/lib/mcp-market'
 import { cachedMcpMarketRequest, mcpMarketCacheKey } from '@/lib/mcp-market-cache'
 
-const props = defineProps<{ item: McpMarketItem; inset?: boolean; installOnly?: boolean }>()
-const emit = defineEmits<{ close: []; reviewed: [] }>()
+const props = defineProps<{
+  item: McpMarketItem
+  inset?: boolean
+  installOnly?: boolean
+  teamLibraryMode?: boolean
+  actionBusy?: boolean
+  actionError?: string | null
+  existingNames?: string[]
+}>()
+const emit = defineEmits<{
+  close: []
+  reviewed: []
+  addToTeamLibrary: [draft: TeamLibraryMcpDraft]
+}>()
 
 const { t, locale } = useI18n()
 const { projectRoots } = useSettings()
@@ -43,6 +56,7 @@ const targets = shallowRef<McpTarget[]>([])
 const preferChinese = computed(() => locale.value.toLowerCase().startsWith('zh'))
 const localNames = computed(() => new Set(servers.value.map((server) => server.name)))
 const visibleError = computed(() => {
+  if (props.actionError) return props.actionError
   if (error.value) {
     return t(
       /(?:^|\D)404(?:\D|$)/.test(error.value)
@@ -53,6 +67,9 @@ const visibleError = computed(() => {
   return mcpError.value
 })
 const currentCandidate = computed(() => candidates.value[selectedCandidate.value] ?? null)
+const alreadyInTeamLibrary = computed(() =>
+  Boolean(currentCandidate.value && props.existingNames?.includes(currentCandidate.value.serverName)),
+)
 
 async function validatedCandidates(
   values: McpMarketCandidate[],
@@ -115,6 +132,14 @@ async function reviewInstall(): Promise<void> {
   if (!currentCandidate.value || targets.value.length === 0) return
   const plan = await planUpsert(currentCandidate.value.definition, targets.value)
   if (plan) emit('reviewed')
+}
+
+function addToTeamLibrary(): void {
+  if (!currentCandidate.value || alreadyInTeamLibrary.value) return
+  emit('addToTeamLibrary', {
+    description: currentCandidate.value.definition.description ?? props.item.description,
+    definition: currentCandidate.value.definition,
+  })
 }
 
 onMounted(() => {
@@ -247,6 +272,13 @@ onMounted(() => {
                 >
                   {{ t('mcp.market.installed') }}
                 </Badge>
+                <Badge
+                  v-if="existingNames?.includes(candidate.serverName)"
+                  variant="secondary"
+                  :class="!localNames.has(candidate.serverName) && 'ml-auto'"
+                >
+                  已在团队库
+                </Badge>
               </button>
             </div>
             <div v-else-if="currentCandidate" class="flex items-center gap-2 text-sm">
@@ -271,7 +303,7 @@ onMounted(() => {
                 </Badge>
               </div>
             </div>
-            <div class="flex flex-col gap-2">
+            <div v-if="!teamLibraryMode" class="flex flex-col gap-2">
               <span class="text-sm font-medium">{{ t('mcp.form.targets') }}</span>
               <McpTargetPicker
                 v-model="targets"
@@ -280,7 +312,7 @@ onMounted(() => {
               />
             </div>
             <Button
-              v-if="!installOnly"
+              v-if="!installOnly && !teamLibraryMode"
               size="sm"
               class="w-fit cursor-pointer"
               :disabled="planning || targets.length === 0 || !currentCandidate"
@@ -311,11 +343,20 @@ onMounted(() => {
       <Button
         size="sm"
         class="cursor-pointer"
-        :disabled="planning || targets.length === 0 || !currentCandidate"
-        @click="reviewInstall"
+        :disabled="teamLibraryMode ? actionBusy || alreadyInTeamLibrary || !currentCandidate : planning || targets.length === 0 || !currentCandidate"
+        @click="teamLibraryMode ? addToTeamLibrary() : reviewInstall()"
       >
-        <CloudDownload />
-        {{ t('mcp.form.review') }}
+        <LibraryBig v-if="teamLibraryMode" />
+        <CloudDownload v-else />
+        {{
+          teamLibraryMode
+            ? alreadyInTeamLibrary
+              ? '已在团队库'
+              : actionBusy
+                ? '正在加入…'
+                : '加入团队库'
+            : t('mcp.form.review')
+        }}
       </Button>
     </footer>
   </div>

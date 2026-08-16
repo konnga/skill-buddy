@@ -11,6 +11,7 @@ const props = defineProps<{
   skills: readonly DeepReadonly<TeamLibrarySkillSummary>[]
   mcpServers: readonly DeepReadonly<TeamLibraryMcpSummary>[]
   busy?: boolean
+  error?: string | null
 }>()
 const emit = defineEmits<{ close: []; save: [value: TeamLibraryBundleDraft] }>()
 
@@ -41,8 +42,13 @@ function toggle(list: 'skills' | 'mcp', path: string): void {
 
 function submit(): void {
   emit('save', {
-    ...form,
+    originalPath: form.originalPath,
+    id: form.id.trim(),
+    name: form.name.trim(),
+    description: form.description.trim(),
     version: form.version?.trim() || undefined,
+    skills: [...form.skills],
+    mcp: [...form.mcp],
   })
 }
 </script>
@@ -56,36 +62,42 @@ function submit(): void {
           <DialogTitle class="text-base font-semibold">{{ initial ? '编辑岗位包' : '新增岗位包' }}</DialogTitle>
           <DialogDescription class="mt-1 text-sm text-muted-foreground">岗位包是团队推荐的一整套 Skills 和 MCP 工作环境。</DialogDescription>
         </div>
-        <form class="min-h-0 flex-1 space-y-4 overflow-y-auto px-5 py-4" @submit.prevent="submit">
-          <div class="grid gap-4 sm:grid-cols-3">
-            <label class="grid gap-1.5 text-sm font-medium">ID<Input v-model="form.id" placeholder="frontend-developer" /></label>
-            <label class="grid gap-1.5 text-sm font-medium">名称<Input v-model="form.name" placeholder="前端开发环境" /></label>
-            <label class="grid gap-1.5 text-sm font-medium">版本<Input v-model="form.version" placeholder="1.0.0" /></label>
+        <form class="flex min-h-0 flex-1 flex-col" @submit.prevent="submit">
+          <div class="min-h-0 flex-1 space-y-4 overflow-y-auto px-5 py-4">
+            <div class="grid gap-4 sm:grid-cols-3">
+              <label class="grid gap-1.5 text-sm font-medium">ID<Input v-model="form.id" placeholder="frontend-developer" /></label>
+              <label class="grid gap-1.5 text-sm font-medium">名称<Input v-model="form.name" placeholder="前端开发环境" /></label>
+              <label class="grid gap-1.5 text-sm font-medium">版本<Input v-model="form.version" placeholder="1.0.0" /></label>
+            </div>
+            <label class="grid gap-1.5 text-sm font-medium">描述<Input v-model="form.description" /></label>
+            <div class="grid gap-4 lg:grid-cols-2">
+              <section class="overflow-hidden rounded-md border">
+                <h3 class="border-b bg-muted/25 px-3 py-2 text-sm font-medium">Skills</h3>
+                <label v-for="item in skills" :key="item.path" class="flex cursor-pointer items-start gap-2 border-b px-3 py-2 text-sm last:border-b-0">
+                  <input type="checkbox" :checked="form.skills.includes(item.path)" class="mt-1" @change="toggle('skills', item.path)" />
+                  <span class="min-w-0"><span class="block truncate font-medium">{{ item.name }}</span><span class="block truncate text-xs text-muted-foreground">{{ item.path }}</span></span>
+                </label>
+                <p v-if="!skills.length" class="px-3 py-6 text-center text-sm text-muted-foreground">暂无团队 Skills</p>
+              </section>
+              <section class="overflow-hidden rounded-md border">
+                <h3 class="border-b bg-muted/25 px-3 py-2 text-sm font-medium">MCP Servers</h3>
+                <label v-for="item in mcpServers" :key="item.path" class="flex cursor-pointer items-start gap-2 border-b px-3 py-2 text-sm last:border-b-0">
+                  <input type="checkbox" :checked="form.mcp.includes(item.path)" class="mt-1" @change="toggle('mcp', item.path)" />
+                  <span class="min-w-0"><span class="block truncate font-medium">{{ item.name }}</span><span class="block truncate text-xs text-muted-foreground">{{ item.path }}</span></span>
+                </label>
+                <p v-if="!mcpServers.length" class="px-3 py-6 text-center text-sm text-muted-foreground">暂无团队 MCP Servers</p>
+              </section>
+            </div>
           </div>
-          <label class="grid gap-1.5 text-sm font-medium">描述<Input v-model="form.description" /></label>
-          <div class="grid gap-4 lg:grid-cols-2">
-            <section class="overflow-hidden rounded-md border">
-              <h3 class="border-b bg-muted/25 px-3 py-2 text-sm font-medium">Skills</h3>
-              <label v-for="item in skills" :key="item.path" class="flex cursor-pointer items-start gap-2 border-b px-3 py-2 text-sm last:border-b-0">
-                <input type="checkbox" :checked="form.skills.includes(item.path)" class="mt-1" @change="toggle('skills', item.path)" />
-                <span class="min-w-0"><span class="block truncate font-medium">{{ item.name }}</span><span class="block truncate text-xs text-muted-foreground">{{ item.path }}</span></span>
-              </label>
-              <p v-if="!skills.length" class="px-3 py-6 text-center text-sm text-muted-foreground">暂无团队 Skills</p>
-            </section>
-            <section class="overflow-hidden rounded-md border">
-              <h3 class="border-b bg-muted/25 px-3 py-2 text-sm font-medium">MCP Servers</h3>
-              <label v-for="item in mcpServers" :key="item.path" class="flex cursor-pointer items-start gap-2 border-b px-3 py-2 text-sm last:border-b-0">
-                <input type="checkbox" :checked="form.mcp.includes(item.path)" class="mt-1" @change="toggle('mcp', item.path)" />
-                <span class="min-w-0"><span class="block truncate font-medium">{{ item.name }}</span><span class="block truncate text-xs text-muted-foreground">{{ item.path }}</span></span>
-              </label>
-              <p v-if="!mcpServers.length" class="px-3 py-6 text-center text-sm text-muted-foreground">暂无团队 MCP Servers</p>
-            </section>
+          <div class="flex flex-wrap items-center justify-between gap-3 border-t px-5 py-4">
+            <p v-if="error" class="min-w-0 flex-1 break-all text-sm text-destructive">{{ error }}</p>
+            <span v-else class="flex-1" />
+            <div class="flex shrink-0 justify-end gap-2">
+              <Button type="button" variant="ghost" size="sm" class="cursor-pointer" @click="emit('close')">取消</Button>
+              <Button type="submit" size="sm" class="cursor-pointer" :disabled="busy || !form.id.trim() || !form.name.trim() || form.skills.length + form.mcp.length === 0">{{ busy ? '保存中…' : '保存到变更' }}</Button>
+            </div>
           </div>
         </form>
-        <div class="flex justify-end gap-2 border-t px-5 py-4">
-          <Button variant="ghost" size="sm" class="cursor-pointer" @click="emit('close')">取消</Button>
-          <Button size="sm" class="cursor-pointer" :disabled="busy || !form.id.trim() || !form.name.trim() || form.skills.length + form.mcp.length === 0" @click="submit">{{ busy ? '保存中…' : '保存到变更' }}</Button>
-        </div>
       </DialogContent>
     </DialogPortal>
   </DialogRoot>

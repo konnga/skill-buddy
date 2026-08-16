@@ -12,14 +12,26 @@ import {
   type MarketItem,
   type MarketSourceId,
 } from '@/lib/market'
+import {
+  cachedSkillMarketRequest,
+  readSkillMarketCatalogCache,
+  skillMarketCacheKey,
+  writeSkillMarketCatalogCache,
+} from '@/lib/skill-market-cache'
 
+const props = withDefaults(defineProps<{
+  actionMode?: 'install' | 'team-library'
+}>(), {
+  actionMode: 'install',
+})
 const emit = defineEmits<{ open: [item: MarketItem] }>()
 
 const { t } = useI18n()
+const cachedCatalog = readSkillMarketCatalogCache()
 
-const source = ref<MarketSourceId>('skills-sh')
-const query = ref('')
-const items = ref<MarketItem[]>([])
+const source = ref<MarketSourceId>(cachedCatalog?.source ?? 'skills-sh')
+const query = ref(cachedCatalog?.query ?? '')
+const items = ref<MarketItem[]>(cachedCatalog?.items ?? [])
 const loading = ref(false)
 const loadingMore = ref(false)
 const error = ref<string | null>(null)
@@ -34,15 +46,16 @@ const DEFAULT_QUERY = 'ai'
 const PAGE_SIZE = 24
 
 /* pagination state */
-/** skills.sh: full result cached, revealed in chunks (its API has no pagination) */
-let skshAll: MarketItem[] = []
+/** skills.sh has no pagination; retain the full mapped result for incremental rendering. */
+let skshAll: MarketItem[] = cachedCatalog?.skillsShItems ?? []
 /** skillhub: server-side pages */
-let hubPage = 1
-let hubTotal = 0
+let hubPage = cachedCatalog?.skillhubPage ?? 1
+let hubTotal = cachedCatalog?.skillhubTotal ?? 0
 /** GitHub: server-side repository pages */
-let githubPage = 1
-let githubTotal = 0
-const hasMore = ref(false)
+let githubPage = cachedCatalog?.githubPage ?? 1
+let githubTotal = cachedCatalog?.githubTotal ?? 0
+const hasMore = ref(cachedCatalog?.hasMore ?? false)
+let searchRequestId = 0
 
 function mapSkillsSh(
   list: Awaited<ReturnType<typeof window.skillsManager.marketSearch>>,
@@ -104,6 +117,20 @@ function mapGithub(
   }))
 }
 
+function cacheCatalog(): void {
+  writeSkillMarketCatalogCache({
+    source: source.value,
+    query: query.value,
+    items: items.value,
+    skillsShItems: skshAll,
+    skillhubPage: hubPage,
+    skillhubTotal: hubTotal,
+    githubPage,
+    githubTotal,
+    hasMore: hasMore.value,
+  })
+}
+
 /** resolve GitHub stars for a batch of skills.sh cards (cached in main) */
 function fillStars(batch: MarketItem[]): void {
   const repos = [...new Set(batch.map((b) => b.repo).filter(Boolean))] as string[]
@@ -114,78 +141,115 @@ function fillStars(batch: MarketItem[]): void {
         ? { ...it, stars: stars[it.repo]! }
         : it,
     )
+    cacheCatalog()
   })
 }
 
 async function search(): Promise<void> {
+  const requestId = ++searchRequestId
+  const requestedSource = source.value
+  const requestedQuery = query.value.trim()
   loading.value = true
+  loadingMore.value = false
   error.value = null
   items.value = []
   hasMore.value = false
   try {
-    if (source.value === 'skills-sh') {
-      const term = query.value.trim() || DEFAULT_QUERY
-      skshAll = mapSkillsSh(await window.skillsManager.marketSearch(term))
+    if (requestedSource === 'skills-sh') {
+      const term = requestedQuery || DEFAULT_QUERY
+      const result = await cachedSkillMarketRequest(
+        skillMarketCacheKey('skills-sh-search', term),
+        () => window.skillsManager.marketSearch(term),
+      )
+      if (requestId !== searchRequestId) return
+      skshAll = mapSkillsSh(result)
       const first = skshAll.slice(0, PAGE_SIZE)
       items.value = first
       hasMore.value = skshAll.length > first.length
+      cacheCatalog()
       fillStars(first)
-    } else if (source.value === 'skillhub') {
-      hubPage = 1
-      const { items: list, total } = await window.skillsManager.skillhubSearch(
-        query.value.trim(),
-        hubPage,
+    } else if (requestedSource === 'skillhub') {
+      const result = await cachedSkillMarketRequest(
+        skillMarketCacheKey('skillhub-search', requestedQuery, 1),
+        () => window.skillsManager.skillhubSearch(requestedQuery, 1),
       )
-      items.value = mapSkillhub(list)
-      hubTotal = total
+      if (requestId !== searchRequestId) return
+      hubPage = 1
+      hubTotal = result.total
+      items.value = mapSkillhub(result.items)
       hasMore.value = items.value.length < hubTotal
+      cacheCatalog()
     } else {
-      const term = query.value.trim()
-      if (!term) return
+      if (!requestedQuery) {
+        githubPage = 1
+        githubTotal = 0
+        cacheCatalog()
+        return
+      }
+      const result = await cachedSkillMarketRequest(
+        skillMarketCacheKey('github-search', requestedQuery, 1),
+        () => window.skillsManager.githubSearch(requestedQuery, 1),
+      )
+      if (requestId !== searchRequestId) return
       githubPage = 1
-      const { items: list, total } = await window.skillsManager.githubSearch(term, githubPage)
-      items.value = mapGithub(list)
-      githubTotal = total
+      githubTotal = result.total
+      items.value = mapGithub(result.items)
       hasMore.value = items.value.length < githubTotal
+      cacheCatalog()
     }
-  } catch (e) {
-    error.value = e instanceof Error ? e.message : String(e)
+  } catch (cause) {
+    if (requestId !== searchRequestId) return
+    error.value = cause instanceof Error ? cause.message : String(cause)
   } finally {
-    loading.value = false
+    if (requestId === searchRequestId) loading.value = false
   }
 }
 
 async function loadMore(): Promise<void> {
   if (loading.value || loadingMore.value || !hasMore.value) return
+  const requestId = searchRequestId
+  const requestedSource = source.value
+  const requestedQuery = query.value.trim()
   loadingMore.value = true
   try {
-    if (source.value === 'skills-sh') {
+    if (requestedSource === 'skills-sh') {
       const next = skshAll.slice(items.value.length, items.value.length + PAGE_SIZE)
       items.value = [...items.value, ...next]
       hasMore.value = skshAll.length > items.value.length
+      cacheCatalog()
       fillStars(next)
-    } else if (source.value === 'skillhub') {
-      hubPage += 1
-      const { items: list, total } = await window.skillsManager.skillhubSearch(
-        query.value.trim(),
-        hubPage,
+    } else if (requestedSource === 'skillhub') {
+      const nextPage = hubPage + 1
+      const result = await cachedSkillMarketRequest(
+        skillMarketCacheKey('skillhub-search', requestedQuery, nextPage),
+        () => window.skillsManager.skillhubSearch(requestedQuery, nextPage),
       )
-      hubTotal = total
+      if (requestId !== searchRequestId) return
+      hubPage = nextPage
+      hubTotal = result.total
       const known = new Set(items.value.map((i) => i.key))
-      items.value = [...items.value, ...mapSkillhub(list).filter((i) => !known.has(i.key))]
-      hasMore.value = list.length > 0 && items.value.length < hubTotal
+      items.value = [...items.value, ...mapSkillhub(result.items).filter((i) => !known.has(i.key))]
+      hasMore.value = result.items.length > 0 && items.value.length < hubTotal
+      cacheCatalog()
     } else {
-      githubPage += 1
-      const { items: list, total } = await window.skillsManager.githubSearch(query.value.trim(), githubPage)
-      githubTotal = total
+      const nextPage = githubPage + 1
+      const result = await cachedSkillMarketRequest(
+        skillMarketCacheKey('github-search', requestedQuery, nextPage),
+        () => window.skillsManager.githubSearch(requestedQuery, nextPage),
+      )
+      if (requestId !== searchRequestId) return
+      githubPage = nextPage
+      githubTotal = result.total
       const known = new Set(items.value.map((i) => i.key))
-      items.value = [...items.value, ...mapGithub(list).filter((i) => !known.has(i.key))]
-      hasMore.value = list.length > 0 && items.value.length < githubTotal
+      items.value = [...items.value, ...mapGithub(result.items).filter((i) => !known.has(i.key))]
+      hasMore.value = result.items.length > 0 && items.value.length < githubTotal
+      cacheCatalog()
     }
-  } catch (e) {
-    error.value = e instanceof Error ? e.message : String(e)
+  } catch (cause) {
+    if (requestId !== searchRequestId) return
+    error.value = cause instanceof Error ? cause.message : String(cause)
   } finally {
-    loadingMore.value = false
+    if (requestId === searchRequestId) loadingMore.value = false
   }
 }
 
@@ -201,7 +265,7 @@ onMounted(() => {
     { rootMargin: '200px' },
   )
   if (sentinel.value) observer.observe(sentinel.value)
-  void search()
+  if (!cachedCatalog) void search()
 })
 
 watch(sentinel, (el, prev) => {
@@ -331,7 +395,7 @@ watch(source, () => void search())
                 variant="outline"
                 size="icon"
                 class="size-7 shrink-0 rounded-lg"
-                :title="t('market.install')"
+                :title="props.actionMode === 'team-library' ? '加入团队库' : t('market.install')"
                 @click.stop="emit('open', item)"
               >
                 <Plus class="size-3.5" />

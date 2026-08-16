@@ -1,12 +1,18 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { Activity, CloudDownload, Eye, ExternalLink, Heart } from '@lucide/vue'
+import { Activity, CloudDownload, Eye, ExternalLink, Heart, LibraryBig } from '@lucide/vue'
 import { Button } from '@/components/ui/button'
 import { marketIconColor, marketIconGlyph } from '@/lib/market'
 import type { McpMarketItem } from '@/lib/mcp-market'
 
-const props = defineProps<{ item: McpMarketItem; iconBroken: boolean }>()
+const props = withDefaults(defineProps<{
+  item: McpMarketItem
+  iconBroken: boolean
+  actionMode?: 'install' | 'team-library'
+}>(), {
+  actionMode: 'install',
+})
 const emit = defineEmits<{ openDetail: []; openPage: []; install: []; iconError: [] }>()
 const { t } = useI18n()
 const visibleTags = computed(() => props.item.tags.slice(0, 2))
@@ -95,8 +101,9 @@ function formatMetricCount(value: number): string {
           class="cursor-pointer"
           @click.stop="emit('install')"
         >
-          <CloudDownload />
-          {{ t('mcp.market.install') }}
+          <LibraryBig v-if="props.actionMode === 'team-library'" />
+          <CloudDownload v-else />
+          {{ props.actionMode === 'team-library' ? '加入团队库' : t('mcp.market.install') }}
         </Button>
       </div>
     </div>

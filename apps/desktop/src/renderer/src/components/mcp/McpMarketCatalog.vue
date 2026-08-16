@@ -32,6 +32,11 @@ import {
   writeMcpMarketCatalogCache,
 } from '@/lib/mcp-market-cache'
 
+const props = withDefaults(defineProps<{
+  actionMode?: 'install' | 'team-library'
+}>(), {
+  actionMode: 'install',
+})
 const { t, locale } = useI18n()
 const emit = defineEmits<{
   openDetail: [item: McpMarketItem]
@@ -325,6 +330,7 @@ onUnmounted(() => loadMoreObserver?.disconnect())
           <McpMarketCardSummary
             :item="item"
             :icon-broken="brokenIcons.has(item.key)"
+            :action-mode="props.actionMode"
             @icon-error="brokenIcons.add(item.key)"
             @open-page="openPage(item.link)"
             @open-detail="emit('openDetail', item)"

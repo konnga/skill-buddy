@@ -15,6 +15,8 @@ import { readTeamLibraryManifest, validateTeamLibraryConfig } from './team-libra
 
 const execFileAsync = promisify(execFile)
 const BRANCH_SLUG_RE = /^[a-z0-9]+(?:[._-][a-z0-9]+)*$/
+const WORKSPACE_ID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+const WORKSPACE_METADATA_FILE = 'workspace.json'
 const workspaces = new Map<string, TeamContributionWorkspace>()
 
 export async function runTeamContributionCommand(
@@ -61,9 +63,133 @@ function workspaceRoot(id: string): string {
   return join(workspaceDirectory(id), 'repository')
 }
 
+function workspaceMetadataPath(id: string): string {
+  return join(workspaceDirectory(id), WORKSPACE_METADATA_FILE)
+}
+
+function parseWorkspaceMetadata(id: string, value: unknown): TeamContributionWorkspace {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) {
+    throw new Error('草稿元数据必须是 JSON 对象')
+  }
+  const item = value as Record<string, unknown>
+  const libraryId = typeof item.libraryId === 'string' ? item.libraryId.trim() : ''
+  const remoteUrl = typeof item.remoteUrl === 'string' ? item.remoteUrl.trim() : ''
+  const branch = typeof item.branch === 'string' ? item.branch : ''
+  const baseBranch = typeof item.baseBranch === 'string' ? item.baseBranch.trim() : ''
+  const baseRevision = typeof item.baseRevision === 'string' ? item.baseRevision.trim() : ''
+  const provider = item.provider
+  if (
+    item.id !== id ||
+    !libraryId ||
+    !remoteUrl ||
+    !branch.startsWith('skillbuddy/') ||
+    !baseBranch ||
+    !baseRevision ||
+    typeof item.createdAt !== 'number' || !Number.isFinite(item.createdAt) ||
+    (provider !== 'github' && provider !== 'gitlab' && provider !== 'unsupported')
+  ) {
+    throw new Error('草稿元数据无效')
+  }
+  return {
+    id,
+    libraryId,
+    root: workspaceRoot(id),
+    remoteUrl,
+    branch,
+    baseBranch,
+    baseRevision,
+    createdAt: item.createdAt,
+    provider,
+  }
+}
+
+async function persistTeamContribution(workspace: TeamContributionWorkspace): Promise<void> {
+  const path = workspaceMetadataPath(workspace.id)
+  const temporaryPath = `${path}.tmp`
+  await fs.writeFile(temporaryPath, `${JSON.stringify(workspace, null, 2)}\n`, 'utf8')
+  await fs.rm(path, { force: true })
+  await fs.rename(temporaryPath, path)
+}
+
+async function readPersistedTeamContribution(id: string): Promise<TeamContributionWorkspace | null> {
+  try {
+    const value = JSON.parse(await fs.readFile(workspaceMetadataPath(id), 'utf8')) as unknown
+    return parseWorkspaceMetadata(id, value)
+  } catch {
+    return null
+  }
+}
+
+/** 从旧版未写入元数据的本地 Git 草稿中恢复工作区信息。 */
+async function recoverLegacyTeamContribution(id: string): Promise<TeamContributionWorkspace | null> {
+  const root = workspaceRoot(id)
+  try {
+    const [manifest, remoteUrl, branch, remoteRefs, stat] = await Promise.all([
+      readTeamLibraryManifest(root),
+      runTeamContributionCommand('git', ['remote', 'get-url', 'origin'], root),
+      runTeamContributionCommand('git', ['branch', '--show-current'], root),
+      runTeamContributionCommand('git', ['for-each-ref', '--format=%(refname:short)', 'refs/remotes/origin'], root),
+      fs.stat(workspaceDirectory(id)),
+    ])
+    if (!branch.startsWith('skillbuddy/')) return null
+    const remoteBranch = remoteRefs.split('\n')
+      .map((item) => item.trim())
+      .find((item) => item.startsWith('origin/') && item !== 'origin/HEAD')
+    if (!remoteBranch) return null
+    const baseBranch = remoteBranch.slice('origin/'.length)
+    const baseRevision = await runTeamContributionCommand('git', ['rev-parse', remoteBranch], root)
+    const workspace: TeamContributionWorkspace = {
+      id,
+      libraryId: manifest.id,
+      root,
+      remoteUrl,
+      branch,
+      baseBranch,
+      baseRevision,
+      createdAt: stat.birthtimeMs || stat.mtimeMs,
+      provider: providerOf(remoteUrl),
+    }
+    await persistTeamContribution(workspace)
+    return workspace
+  } catch {
+    return null
+  }
+}
+
+async function validateRestoredWorkspace(workspace: TeamContributionWorkspace): Promise<boolean> {
+  try {
+    const manifest = await readTeamLibraryManifest(workspace.root)
+    await fs.access(join(workspace.root, '.git'))
+    return manifest.id === workspace.libraryId
+  } catch {
+    return false
+  }
+}
+
+/** 列出仍保存在本地磁盘中的团队库草稿，并重新注册到当前主进程。 */
+export async function listTeamContributions(): Promise<TeamContributionWorkspace[]> {
+  const root = join(app.getPath('userData'), 'team-contributions')
+  const entries = await fs.readdir(root, { withFileTypes: true }).catch(() => [])
+  const result: TeamContributionWorkspace[] = []
+  for (const entry of entries) {
+    if (!entry.isDirectory() || !WORKSPACE_ID_RE.test(entry.name)) continue
+    const id = entry.name
+    const workspace = workspaces.get(id)
+      ?? await readPersistedTeamContribution(id)
+      ?? await recoverLegacyTeamContribution(id)
+    if (!workspace || !await validateRestoredWorkspace(workspace)) {
+      workspaces.delete(id)
+      continue
+    }
+    workspaces.set(id, workspace)
+    result.push(workspace)
+  }
+  return result.sort((left, right) => right.createdAt - left.createdAt)
+}
+
 export function teamContributionWorkspace(id: string): TeamContributionWorkspace {
   const value = workspaces.get(id)
-  if (!value) throw new Error('贡献工作区不存在或应用已重启')
+  if (!value) throw new Error('贡献工作区尚未恢复或已被删除')
   return value
 }
 
@@ -123,6 +249,7 @@ export async function prepareTeamContribution(
       createdAt: Date.now(),
       provider: providerOf(config.remoteUrl),
     }
+    await persistTeamContribution(result)
     workspaces.set(id, result)
     return result
   } catch (error) {

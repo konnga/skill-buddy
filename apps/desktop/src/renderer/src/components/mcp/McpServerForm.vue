@@ -19,7 +19,6 @@ import { useI18n } from 'vue-i18n'
 import McpTargetPicker from './McpTargetPicker.vue'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { ScrollArea } from '@/components/ui/scroll-area'
 
 interface ReferenceRow {
   id: string
@@ -150,7 +149,7 @@ function submit(): void {
     <DialogPortal>
       <DialogOverlay class="fixed inset-0 z-40 bg-black/40" />
       <DialogContent
-        class="fixed left-1/2 top-1/2 z-50 flex max-h-[88vh] w-[min(680px,calc(100vw-32px))] -translate-x-1/2 -translate-y-1/2 flex-col rounded-lg border bg-background shadow-xl outline-none"
+        class="fixed left-1/2 top-1/2 z-50 flex max-h-[88vh] w-[min(680px,calc(100vw-32px))] -translate-x-1/2 -translate-y-1/2 flex-col overflow-hidden rounded-lg border bg-background shadow-xl outline-none"
       >
         <div class="flex items-start justify-between gap-4 border-b px-5 py-4">
           <span>
@@ -170,7 +169,7 @@ function submit(): void {
           </button>
         </div>
 
-        <ScrollArea class="min-h-0 flex-1" viewport-class="h-full">
+        <div class="min-h-0 flex-1 overflow-y-auto">
           <form class="px-5 py-4" @submit.prevent="submit">
           <div class="grid grid-cols-2 gap-2 rounded-md bg-muted p-1">
             <button
@@ -281,7 +280,7 @@ function submit(): void {
             />
           </section>
           </form>
-        </ScrollArea>
+        </div>
 
         <div class="flex justify-end gap-2 border-t px-5 py-4">
           <Button variant="ghost" size="sm" @click="emit('close')">

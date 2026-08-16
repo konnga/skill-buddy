@@ -1,4 +1,4 @@
-import { readonly, ref, shallowRef } from 'vue'
+import { onMounted, readonly, ref, shallowRef } from 'vue'
 import type {
   TeamContributionDiff,
   TeamContributionPublishResult,
@@ -18,7 +18,26 @@ const catalog = ref<TeamLibraryCatalog | null>(null)
 const diff = ref<TeamContributionDiff | null>(null)
 const publishResult = shallowRef<TeamContributionPublishResult | null>(null)
 const busy = shallowRef(false)
+const restoring = shallowRef(false)
 const error = shallowRef<string | null>(null)
+const CURRENT_WORKSPACE_KEY = 'skillbuddy.team-library.current-workspace'
+
+function rememberedWorkspaceId(): string | null {
+  try {
+    return window.localStorage.getItem(CURRENT_WORKSPACE_KEY)
+  } catch {
+    return null
+  }
+}
+
+function rememberWorkspace(id: string | null): void {
+  try {
+    if (id) window.localStorage.setItem(CURRENT_WORKSPACE_KEY, id)
+    else window.localStorage.removeItem(CURRENT_WORKSPACE_KEY)
+  } catch {
+    return
+  }
+}
 
 async function refreshDraft(): Promise<void> {
   if (!workspace.value) return
@@ -36,6 +55,7 @@ async function start(config: TeamLibraryConfig, branchSlug: string): Promise<boo
   publishResult.value = null
   try {
     workspace.value = await window.skillsManager.teamContributionPrepare(config, branchSlug)
+    rememberWorkspace(workspace.value.id)
     await refreshDraft()
     return true
   } catch (cause) {
@@ -43,6 +63,29 @@ async function start(config: TeamLibraryConfig, branchSlug: string): Promise<boo
     return false
   } finally {
     busy.value = false
+  }
+}
+
+/** 恢复磁盘中仍存在的团队库草稿，刷新页面或重启应用后继续编辑。 */
+async function restore(): Promise<void> {
+  if (workspace.value || restoring.value) return
+  restoring.value = true
+  error.value = null
+  try {
+    const persisted = await window.skillsManager.teamContributionList()
+    if (persisted.length === 0) {
+      rememberWorkspace(null)
+      return
+    }
+    const currentId = rememberedWorkspaceId()
+    const restored = persisted.find((item) => item.id === currentId) ?? persisted[0]
+    workspace.value = restored
+    rememberWorkspace(restored.id)
+    await refreshDraft()
+  } catch (cause) {
+    error.value = cause instanceof Error ? cause.message : String(cause)
+  } finally {
+    restoring.value = false
   }
 }
 
@@ -138,6 +181,7 @@ async function discard(): Promise<void> {
 }
 
 function reset(): void {
+  rememberWorkspace(null)
   workspace.value = null
   catalog.value = null
   diff.value = null
@@ -146,14 +190,20 @@ function reset(): void {
 }
 
 export function useTeamLibraryManagement() {
+  onMounted(() => {
+    void restore()
+  })
+
   return {
     workspace: readonly(workspace),
     catalog: readonly(catalog),
     diff: readonly(diff),
     publishResult: readonly(publishResult),
     busy: readonly(busy),
+    restoring: readonly(restoring),
     error: readonly(error),
     start,
+    restore,
     refreshDraft,
     saveSkill,
     importSkill,

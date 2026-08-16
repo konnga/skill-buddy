@@ -81,6 +81,8 @@ const api = {
       plainTeamLibraryConfig(config),
       branchSlug,
     ),
+  teamContributionList: (): Promise<TeamContributionWorkspace[]> =>
+    ipcRenderer.invoke('team-library:contribution-list'),
   teamContributionOpen: (id: string): Promise<void> =>
     ipcRenderer.invoke('team-library:contribution-open', id),
   teamContributionDiscard: (id: string): Promise<void> =>

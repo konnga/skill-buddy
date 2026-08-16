@@ -29,6 +29,7 @@ import { installTarget, runTargets } from './targets.js'
 import { readTeamProjectConfig, writeTeamProjectConfig } from '../team-project.js'
 import {
   discardTeamContribution,
+  listTeamContributions,
   openTeamContribution,
   prepareTeamContribution,
   publishTeamContribution,
@@ -62,6 +63,7 @@ export function registerTeamLibraryIpc(pathPolicy: PathAccessPolicy): void {
     (_event, config: TeamLibraryConfig, branchSlug: string) =>
       prepareTeamContribution(config, branchSlug),
   )
+  ipcMain.handle('team-library:contribution-list', () => listTeamContributions())
   ipcMain.handle('team-library:contribution-open', (_event, id: string) => openTeamContribution(id))
   ipcMain.handle('team-library:contribution-discard', (_event, id: string) => discardTeamContribution(id))
   ipcMain.handle(

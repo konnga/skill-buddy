@@ -25,6 +25,8 @@ import PlatformTargetPicker from '@/components/PlatformTargetPicker.vue'
 import { agentLabel } from '@/lib/agents'
 import {
   formatMarketCount,
+  fetchMarketSkillSource,
+  matchMarketSkill,
   marketIconColor,
   marketIconGlyph,
   type MarketItem,
@@ -86,21 +88,11 @@ function addToSelectedGroups(): void {
 }
 
 async function fetchSource(): Promise<{ root: string; items: FoundSkill[] }> {
-  const item = props.item
-  return item.kind === 'skills-sh' || item.kind === 'github'
-    ? await window.skillsManager.importFromGit(`https://github.com/${item.repo}`)
-    : await window.skillsManager.skillhubFetch(item.slug!, item.namespace ?? '')
+  return fetchMarketSkillSource(props.item)
 }
 
 function matchSkill(items: FoundSkill[]): FoundSkill | undefined {
-  const item = props.item
-  const wanted =
-    item.kind === 'skills-sh' ? item.skillId! : item.kind === 'skillhub' ? item.slug! : item.name
-  return (
-    items.find((f) => f.skill.name === wanted) ??
-    items.find((f) => f.dir.endsWith(`/${wanted}`)) ??
-    (item.kind !== 'skills-sh' ? items[0] : undefined)
-  )
+  return matchMarketSkill(props.item, items)
 }
 
 onMounted(async () => {
