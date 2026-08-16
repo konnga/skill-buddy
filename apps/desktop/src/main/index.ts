@@ -5,9 +5,9 @@ import { registerMarketIpc } from './ipc/market.js'
 import { registerBackupIpc } from './ipc/backup.js'
 import { registerMcpIpc } from './ipc/mcp.js'
 import { registerMcpMarketIpc } from './ipc/mcp-market.js'
-import { registerRegistryIpc } from './ipc/registry.js'
 import { registerSkillsIpc } from './ipc/skills.js'
 import { registerSystemIpc } from './ipc/system.js'
+import { registerTeamLibraryIpc } from './ipc/team-library.js'
 import { PathAccessPolicy } from './path-policy.js'
 import { createWindow } from './window.js'
 
@@ -22,7 +22,7 @@ function registerIpc(): void {
   registerSystemIpc()
   registerMarketIpc(pathPolicy)
   registerMcpMarketIpc()
-  registerRegistryIpc(pathPolicy)
+  registerTeamLibraryIpc(pathPolicy)
   const mcpService = registerMcpIpc()
   disposeMcp = () => mcpService.dispose()
 }

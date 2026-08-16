@@ -1,5 +1,5 @@
-import { ref, watch } from 'vue'
-import type { CustomPlatformInput, LinkOpenMode } from '../../../shared/ipc.js'
+import { ref, shallowRef, watch } from 'vue'
+import type { CustomPlatformInput, LinkOpenMode, TeamLibraryConfig } from '../../../shared/ipc.js'
 import { detectLocale, i18n, type Locale } from '../i18n.js'
 import { applyAppearance } from './useAppearance.js'
 
@@ -18,21 +18,10 @@ const projectRoots = ref<string[]>(load('skm.projectRoots', []))
 const customPlatforms = ref<CustomPlatformInput[]>(load('skm.customPlatforms', []))
 const theme = ref<ThemeMode>(load('skm.theme', 'system'))
 const language = ref<Locale>(load('skm.language', detectLocale()))
-const registryUrl = ref<string>(load('skm.registryUrl', ''))
-/** Registry token lives in the OS keychain (via safeStorage), not localStorage. */
-const registryToken = ref<string>('')
 /** GitHub Token（提高市场搜索限额），同样存系统钥匙串。 */
 const githubToken = ref<string>('')
 
 void (async () => {
-  // one-time migration from the old plaintext localStorage slot
-  const legacy = load('skm.registryToken', '')
-  if (legacy) {
-    await window.skillsManager.secureSet('registryToken', legacy)
-    localStorage.removeItem('skm.registryToken')
-  }
-  registryToken.value = await window.skillsManager.secureGet('registryToken')
-  watch(registryToken, (v) => void window.skillsManager.secureSet('registryToken', v))
   githubToken.value = await window.skillsManager.secureGet('githubToken')
   watch(githubToken, (v) => void window.skillsManager.secureSet('githubToken', v))
 })()
@@ -94,17 +83,9 @@ void (async () => {
   watch(launchAtLogin, (v) => void window.skillsManager?.setLoginItem(v))
 })()
 
-/** 保存的 Registry 连接配置（Token 按名称分槽存钥匙串）。 */
-export interface RegistryProfile {
-  name: string
-  url: string
-}
-const registryProfiles = ref<RegistryProfile[]>(load('skm.registryProfiles', []))
-watch(
-  registryProfiles,
-  (v) => localStorage.setItem('skm.registryProfiles', JSON.stringify(v)),
-  { deep: true },
-)
+/** 企业团队库 Git 仓库；顺序同时表示目录展示优先级。 */
+const teamLibraries = shallowRef<TeamLibraryConfig[]>(load('skm.teamLibraries', []))
+watch(teamLibraries, (value) => localStorage.setItem('skm.teamLibraries', JSON.stringify(value)))
 
 export interface SkillGroup {
   name: string
@@ -146,7 +127,6 @@ watch(
   { deep: true },
 )
 
-watch(registryUrl, (v) => localStorage.setItem('skm.registryUrl', JSON.stringify(v)))
 watch(sidebarCollapsed, (v) => localStorage.setItem('skm.sidebarCollapsed', JSON.stringify(v)))
 
 i18n.global.locale.value = language.value
@@ -197,8 +177,6 @@ export function useSettings() {
     customPlatforms,
     theme,
     language,
-    registryUrl,
-    registryToken,
     githubToken,
     sidebarCollapsed,
     groups,
@@ -214,6 +192,6 @@ export function useSettings() {
     globalShortcut,
     globalShortcutOk,
     launchAtLogin,
-    registryProfiles,
+    teamLibraries,
   }
 }

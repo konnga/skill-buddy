@@ -5,14 +5,9 @@ import type {
   McpOperationRequestResult,
   McpScanResult,
   McpServerDefinition,
+  McpTarget,
   FoundSkill,
   PlatformStatus,
-  RegistryBundle,
-  RegistryBundleSummary,
-  RegistryMcpServer,
-  RegistryMcpServerSummary,
-  RegistrySkill,
-  RegistrySkillSummary,
   Skill,
 } from '@skillbuddy/core'
 import type {
@@ -38,13 +33,144 @@ import type {
   ModelScopeMcpDetail,
   ModelScopeMcpStats,
   ModelScopeMcpSummary,
-  RegistryConfig,
-  RegistryTestResult,
+  TeamLibraryConfig,
+  TeamContributionDiff,
+  TeamContributionPublishResult,
+  TeamContributionWorkspace,
+  TeamLibraryBundleDraft,
+  TeamLibraryCatalog,
+  TeamLibraryInitializeInput,
+  TeamLibraryInitializeResult,
+  TeamLibraryInstallRecord,
+  TeamLibraryMcp,
+  TeamLibraryMcpDraft,
+  TeamLibraryMutationResult,
+  TeamLibraryPolicyDraft,
+  TeamLibraryProbeInput,
+  TeamLibraryProbeResult,
+  TeamLibrarySkill,
+  TeamLibrarySkillDraft,
+  TeamLibrarySkillImportInput,
+  TeamLibrarySyncResult,
+  TeamProjectConfigResult,
+  TeamProjectConfig,
   TargetResult,
   UpdateCheckResult,
 } from '../shared/ipc.js'
+import { plainTeamLibraryConfig } from '../shared/team-library.js'
 
 const api = {
+  teamLibraryProbe: (input: TeamLibraryProbeInput): Promise<TeamLibraryProbeResult> =>
+    ipcRenderer.invoke('team-library:probe', {
+      remoteUrl: input.remoteUrl,
+      ...(input.branch ? { branch: input.branch } : {}),
+    }),
+  teamLibraryInitialize: (
+    input: TeamLibraryInitializeInput,
+  ): Promise<TeamLibraryInitializeResult> => ipcRenderer.invoke('team-library:initialize', {
+    ...plainTeamLibraryConfig(input),
+    id: input.id,
+    name: input.name,
+  }),
+  teamContributionPrepare: (
+    config: TeamLibraryConfig,
+    branchSlug: string,
+  ): Promise<TeamContributionWorkspace> =>
+    ipcRenderer.invoke(
+      'team-library:contribution-prepare',
+      plainTeamLibraryConfig(config),
+      branchSlug,
+    ),
+  teamContributionOpen: (id: string): Promise<void> =>
+    ipcRenderer.invoke('team-library:contribution-open', id),
+  teamContributionDiscard: (id: string): Promise<void> =>
+    ipcRenderer.invoke('team-library:contribution-discard', id),
+  teamContributionPublish: (
+    id: string,
+    title: string,
+    body: string,
+  ): Promise<TeamContributionPublishResult> =>
+    ipcRenderer.invoke('team-library:contribution-publish', id, title, body),
+  teamContributionDiff: (id: string): Promise<TeamContributionDiff> =>
+    ipcRenderer.invoke('team-library:contribution-diff', id),
+  teamContributionCatalog: (id: string): Promise<TeamLibraryCatalog> =>
+    ipcRenderer.invoke('team-library:contribution-catalog', id),
+  teamContributionGetSkill: (id: string, path: string): Promise<TeamLibrarySkillDraft> =>
+    ipcRenderer.invoke('team-library:contribution-get-skill', id, path),
+  teamContributionGetMcp: (id: string, path: string): Promise<TeamLibraryMcpDraft> =>
+    ipcRenderer.invoke('team-library:contribution-get-mcp', id, path),
+  teamContributionUpsertSkill: (
+    id: string,
+    input: TeamLibrarySkillDraft,
+  ): Promise<TeamLibraryMutationResult> =>
+    ipcRenderer.invoke('team-library:contribution-upsert-skill', id, JSON.parse(JSON.stringify(input))),
+  teamContributionImportSkill: (
+    id: string,
+    input: TeamLibrarySkillImportInput,
+  ): Promise<TeamLibraryMutationResult> =>
+    ipcRenderer.invoke('team-library:contribution-import-skill', id, { ...input }),
+  teamContributionUpsertMcp: (
+    id: string,
+    input: TeamLibraryMcpDraft,
+  ): Promise<TeamLibraryMutationResult> =>
+    ipcRenderer.invoke('team-library:contribution-upsert-mcp', id, JSON.parse(JSON.stringify(input))),
+  teamContributionUpsertBundle: (
+    id: string,
+    input: TeamLibraryBundleDraft,
+  ): Promise<TeamLibraryMutationResult> =>
+    ipcRenderer.invoke('team-library:contribution-upsert-bundle', id, JSON.parse(JSON.stringify(input))),
+  teamContributionDelete: (id: string, path: string): Promise<TeamLibraryMutationResult> =>
+    ipcRenderer.invoke('team-library:contribution-delete', id, path),
+  teamContributionUpdatePolicy: (
+    id: string,
+    input: TeamLibraryPolicyDraft,
+  ): Promise<TeamLibraryMutationResult> =>
+    ipcRenderer.invoke('team-library:contribution-policy', id, JSON.parse(JSON.stringify(input))),
+  teamProjectConfig: (projectRoot: string): Promise<TeamProjectConfigResult> =>
+    ipcRenderer.invoke('team-library:project-config', projectRoot),
+  teamProjectConfigWrite: (
+    projectRoot: string,
+    config: TeamProjectConfig,
+  ): Promise<TeamProjectConfigResult> =>
+    ipcRenderer.invoke('team-library:project-config-write', projectRoot, JSON.parse(JSON.stringify(config))),
+  teamLibrarySync: (config: TeamLibraryConfig): Promise<TeamLibrarySyncResult> =>
+    ipcRenderer.invoke('team-library:sync', plainTeamLibraryConfig(config)),
+  teamLibraryGetSkill: (config: TeamLibraryConfig, path: string): Promise<TeamLibrarySkill> =>
+    ipcRenderer.invoke('team-library:get-skill', plainTeamLibraryConfig(config), path),
+  teamLibraryGetMcp: (config: TeamLibraryConfig, path: string): Promise<TeamLibraryMcp> =>
+    ipcRenderer.invoke('team-library:get-mcp', plainTeamLibraryConfig(config), path),
+  teamLibraryInstallSkill: (
+    config: TeamLibraryConfig,
+    path: string,
+    targets: InstallTarget[],
+  ): Promise<TargetResult[]> => ipcRenderer.invoke(
+    'team-library:install-skill',
+    plainTeamLibraryConfig(config),
+    path,
+    targets,
+  ),
+  teamLibraryInstallations: (): Promise<TeamLibraryInstallRecord[]> =>
+    ipcRenderer.invoke('team-library:installations'),
+  teamLibraryRecordMcpInstall: (
+    config: TeamLibraryConfig,
+    path: string,
+    targets: McpTarget[],
+  ): Promise<void> => ipcRenderer.invoke(
+    'team-library:record-mcp-install',
+    plainTeamLibraryConfig(config),
+    path,
+    targets,
+  ),
+  teamLibraryAssertMcpInstall: (
+    config: TeamLibraryConfig,
+    path: string,
+    targets: McpTarget[],
+  ): Promise<void> => ipcRenderer.invoke(
+    'team-library:assert-mcp-install',
+    plainTeamLibraryConfig(config),
+    path,
+    targets,
+  ),
   pushGitBackup: (request: GitBackupRequest): Promise<GitBackupResult> =>
     ipcRenderer.invoke('backup:push', request),
   prepareGitRestore: (
@@ -160,8 +286,6 @@ const api = {
   confirmDialog: (options: ConfirmOptions): Promise<boolean> =>
     ipcRenderer.invoke('dialog:confirm', options),
   openUserData: (): Promise<void> => ipcRenderer.invoke('system:open-user-data'),
-  registryTest: (cfg: RegistryConfig): Promise<RegistryTestResult> =>
-    ipcRenderer.invoke('registry:test', cfg),
   fetchBundlesManifest: (url: string): Promise<unknown> =>
     ipcRenderer.invoke('bundles:manifest', url),
   skillhubSearch: (
@@ -225,62 +349,6 @@ const api = {
     namespace: string,
   ): Promise<{ root: string; items: FoundSkill[] }> =>
     ipcRenderer.invoke('market:skillhub-fetch', slug, namespace),
-  registrySearch: (cfg: RegistryConfig, q?: string): Promise<RegistrySkillSummary[]> =>
-    ipcRenderer.invoke('registry:search', cfg, q),
-  registryOrgs: (cfg: RegistryConfig): Promise<{ name: string; displayName: string }[]> =>
-    ipcRenderer.invoke('registry:orgs', cfg),
-  registryInstall: (
-    cfg: RegistryConfig,
-    org: string,
-    name: string,
-    targets: InstallTarget[],
-  ): Promise<TargetResult[]> => ipcRenderer.invoke('registry:install', cfg, org, name, targets),
-  registryRequired: (cfg: RegistryConfig, org: string): Promise<string[]> =>
-    ipcRenderer.invoke('registry:required', cfg, org),
-  registryGet: (cfg: RegistryConfig, org: string, name: string): Promise<RegistrySkill> =>
-    ipcRenderer.invoke('registry:get', cfg, org, name),
-  registryVersions: (
-    cfg: RegistryConfig,
-    org: string,
-    name: string,
-  ): Promise<{ version: string; publishedBy: string; createdAt: number }[]> =>
-    ipcRenderer.invoke('registry:versions', cfg, org, name),
-  registryMcpSearch: (
-    cfg: RegistryConfig,
-    q?: string,
-  ): Promise<RegistryMcpServerSummary[]> => ipcRenderer.invoke('registry:mcp-search', cfg, q),
-  registryMcpGet: (
-    cfg: RegistryConfig,
-    org: string,
-    name: string,
-    version?: string,
-  ): Promise<RegistryMcpServer> => ipcRenderer.invoke('registry:mcp-get', cfg, org, name, version),
-  registryMcpVersions: (
-    cfg: RegistryConfig,
-    org: string,
-    name: string,
-  ): Promise<{ version: string; publishedBy: string; createdAt: number }[]> =>
-    ipcRenderer.invoke('registry:mcp-versions', cfg, org, name),
-  registryMcpPublish: (
-    cfg: RegistryConfig,
-    org: string,
-    definition: McpServerDefinition,
-    version: string,
-    description?: string,
-  ): Promise<void> =>
-    ipcRenderer.invoke('registry:mcp-publish', cfg, org, definition, version, description),
-  registryRequiredMcp: (cfg: RegistryConfig, org: string): Promise<string[]> =>
-    ipcRenderer.invoke('registry:required-mcp', cfg, org),
-  registrySetRequiredMcp: (cfg: RegistryConfig, org: string, names: string[]): Promise<void> =>
-    ipcRenderer.invoke('registry:set-required-mcp', cfg, org, names),
-  registryBundles: (cfg: RegistryConfig): Promise<RegistryBundleSummary[]> =>
-    ipcRenderer.invoke('registry:bundles', cfg),
-  registryBundleGet: (
-    cfg: RegistryConfig,
-    org: string,
-    name: string,
-    version?: string,
-  ): Promise<RegistryBundle> => ipcRenderer.invoke('registry:bundle-get', cfg, org, name, version),
   watchStart: (projectRoots: string[]): Promise<number> =>
     ipcRenderer.invoke('watch:start', projectRoots),
   secureGet: (key: string): Promise<string> => ipcRenderer.invoke('secure:get', key),
@@ -302,12 +370,6 @@ const api = {
   onSkillsChanged: (callback: () => void): void => {
     ipcRenderer.on('skills:changed', () => callback())
   },
-  registryPublish: (
-    cfg: RegistryConfig,
-    org: string,
-    skill: Skill,
-    version: string,
-  ): Promise<void> => ipcRenderer.invoke('registry:publish', cfg, org, skill, version),
 }
 
 export type SkillsManagerApi = typeof api

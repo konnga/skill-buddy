@@ -70,10 +70,252 @@ export interface InstallTarget {
   projectRoot?: string
 }
 
-/** Registry connection settings passed with each registry IPC call. */
-export interface RegistryConfig {
-  url: string
-  token: string
+/** 一个由 Git 仓库提供的企业团队库。 */
+export interface TeamLibraryConfig {
+  remoteUrl: string
+  branch: string
+}
+
+export interface TeamLibraryProbeInput {
+  remoteUrl: string
+  branch?: string
+}
+
+export type TeamLibraryProbeStatus = 'empty' | 'ready' | 'branch-missing' | 'invalid'
+
+export interface TeamLibraryProbeResult {
+  status: TeamLibraryProbeStatus
+  remoteUrl: string
+  branch: string
+  defaultBranch?: string
+  branches: string[]
+  manifest?: TeamLibraryManifest
+  error?: string
+}
+
+export interface TeamLibraryInitializeInput extends TeamLibraryConfig {
+  id: string
+  name: string
+}
+
+export interface TeamLibraryInitializeResult {
+  config: TeamLibraryConfig
+  manifest: TeamLibraryManifest
+}
+
+export interface TeamLibrarySourceInfo {
+  libraryId: string
+  libraryName: string
+  remoteUrl: string
+  branch: string
+  revision: string
+  path: string
+}
+
+export interface TeamLibrarySkillSummary extends TeamLibrarySourceInfo {
+  type: 'skill'
+  name: string
+  description: string
+  version?: string
+  tags: string[]
+  hasScripts: boolean
+  contentHash: string
+}
+
+export interface TeamLibrarySkill extends TeamLibrarySkillSummary {
+  content: string
+  resourcePaths: string[]
+}
+
+export interface TeamLibraryMcpSummary extends TeamLibrarySourceInfo {
+  type: 'mcp'
+  name: string
+  description: string
+  version?: string
+  transport: string
+  requiredSecrets: string[]
+  definitionHash: string
+}
+
+export interface TeamLibraryMcp extends TeamLibraryMcpSummary {
+  definition: McpServerDefinition
+}
+
+export interface TeamLibraryBundleSummary extends TeamLibrarySourceInfo {
+  type: 'bundle'
+  id: string
+  name: string
+  description: string
+  version?: string
+  skills: string[]
+  mcpServers: string[]
+  missingSkills: string[]
+  missingMcpServers: string[]
+}
+
+export interface TeamLibraryPolicy {
+  required: { skills: string[]; mcp: string[] }
+  recommended: { skills: string[]; mcp: string[] }
+  blocked: { ref: string; versions?: string; reason: string }[]
+}
+
+export interface TeamLibraryManifestTeam {
+  id: string
+  name: string
+}
+
+export interface TeamLibraryManifest {
+  version: 1
+  id: string
+  name: string
+  teams: TeamLibraryManifestTeam[]
+}
+
+export interface TeamLibraryCatalog {
+  source: TeamLibrarySourceInfo
+  syncedAt: number
+  skills: TeamLibrarySkillSummary[]
+  mcpServers: TeamLibraryMcpSummary[]
+  bundles: TeamLibraryBundleSummary[]
+  manifest: TeamLibraryManifest
+  policy: TeamLibraryPolicy
+  teamPolicies: Record<string, TeamLibraryPolicy>
+}
+
+export interface TeamLibrarySyncResult {
+  catalog: TeamLibraryCatalog
+  fromCache: boolean
+  warning?: string
+}
+
+export interface TeamLibrarySkillInstallRecord extends TeamLibrarySourceInfo {
+  type: 'skill'
+  name: string
+  version?: string
+  contentHash: string
+  target: InstallTarget
+  installedAt: number
+  status?: TeamLibraryInstallationStatus
+  actualHash?: string
+}
+
+export interface TeamLibraryMcpInstallRecord extends TeamLibrarySourceInfo {
+  type: 'mcp'
+  name: string
+  version?: string
+  definitionHash: string
+  target: McpTarget
+  installedAt: number
+  status?: TeamLibraryInstallationStatus
+  actualHash?: string
+}
+
+export type TeamLibraryInstallRecord =
+  | TeamLibrarySkillInstallRecord
+  | TeamLibraryMcpInstallRecord
+
+export type TeamLibraryInstallationStatus = 'current' | 'outdated' | 'missing'
+
+export interface TeamProjectRequirements {
+  bundles: string[]
+  skills: string[]
+  mcp: string[]
+}
+
+export interface TeamProjectConfig {
+  version: 1
+  library?: string
+  teams: string[]
+  requires: TeamProjectRequirements
+  policy?: TeamLibraryPolicy
+}
+
+export interface TeamProjectConfigResult {
+  projectRoot: string
+  configPath: string
+  found: boolean
+  config?: TeamProjectConfig
+  error?: string
+}
+
+export interface TeamContributionWorkspace {
+  id: string
+  libraryId: string
+  root: string
+  remoteUrl: string
+  branch: string
+  baseBranch: string
+  baseRevision: string
+  createdAt: number
+  provider: 'github' | 'gitlab' | 'unsupported'
+}
+
+export interface TeamContributionPublishResult {
+  pushed: boolean
+  provider: TeamContributionWorkspace['provider']
+  branch: string
+  url?: string
+  warning?: string
+}
+
+export interface TeamContributionChangedFile {
+  path: string
+  status: 'added' | 'modified' | 'deleted' | 'renamed'
+}
+
+export interface TeamContributionDiff {
+  workspace: TeamContributionWorkspace
+  files: TeamContributionChangedFile[]
+  patch: string
+  issues?: TeamLibraryValidationIssue[]
+}
+
+export interface TeamLibraryValidationIssue {
+  path: string
+  message: string
+}
+
+export interface TeamLibrarySkillDraft {
+  originalPath?: string
+  name: string
+  description: string
+  version?: string
+  tags: string[]
+  content: string
+}
+
+export interface TeamLibrarySkillImportInput {
+  sourcePath: string
+  name?: string
+}
+
+export interface TeamLibraryMcpDraft {
+  originalPath?: string
+  version?: string
+  description: string
+  definition: McpServerDefinition
+}
+
+export interface TeamLibraryBundleDraft {
+  originalPath?: string
+  id: string
+  name: string
+  description: string
+  version?: string
+  skills: string[]
+  mcp: string[]
+}
+
+export interface TeamLibraryPolicyDraft {
+  scope?: 'organization' | 'team'
+  teamId?: string
+  teamName?: string
+  policy: TeamLibraryPolicy
+}
+
+export interface TeamLibraryMutationResult {
+  path: string
+  affectedBundles: string[]
 }
 
 /** A user-defined platform definition persisted in settings. */
@@ -151,15 +393,6 @@ export interface ConfirmOptions {
   confirmLabel: string
   cancelLabel: string
   danger?: boolean
-}
-
-/** Registry 连接测试结果。 */
-export interface RegistryTestResult {
-  ok: boolean
-  latencyMs: number
-  authOk: boolean
-  orgs: string[]
-  error?: string
 }
 
 /** 魔搭 MCP 广场服务摘要（列表项）。 */
