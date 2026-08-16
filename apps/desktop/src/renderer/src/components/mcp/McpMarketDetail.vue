@@ -42,7 +42,16 @@ const targets = shallowRef<McpTarget[]>([])
 
 const preferChinese = computed(() => locale.value.toLowerCase().startsWith('zh'))
 const localNames = computed(() => new Set(servers.value.map((server) => server.name)))
-const visibleError = computed(() => error.value ?? mcpError.value)
+const visibleError = computed(() => {
+  if (error.value) {
+    return t(
+      /(?:^|\D)404(?:\D|$)/.test(error.value)
+        ? 'mcp.market.detailNotFound'
+        : 'mcp.market.detailLoadFailed',
+    )
+  }
+  return mcpError.value
+})
 const currentCandidate = computed(() => candidates.value[selectedCandidate.value] ?? null)
 
 async function validatedCandidates(
@@ -173,12 +182,23 @@ onMounted(() => {
           </div>
         </div>
 
-        <p v-if="visibleError" class="break-all text-sm text-destructive">{{ visibleError }}</p>
+        <p
+          v-if="visibleError"
+          class="rounded-md border border-destructive/25 bg-destructive/5 px-4 py-3 text-sm text-destructive"
+        >
+          {{ visibleError }}
+        </p>
         <div v-if="loading" class="flex flex-col gap-2">
           <Skeleton class="h-20 rounded-md" />
           <Skeleton class="h-12 rounded-md" />
         </div>
-        <section v-if="!loading" class="flex flex-col gap-4 rounded-lg border p-5">
+        <section
+          v-if="!loading && !error"
+          :class="[
+            'flex flex-col gap-4',
+            !installOnly && 'rounded-lg border p-5',
+          ]"
+        >
           <div v-if="detailMeta" class="flex flex-wrap items-center gap-2">
             <Badge v-if="detailMeta.hosted" variant="secondary">
               {{ t('mcp.market.hosted') }}
@@ -260,6 +280,7 @@ onMounted(() => {
               />
             </div>
             <Button
+              v-if="!installOnly"
               size="sm"
               class="w-fit cursor-pointer"
               :disabled="planning || targets.length === 0 || !currentCandidate"
@@ -271,7 +292,7 @@ onMounted(() => {
           </template>
         </section>
 
-        <section v-if="!installOnly && !loading" class="rounded-lg border p-5">
+        <section v-if="!installOnly && !loading && !error" class="rounded-lg border p-5">
           <h2 class="text-base font-semibold">{{ t('mcp.market.overview') }}</h2>
           <div v-if="overview" class="mt-4">
             <MarkdownView :content="overview" preview-id="mcp-market-overview" />
@@ -282,5 +303,20 @@ onMounted(() => {
         </section>
       </div>
     </ScrollArea>
+
+    <footer
+      v-if="installOnly && !loading && candidates.length > 0"
+      class="flex shrink-0 justify-end border-t px-5 py-4"
+    >
+      <Button
+        size="sm"
+        class="cursor-pointer"
+        :disabled="planning || targets.length === 0 || !currentCandidate"
+        @click="reviewInstall"
+      >
+        <CloudDownload />
+        {{ t('mcp.form.review') }}
+      </Button>
+    </footer>
   </div>
 </template>

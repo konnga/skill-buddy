@@ -23,7 +23,7 @@ const { t } = useI18n()
     <DialogPortal>
       <DialogOverlay class="fixed inset-0 z-40 bg-black/40" />
       <DialogContent
-        class="fixed left-1/2 top-1/2 z-50 flex h-[min(680px,82vh)] w-[min(680px,calc(100vw-32px))] -translate-x-1/2 -translate-y-1/2 flex-col overflow-hidden rounded-lg border bg-background shadow-xl outline-none"
+        class="fixed left-1/2 top-1/2 z-50 flex max-h-[82vh] w-[min(680px,calc(100vw-32px))] -translate-x-1/2 -translate-y-1/2 flex-col overflow-hidden rounded-lg border bg-background shadow-xl outline-none"
       >
         <header class="flex h-14 shrink-0 items-center gap-3 border-b px-5">
           <DialogTitle class="min-w-0 flex-1 truncate text-base font-semibold">

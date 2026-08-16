@@ -92,6 +92,9 @@
   .vibrancy .sidebar-surface {
     background: transparent;
   }
+  .vibrancy:not(.dark) .sidebar-surface {
+    background: color-mix(in oklch, var(--background) 92%, transparent);
+  }
   .dark.vibrancy .sidebar-surface {
     background: color-mix(in oklch, var(--background) 92%, transparent);
   }

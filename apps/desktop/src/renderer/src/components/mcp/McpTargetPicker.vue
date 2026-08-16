@@ -5,6 +5,7 @@ import { ChevronDown } from '@lucide/vue'
 import type { McpPlatformStatus, McpTarget } from '@skillbuddy/core'
 import PlatformIcon from '@/components/PlatformIcon.vue'
 import { Badge } from '@/components/ui/badge'
+import { ScrollArea } from '@/components/ui/scroll-area'
 
 const props = defineProps<{
   platforms: McpPlatformStatus[]
@@ -136,7 +137,10 @@ function selectedCount(group: TargetGroup): number {
 </script>
 
 <template>
-  <div class="max-h-72 overflow-y-auto rounded-md border">
+  <ScrollArea
+    class="max-h-72 rounded-md border"
+    viewport-class="max-h-72 pr-2"
+  >
     <section v-for="group in groups" :key="group.key" class="border-b last:border-b-0">
       <button
         type="button"
@@ -210,5 +214,5 @@ function selectedCount(group: TargetGroup): number {
         </template>
       </div>
     </section>
-  </div>
+  </ScrollArea>
 </template>

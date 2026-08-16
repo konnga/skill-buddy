@@ -19,6 +19,7 @@ import type {
 import PlatformIcon from '@/components/PlatformIcon.vue'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { ScrollArea } from '@/components/ui/scroll-area'
 
 const props = defineProps<{
   server: AggregatedMcpServer
@@ -125,7 +126,7 @@ function basename(path: string): string {
       </div>
     </header>
 
-    <div class="min-h-0 flex-1 overflow-y-auto">
+    <ScrollArea class="min-h-0 flex-1">
       <section class="border-b px-6 py-5">
         <h3 class="text-sm font-semibold">{{ t('mcp.definition') }}</h3>
         <dl class="mt-3 grid gap-x-6 gap-y-3 text-sm sm:grid-cols-2">
@@ -266,6 +267,6 @@ function basename(path: string): string {
           </div>
         </div>
       </section>
-    </div>
+    </ScrollArea>
   </div>
 </template>

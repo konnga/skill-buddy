@@ -36,6 +36,7 @@ import {
   Search,
   Trash2,
   TriangleAlert,
+  X,
 } from '@lucide/vue'
 import type { AggregatedSkill } from '@skillbuddy/core'
 import type { InstallTarget } from '../../../shared/ipc.js'
@@ -713,7 +714,8 @@ watch(groupFilter, (name) => {
   <div class="flex h-full flex-col">
     <header
       :class="[
-        'app-drag relative flex min-h-14 shrink-0 flex-wrap items-center gap-x-3 gap-y-2 border-b px-6 py-2',
+        'app-drag relative flex min-h-14 shrink-0 items-center gap-x-3 gap-y-2 border-b px-6 py-2',
+        groupFilter && activeGroupState ? 'flex-wrap' : 'flex-nowrap',
         props.inset && 'pl-[118px]',
       ]"
     >
@@ -788,7 +790,7 @@ watch(groupFilter, (name) => {
                   class="flex cursor-pointer select-none items-center gap-2 rounded-[5px] px-2.5 py-2 text-sm outline-none data-[disabled]:pointer-events-none data-[disabled]:opacity-40 data-[highlighted]:bg-accent"
                   @select="setActiveGroupEnabled(true)"
                 >
-                  <Power />
+                  <Power class="size-4 shrink-0" />
                   {{ t('groups.enableGroup') }}
                 </DropdownMenuItem>
                 <DropdownMenuItem
@@ -796,7 +798,7 @@ watch(groupFilter, (name) => {
                   class="flex cursor-pointer select-none items-center gap-2 rounded-[5px] px-2.5 py-2 text-sm outline-none data-[disabled]:pointer-events-none data-[disabled]:opacity-40 data-[highlighted]:bg-accent"
                   @select="setActiveGroupEnabled(false)"
                 >
-                  <PowerOff />
+                  <PowerOff class="size-4 shrink-0" />
                   {{ t('groups.disableGroup') }}
                 </DropdownMenuItem>
                 <DropdownMenuSeparator class="my-1 h-px bg-border" />
@@ -804,14 +806,14 @@ watch(groupFilter, (name) => {
                   class="flex cursor-pointer select-none items-center gap-2 rounded-[5px] px-2.5 py-2 text-sm outline-none data-[highlighted]:bg-accent"
                   @select="exportActiveGroup"
                 >
-                  <Copy />
+                  <Copy class="size-4 shrink-0" />
                   {{ t('groups.exportAction') }}
                 </DropdownMenuItem>
                 <DropdownMenuItem
                   class="flex cursor-pointer select-none items-center gap-2 rounded-[5px] px-2.5 py-2 text-sm outline-none data-[highlighted]:bg-accent"
                   @select="openRenameGroup"
                 >
-                  <Pencil />
+                  <Pencil class="size-4 shrink-0" />
                   {{ t('groups.renameAction') }}
                 </DropdownMenuItem>
                 <DropdownMenuSeparator class="my-1 h-px bg-border" />
@@ -819,7 +821,7 @@ watch(groupFilter, (name) => {
                   class="flex cursor-pointer select-none items-center gap-2 rounded-[5px] px-2.5 py-2 text-sm text-destructive outline-none data-[highlighted]:bg-destructive/10"
                   @select="removeActiveGroup"
                 >
-                  <Trash2 />
+                  <Trash2 class="size-4 shrink-0" />
                   {{ t('groups.deleteAction') }}
                 </DropdownMenuItem>
               </DropdownMenuContent>
@@ -831,7 +833,21 @@ watch(groupFilter, (name) => {
             <Search
               class="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
             />
-            <Input v-model="search" :placeholder="t('groups.searchSkillsPh')" class="h-8 pl-8" />
+            <Input
+              v-model="search"
+              :placeholder="t('groups.searchSkillsPh')"
+              class="h-8 pl-8 pr-8"
+            />
+            <button
+              v-if="search"
+              type="button"
+              class="absolute right-1 top-1/2 grid size-6 -translate-y-1/2 place-items-center rounded-sm text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+              :title="t('app.clearSearch')"
+              :aria-label="t('app.clearSearch')"
+              @click="search = ''"
+            >
+              <X class="size-3.5" />
+            </button>
           </div>
           <Select v-model="sortBy" :options="sortOptions" />
           <div class="flex shrink-0 items-center rounded-md border bg-background p-0.5">
@@ -874,7 +890,21 @@ watch(groupFilter, (name) => {
             <Search
               class="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
             />
-            <Input v-model="search" :placeholder="t('app.searchPlaceholder')" class="h-8 pl-8" />
+            <Input
+              v-model="search"
+              :placeholder="t('app.searchPlaceholder')"
+              class="h-8 pl-8 pr-8"
+            />
+            <button
+              v-if="search"
+              type="button"
+              class="absolute right-1 top-1/2 grid size-6 -translate-y-1/2 place-items-center rounded-sm text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+              :title="t('app.clearSearch')"
+              :aria-label="t('app.clearSearch')"
+              @click="search = ''"
+            >
+              <X class="size-3.5" />
+            </button>
           </div>
           <Select v-model="ownershipModel" :options="ownershipOptions" />
           <Select v-model="sortBy" :options="sortOptions" />
@@ -956,7 +986,7 @@ watch(groupFilter, (name) => {
             {{ t('batch.clearSelection') }}
           </Button>
         </div>
-        <div class="app-no-drag ml-auto flex shrink-0 items-center gap-2">
+        <div class="app-no-drag ml-auto flex shrink-0 self-start items-center gap-2">
           <Button
             variant="outline"
             size="icon"
@@ -984,7 +1014,6 @@ watch(groupFilter, (name) => {
             @click="refresh"
           >
             <RefreshCw :class="loading ? 'animate-spin' : ''" />
-            {{ t('app.rescan') }}
           </Button>
         </div>
       </template>
