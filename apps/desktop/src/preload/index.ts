@@ -16,6 +16,7 @@ import type {
   AppInfo,
   ConfirmOptions,
   CustomPlatformInput,
+  DesktopPreferences,
   FilePreviewResult,
   GitBackupRequest,
   GitBackupResult,
@@ -54,6 +55,8 @@ import type {
   TeamLibrarySyncResult,
   TeamProjectConfigResult,
   TeamProjectConfig,
+  TrayCommand,
+  TrayStatus,
   TargetResult,
   UpdateCheckResult,
 } from '../shared/ipc.js'
@@ -278,6 +281,10 @@ const api = {
   getLoginItem: (): Promise<boolean> => ipcRenderer.invoke('system:get-login-item'),
   setLoginItem: (openAtLogin: boolean): Promise<void> =>
     ipcRenderer.invoke('system:set-login-item', openAtLogin),
+  setDesktopPreferences: (
+    preferences: DesktopPreferences,
+  ): Promise<DesktopPreferences> =>
+    ipcRenderer.invoke('system:set-desktop-preferences', preferences),
   /** 注册全局唤起快捷键，返回是否注册成功（空串表示清除）。 */
   setGlobalShortcut: (accelerator: string): Promise<boolean> =>
     ipcRenderer.invoke('system:set-global-shortcut', accelerator),
@@ -371,6 +378,14 @@ const api = {
     ipcRenderer.invoke('file:list-tree', root),
   onSkillsChanged: (callback: () => void): void => {
     ipcRenderer.on('skills:changed', () => callback())
+  },
+  updateTrayStatus: (status: TrayStatus): Promise<void> =>
+    ipcRenderer.invoke('tray:update-status', status),
+  onTrayCommand: (callback: (command: TrayCommand) => void): void => {
+    ipcRenderer.on('tray:command', (_event, command: TrayCommand) => callback(command))
+  },
+  removeTrayCommandListeners: (): void => {
+    ipcRenderer.removeAllListeners('tray:command')
   },
 }
 

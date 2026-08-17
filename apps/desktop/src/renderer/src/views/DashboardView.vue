@@ -1,15 +1,12 @@
 <script setup lang="ts">
-import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { Import, Plus, RefreshCw, TriangleAlert } from '@lucide/vue'
-import type { AggregatedSkill } from '@skillbuddy/core'
 import DashboardPage from '@/components/DashboardPage.vue'
 import SidebarToggle from '@/components/SidebarToggle.vue'
 import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { useSkills } from '@/composables/useSkills'
-import { useTeamLibraries } from '@/composables/useTeamLibraries'
-import { useTeamProjects } from '@/composables/useTeamProjects'
+import { useAttentionSummary } from '@/composables/useAttentionSummary'
 import type { SkillBundle } from '@/lib/bundles'
 import type { MarketItem } from '@/lib/market'
 
@@ -25,23 +22,8 @@ const emit = defineEmits<{
 }>()
 
 const { t } = useI18n()
-const { skills, detectedPlatforms, loading, refresh } = useSkills()
-const { compliance } = useTeamLibraries()
-const { attentionCount: projectAttentionCount } = useTeamProjects()
-
-const todoCount = computed(() => {
-  const drift = skills.value.filter(
-    (skill) =>
-      skill.hasDrift && skill.installations.some((installation) => !installation.readOnly),
-  ).length
-  const singleEnd = skills.value.filter((skill: AggregatedSkill) => {
-    const agents = new Set(skill.installations.map((installation) => installation.agent))
-    return agents.size === 1 && detectedPlatforms.value.length > 1
-  }).length
-  return drift + singleEnd + compliance.value.missingRequired.length +
-    compliance.value.blockedInstalled.length + compliance.value.updateAvailable +
-    projectAttentionCount.value
-})
+const { loading, refresh } = useSkills()
+const { count: todoCount } = useAttentionSummary()
 </script>
 
 <template>
@@ -54,10 +36,12 @@ const todoCount = computed(() => {
     >
       <SidebarToggle />
       <div class="flex-1" />
-      <button
+      <Button
         type="button"
+        variant="outline"
+        size="sm"
         :class="[
-          'app-no-drag flex items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-sm transition-colors',
+          'app-no-drag',
           todoCount > 0
             ? 'border-amber-500/50 bg-amber-500/10 text-amber-700 dark:text-amber-400'
             : 'text-muted-foreground hover:border-primary/40',
@@ -73,7 +57,7 @@ const todoCount = computed(() => {
         >
           {{ todoCount }}
         </span>
-      </button>
+      </Button>
       <Button variant="outline" size="sm" class="app-no-drag" @click="emit('newSkill')">
         <Plus />
         {{ t('dashboard.actionNew') }}

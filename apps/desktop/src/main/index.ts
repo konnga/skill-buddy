@@ -1,4 +1,4 @@
-import { app, BrowserWindow } from 'electron'
+import { app } from 'electron'
 import { registerAiConversationIpc } from './ai-conversations.js'
 import { registerBrowserIpc } from './in-app-browser.js'
 import { registerMarketIpc } from './ipc/market.js'
@@ -9,12 +9,25 @@ import { registerSkillsIpc } from './ipc/skills.js'
 import { registerSystemIpc } from './ipc/system.js'
 import { registerTeamLibraryIpc } from './ipc/team-library.js'
 import { PathAccessPolicy } from './path-policy.js'
-import { createWindow, desktopIconPath } from './window.js'
+import {
+  getDesktopPreferences,
+  loadDesktopPreferences,
+  onDesktopPreferencesChanged,
+} from './preferences.js'
+import { registerTrayIpc, TrayController } from './tray.js'
+import {
+  createWindow,
+  desktopIconPath,
+  sendTrayCommand,
+  setQuitting,
+  showMainWindow,
+} from './window.js'
 
 const pathPolicy = new PathAccessPolicy()
 let disposeMcp: (() => void) | undefined
+let trayController: TrayController | undefined
 
-function registerIpc(): void {
+function registerIpc(tray: TrayController): void {
   registerSkillsIpc(pathPolicy)
   registerBackupIpc(pathPolicy)
   registerAiConversationIpc(pathPolicy)
@@ -23,23 +36,60 @@ function registerIpc(): void {
   registerMarketIpc(pathPolicy)
   registerMcpMarketIpc()
   registerTeamLibraryIpc(pathPolicy)
+  registerTrayIpc(tray)
   const mcpService = registerMcpIpc()
   disposeMcp = () => mcpService.dispose()
 }
 
-app.whenReady().then(() => {
+function quitApplication(): void {
+  setQuitting(true)
+  app.quit()
+}
+
+const hasSingleInstanceLock = app.requestSingleInstanceLock()
+if (!hasSingleInstanceLock) app.quit()
+
+app.on('second-instance', (_event, argv) => {
+  if (!argv.includes('--hidden')) showMainWindow()
+})
+
+void app.whenReady().then(async () => {
+  await loadDesktopPreferences()
   if (process.platform === 'darwin') app.dock.setIcon(desktopIconPath())
 
-  registerIpc()
-  createWindow()
+  trayController = new TrayController({
+    showWindow: showMainWindow,
+    sendCommand: sendTrayCommand,
+    quit: quitApplication,
+  })
+  trayController.setEnabled(getDesktopPreferences().backgroundMode)
+  onDesktopPreferencesChanged((preferences) => {
+    trayController?.setEnabled(preferences.backgroundMode)
+  })
+
+  registerIpc(trayController)
+  const loginSettings = app.getLoginItemSettings()
+  const openedAtLogin =
+    process.platform === 'darwin'
+      ? loginSettings.wasOpenedAtLogin
+      : process.argv.includes('--hidden')
+  const launchedHidden =
+    getDesktopPreferences().backgroundMode &&
+    getDesktopPreferences().launchHidden &&
+    openedAtLogin
+  createWindow({ showOnReady: !launchedHidden })
 
   app.on('activate', () => {
-    if (BrowserWindow.getAllWindows().length === 0) createWindow()
+    showMainWindow()
   })
 })
 
 app.on('window-all-closed', () => {
-  if (process.platform !== 'darwin') app.quit()
+  if (!getDesktopPreferences().backgroundMode) app.quit()
 })
 
-app.on('before-quit', () => disposeMcp?.())
+app.on('before-quit', () => {
+  setQuitting(true)
+  disposeMcp?.()
+})
+app.on('will-quit', () => trayController?.dispose())

@@ -13,7 +13,7 @@ import {
   Settings,
   Users,
 } from '@lucide/vue'
-import skillbuddyMarkUrl from '@/assets/skillbuddy-mark.svg'
+import skillbuddyMarkUrl from '@/assets/logo.svg'
 import PlatformIcon from '@/components/PlatformIcon.vue'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { useGroups } from '@/composables/useGroups'
@@ -132,7 +132,7 @@ async function addProjectRoot(): Promise<void> {
         <img
           :src="skillbuddyMarkUrl"
           alt=""
-          class="size-5 shrink-0"
+          class="size-8 shrink-0 rounded-[10px]"
           aria-hidden="true"
         />
         <span class="font-semibold tracking-tight">SkillBuddy</span>

@@ -24,9 +24,11 @@ import TeamView from '@/views/TeamView.vue'
 const props = defineProps<{
   view: WorkspaceViewName
   navigationRevision: number
+  attentionRevision: number
   inset?: boolean
 }>()
 const emit = defineEmits<{
+  attentionOpened: []
   openSettings: [category: SettingsCategory]
   importSkills: []
   navigate: [view: WorkspaceViewName]
@@ -106,6 +108,15 @@ function openTeamFromAttention(): void {
 }
 
 watch([() => props.view, () => props.navigationRevision], closeDetails)
+watch(
+  () => props.attentionRevision,
+  (revision) => {
+    if (revision === 0) return
+    attentionOpen.value = true
+    emit('attentionOpened')
+  },
+  { immediate: true },
+)
 watch(skills, (value) => {
   if (selected.value) {
     selected.value = value.find((skill) => skill.name === selected.value?.name) ?? null

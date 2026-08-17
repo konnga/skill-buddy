@@ -1,4 +1,4 @@
-import { computed, ref } from 'vue'
+import { computed, ref, shallowRef } from 'vue'
 import type { AggregatedSkill, PlatformStatus, Skill } from '@skillbuddy/core'
 import type { InstallTarget, TargetResult } from '../../../shared/ipc.js'
 import { i18n } from '../i18n.js'
@@ -9,6 +9,7 @@ const skills = ref<AggregatedSkill[]>([])
 const platforms = ref<PlatformStatus[]>([])
 const loading = ref(false)
 const error = ref<string | null>(null)
+const lastCheckedAt = shallowRef<number | null>(null)
 
 const search = ref('')
 /** null = all platforms */
@@ -174,6 +175,7 @@ async function refresh(options: { silent?: boolean } = {}): Promise<void> {
     ])
     skills.value = scanned
     platforms.value = platformList
+    lastCheckedAt.value = Date.now()
     notifyDriftIfNeeded(scanned)
     void window.skillsManager.watchStart([...projectRoots.value])
   } catch (e) {
@@ -264,6 +266,7 @@ export function useSkills() {
     countByPlatform,
     loading,
     error,
+    lastCheckedAt,
     search,
     platformFilter,
     projectFilter,

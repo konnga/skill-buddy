@@ -359,6 +359,29 @@ export interface McpTogglePlanRequest extends McpRemovePlanRequest {
 /** 外部链接的打开方式：系统默认浏览器，或应用内浏览器。 */
 export type LinkOpenMode = 'external' | 'in-app'
 
+/** 影响窗口关闭和登录启动行为的桌面端偏好。 */
+export interface DesktopPreferences {
+  backgroundMode: boolean
+  launchHidden: boolean
+}
+
+/** 菜单栏/系统托盘当前展示状态。 */
+export interface TrayStatus {
+  phase: 'idle' | 'scanning' | 'error'
+  attentionCount: number
+  lastCheckedAt: number | null
+  autoRefresh: boolean
+  locale: 'zh-CN' | 'en'
+  errorMessage?: string
+}
+
+/** 托盘菜单发往渲染进程的轻量命令。 */
+export type TrayCommand =
+  | 'refresh'
+  | 'toggle-auto-refresh'
+  | 'open-attention'
+  | 'open-settings'
+
 /** 应用内浏览器（WebContentsView）的导航状态，由主进程推送给渲染进程。 */
 export interface InAppBrowserState {
   open: boolean

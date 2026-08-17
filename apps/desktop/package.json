@@ -23,6 +23,18 @@
       {
         "from": "resources/icons/icon.png",
         "to": "icon.png"
+      },
+      {
+        "from": "resources/icons/icon-mac.png",
+        "to": "icon-mac.png"
+      },
+      {
+        "from": "resources/icons/icon.ico",
+        "to": "icon.ico"
+      },
+      {
+        "from": "resources/tray",
+        "to": "tray"
       }
     ]
   },

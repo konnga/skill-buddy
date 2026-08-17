@@ -31,7 +31,7 @@ import { Input } from '@/components/ui/input'
 import { Select } from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import skillbuddyMarkUrl from '@/assets/skillbuddy-mark.svg'
+import skillbuddyMarkUrl from '@/assets/logo.svg'
 import CopyButton from '@/components/CopyButton.vue'
 import PlatformIcon from '@/components/PlatformIcon.vue'
 import ThemeCodePreview from '@/components/appearance/ThemeCodePreview.vue'
@@ -63,6 +63,8 @@ const {
   globalShortcut,
   globalShortcutOk,
   launchAtLogin,
+  backgroundMode,
+  launchHidden,
   teamLibraries,
 } = useSettings()
 const { t } = useI18n()
@@ -475,6 +477,18 @@ async function copyDiagnostics(): Promise<void> {
               <Switch v-model="confirmUninstall" />
             </div>
             <div
+              v-if="visible(t('settings.backgroundModeTitle'), t('settings.backgroundModeDesc'))"
+              class="flex items-center justify-between gap-6 px-5 py-4"
+            >
+              <div class="min-w-0">
+                <p class="text-sm font-medium">{{ t('settings.backgroundModeTitle') }}</p>
+                <p class="mt-0.5 text-sm text-muted-foreground">
+                  {{ t('settings.backgroundModeDesc') }}
+                </p>
+              </div>
+              <Switch v-model="backgroundMode" />
+            </div>
+            <div
               v-if="visible(t('settings.launchAtLoginTitle'), t('settings.launchAtLoginDesc'))"
               class="flex items-center justify-between gap-6 px-5 py-4"
             >
@@ -485,6 +499,21 @@ async function copyDiagnostics(): Promise<void> {
                 </p>
               </div>
               <Switch v-model="launchAtLogin" />
+            </div>
+            <div
+              v-if="visible(t('settings.launchHiddenTitle'), t('settings.launchHiddenDesc'))"
+              class="flex items-center justify-between gap-6 px-5 py-4"
+            >
+              <div class="min-w-0">
+                <p class="text-sm font-medium">{{ t('settings.launchHiddenTitle') }}</p>
+                <p class="mt-0.5 text-sm text-muted-foreground">
+                  {{ t('settings.launchHiddenDesc') }}
+                </p>
+              </div>
+              <Switch
+                v-model="launchHidden"
+                :disabled="!backgroundMode || !launchAtLogin"
+              />
             </div>
             <div
               v-if="visible(t('settings.shortcutTitle'), t('settings.shortcutDesc'))"
@@ -772,12 +801,11 @@ async function copyDiagnostics(): Promise<void> {
                   <img
                     :src="skillbuddyMarkUrl"
                     alt=""
-                    class="size-9 shrink-0"
+                    class="size-14 shrink-0 rounded-[10px]"
                     aria-hidden="true"
                   />
                   <div class="min-w-0">
-                    <p class="text-sm font-medium">{{ t('settings.aboutVersionTitle') }}</p>
-                    <p class="mt-0.5 text-sm text-muted-foreground">
+                    <p class="mt-0.5 text-base text-muted-foreground">
                       SkillBuddy v{{ appInfo?.version ?? '…' }}
                     </p>
                   </div>

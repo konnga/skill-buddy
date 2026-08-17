@@ -19,6 +19,7 @@ const loading = shallowRef(false)
 const planning = shallowRef(false)
 const applying = shallowRef(false)
 const error = shallowRef<string | null>(null)
+const lastCheckedAt = shallowRef<number | null>(null)
 const search = shallowRef('')
 const currentPlan = shallowRef<McpOperationPlanView | null>(null)
 
@@ -48,6 +49,7 @@ async function refresh(options: { silent?: boolean } = {}): Promise<void> {
   error.value = null
   try {
     scanResult.value = await window.skillsManager.scanMcpServers([...projectRoots.value])
+    lastCheckedAt.value = Date.now()
     void window.skillsManager.watchMcpStart()
   } catch (cause) {
     error.value = cause instanceof Error ? cause.message : String(cause)
@@ -166,6 +168,7 @@ if (!watcherWired) {
   watcherWired = true
   let timer: ReturnType<typeof setTimeout> | undefined
   window.skillsManager.onMcpChanged(() => {
+    if (!useSettings().autoRefresh.value) return
     clearTimeout(timer)
     timer = setTimeout(() => void refresh({ silent: true }), 300)
   })
@@ -182,6 +185,7 @@ export function useMcpServers() {
     planning: readonly(planning),
     applying: readonly(applying),
     error: readonly(error),
+    lastCheckedAt: readonly(lastCheckedAt),
     search,
     currentPlan: readonly(currentPlan),
     refresh,

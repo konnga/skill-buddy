@@ -77,6 +77,22 @@ void (async () => {
   watch(launchAtLogin, (v) => void window.skillsManager?.setLoginItem(v))
 })()
 
+/** 关闭主窗口后继续在菜单栏/系统托盘中运行。 */
+const backgroundMode = shallowRef<boolean>(load('skm.backgroundMode', true))
+/** 通过开机自启动进入应用时不主动显示主窗口。 */
+const launchHidden = shallowRef<boolean>(load('skm.launchHidden', false))
+
+function syncDesktopPreferences(): void {
+  localStorage.setItem('skm.backgroundMode', JSON.stringify(backgroundMode.value))
+  localStorage.setItem('skm.launchHidden', JSON.stringify(launchHidden.value))
+  void window.skillsManager?.setDesktopPreferences({
+    backgroundMode: backgroundMode.value,
+    launchHidden: launchHidden.value,
+  })
+}
+
+watch([backgroundMode, launchHidden], syncDesktopPreferences, { immediate: true })
+
 /** 企业团队库 Git 仓库；顺序同时表示目录展示优先级。 */
 const teamLibraries = shallowRef<TeamLibraryConfig[]>(load('skm.teamLibraries', []))
 watch(teamLibraries, (value) => localStorage.setItem('skm.teamLibraries', JSON.stringify(value)))
@@ -185,6 +201,8 @@ export function useSettings() {
     globalShortcut,
     globalShortcutOk,
     launchAtLogin,
+    backgroundMode,
+    launchHidden,
     teamLibraries,
   }
 }

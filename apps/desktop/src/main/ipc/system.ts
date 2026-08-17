@@ -9,6 +9,13 @@ import {
 } from 'electron'
 import { promises as fs } from 'node:fs'
 import type { AppInfo, ConfirmOptions, UpdateCheckResult } from '../../shared/ipc.js'
+import type { DesktopPreferences } from '../../shared/ipc.js'
+import {
+  getDesktopPreferences,
+  onDesktopPreferencesChanged,
+  setDesktopPreferences,
+} from '../preferences.js'
+import { toggleMainWindow } from '../window.js'
 
 /** 检查更新所用的 GitHub 仓库（Releases 页）。 */
 const UPDATE_REPO = 'konnga/skill-buddy'
@@ -68,10 +75,41 @@ export function registerSystemIpc(): void {
     }
   })
 
+  function applyLoginItemSettings(openAtLogin: boolean): void {
+    const preferences = getDesktopPreferences()
+    const launchHidden = preferences.backgroundMode && preferences.launchHidden
+    app.setLoginItemSettings({
+      openAtLogin,
+      ...(process.platform === 'win32' ? { args: launchHidden ? ['--hidden'] : [] } : {}),
+    })
+  }
+
+  function readLoginItemEnabled(): boolean {
+    if (process.platform !== 'win32') return app.getLoginItemSettings().openAtLogin
+    return (
+      app.getLoginItemSettings().openAtLogin ||
+      app.getLoginItemSettings({ args: ['--hidden'] }).openAtLogin
+    )
+  }
+
+  let launchAtLoginEnabled = readLoginItemEnabled()
+
   /* 开机自启动 */
-  ipcMain.handle('system:get-login-item', () => app.getLoginItemSettings().openAtLogin)
+  ipcMain.handle('system:get-login-item', () => {
+    launchAtLoginEnabled = readLoginItemEnabled()
+    return launchAtLoginEnabled
+  })
   ipcMain.handle('system:set-login-item', (_event, openAtLogin: boolean) => {
-    app.setLoginItemSettings({ openAtLogin })
+    launchAtLoginEnabled = openAtLogin
+    applyLoginItemSettings(openAtLogin)
+  })
+  ipcMain.handle(
+    'system:set-desktop-preferences',
+    (_event, preferences: DesktopPreferences) => setDesktopPreferences(preferences),
+  )
+  onDesktopPreferencesChanged(() => {
+    launchAtLoginEnabled = readLoginItemEnabled()
+    if (launchAtLoginEnabled) applyLoginItemSettings(true)
   })
 
   /* 全局唤起快捷键：再次按下时隐藏窗口 */
@@ -85,13 +123,7 @@ export function registerSystemIpc(): void {
     if (!value) return true
     try {
       const ok = globalShortcut.register(value, () => {
-        const win = BrowserWindow.getAllWindows()[0]
-        if (!win) return
-        if (win.isFocused()) win.hide()
-        else {
-          win.show()
-          win.focus()
-        }
+        toggleMainWindow()
       })
       if (ok) registeredShortcut = value
       return ok

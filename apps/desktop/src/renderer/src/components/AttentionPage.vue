@@ -17,6 +17,7 @@ import PlatformIcon from '@/components/PlatformIcon.vue'
 import { agentLabel } from '@/lib/agents'
 import type { SkillFocus } from '@/lib/navigation'
 import { useSkills } from '@/composables/useSkills'
+import { useAttentionSummary } from '@/composables/useAttentionSummary'
 import { useTeamLibraries } from '@/composables/useTeamLibraries'
 import { useTeamProjects } from '@/composables/useTeamProjects'
 
@@ -28,33 +29,10 @@ const emit = defineEmits<{
 }>()
 
 const { skills, detectedPlatforms } = useSkills()
+const { driftSkills, singleEndSkills, count: todoCount } = useAttentionSummary()
 const { compliance } = useTeamLibraries()
 const { attentionCount: projectAttentionCount } = useTeamProjects()
 const { t } = useI18n()
-
-const driftSkills = computed(() =>
-  skills.value.filter(
-    (skill) => skill.hasDrift && skill.installations.some((installation) => !installation.readOnly),
-  ),
-)
-
-/** Skills installed on exactly one platform while others are available. */
-const singleEndSkills = computed(() =>
-  skills.value.filter((s) => {
-    const agents = new Set(s.installations.map((i) => i.agent))
-    return agents.size === 1 && detectedPlatforms.value.length > 1
-  }),
-)
-
-const todoCount = computed(
-  () =>
-    driftSkills.value.length +
-    singleEndSkills.value.length +
-    compliance.value.missingRequired.length +
-    compliance.value.blockedInstalled.length +
-    compliance.value.updateAvailable +
-    projectAttentionCount.value,
-)
 
 const recentSkills = computed(() =>
   [...skills.value]

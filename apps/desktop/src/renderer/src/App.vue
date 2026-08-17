@@ -8,22 +8,29 @@ import SettingsPage from '@/components/SettingsPage.vue'
 import Sidebar from '@/components/Sidebar.vue'
 import { useAppLifecycle } from '@/composables/useAppLifecycle'
 import { useSettings } from '@/composables/useSettings'
+import { useTrayIntegration } from '@/composables/useTrayIntegration'
 import type { SettingsCategory, WorkspaceView } from '@/lib/navigation'
 import Workspace from '@/views/WorkspaceView.vue'
 
 const { sidebarCollapsed } = useSettings()
 const view = shallowRef<WorkspaceView>('dashboard')
 const navigationRevision = shallowRef(0)
+const attentionRevision = shallowRef(0)
 const settingsOpen = shallowRef(false)
 const settingsCategory = shallowRef<SettingsCategory>('general')
 const importOpen = shallowRef(false)
 const advancedImportOpen = shallowRef(false)
 
-useAppLifecycle()
-
 function openSettings(category: SettingsCategory = 'general'): void {
   settingsCategory.value = category
   settingsOpen.value = true
+}
+
+function openAttention(): void {
+  settingsOpen.value = false
+  view.value = 'dashboard'
+  navigationRevision.value += 1
+  attentionRevision.value += 1
 }
 
 /** Navigate from the sidebar and reset the destination to its default page. */
@@ -31,6 +38,12 @@ function navigate(viewName: WorkspaceView): void {
   view.value = viewName
   navigationRevision.value += 1
 }
+
+const { refreshLocal } = useTrayIntegration({
+  openAttention,
+  openSettings: () => openSettings('behavior'),
+})
+useAppLifecycle({ refreshLocal })
 </script>
 
 <template>
@@ -47,7 +60,9 @@ function navigate(viewName: WorkspaceView): void {
       <Workspace
         :view="view"
         :navigation-revision="navigationRevision"
+        :attention-revision="attentionRevision"
         :inset="sidebarCollapsed"
+        @attention-opened="attentionRevision = 0"
         @open-settings="openSettings"
         @import-skills="importOpen = true"
         @navigate="navigate"

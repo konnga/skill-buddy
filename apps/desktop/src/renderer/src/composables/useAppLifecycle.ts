@@ -1,15 +1,17 @@
 import { onMounted, onUnmounted, watch } from 'vue'
 import { setPlatformNames } from '@/lib/agents'
 import { runImportSync } from '@/composables/useImportSync'
-import { useMcpServers } from '@/composables/useMcpServers'
 import { syncCustomPlatforms, useSettings } from '@/composables/useSettings'
 import { useSkills } from '@/composables/useSkills'
 
+export interface AppLifecycleOptions {
+  refreshLocal: () => Promise<void>
+}
+
 /** 连接应用级快捷键、启动扫描与后台同步。 */
-export function useAppLifecycle(): void {
+export function useAppLifecycle(options: AppLifecycleOptions): void {
   const { sidebarCollapsed } = useSettings()
-  const { platforms, skills, refresh } = useSkills()
-  const { refresh: refreshMcpServers } = useMcpServers()
+  const { platforms, skills } = useSkills()
 
   watch(platforms, (value) => setPlatformNames(value))
   watch(skills, () => void runImportSync())
@@ -29,7 +31,7 @@ export function useAppLifecycle(): void {
   onMounted(async () => {
     window.addEventListener('keydown', onSidebarShortcut)
     await syncCustomPlatforms()
-    await Promise.all([refresh(), refreshMcpServers()])
+    await options.refreshLocal()
   })
 
   onUnmounted(() => window.removeEventListener('keydown', onSidebarShortcut))
