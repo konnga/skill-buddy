@@ -8,19 +8,21 @@ import SettingsPage from '@/components/SettingsPage.vue'
 import Sidebar from '@/components/Sidebar.vue'
 import { useAppLifecycle } from '@/composables/useAppLifecycle'
 import { useSettings } from '@/composables/useSettings'
-import type { WorkspaceView } from '@/lib/navigation'
+import type { SettingsCategory, WorkspaceView } from '@/lib/navigation'
 import Workspace from '@/views/WorkspaceView.vue'
 
 const { sidebarCollapsed } = useSettings()
 const view = shallowRef<WorkspaceView>('dashboard')
 const navigationRevision = shallowRef(0)
 const settingsOpen = shallowRef(false)
+const settingsCategory = shallowRef<SettingsCategory>('general')
 const importOpen = shallowRef(false)
 const advancedImportOpen = shallowRef(false)
 
 useAppLifecycle()
 
-function openSettings(): void {
+function openSettings(category: SettingsCategory = 'general'): void {
+  settingsCategory.value = category
   settingsOpen.value = true
 }
 
@@ -34,7 +36,11 @@ function navigate(viewName: WorkspaceView): void {
 <template>
   <AppToast />
   <InAppBrowser />
-  <SettingsPage v-if="settingsOpen" @back="settingsOpen = false" />
+  <SettingsPage
+    v-if="settingsOpen"
+    :initial-category="settingsCategory"
+    @back="settingsOpen = false"
+  />
   <div v-else class="relative flex h-screen flex-col">
     <div class="flex min-h-0 flex-1">
       <Sidebar :view="view" @navigate="navigate" @open-settings="openSettings" />

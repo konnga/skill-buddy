@@ -34,6 +34,8 @@ type SkillOrigin = NonNullable<SkillInstallation['origin']>
 interface SkillTreeLeaf {
   skill: AggregatedSkill
   installations: SkillInstallation[]
+  agentId: string
+  projectFilter: string
   readOnly: boolean
   allDisabled: boolean
   partiallyDisabled: boolean
@@ -54,6 +56,27 @@ interface SkillTreeAgent {
   label: string
   skillCount: number
   scopes: SkillTreeScope[]
+}
+
+type SkillTreeNodeKind = 'agent' | 'scope'
+
+interface SkillTreeBranch {
+  key: string
+  label: string
+  title?: string
+  kind: SkillTreeNodeKind
+  platformId?: string
+  skills: SkillTreeLeaf[]
+}
+
+interface SkillTreeRoot {
+  key: string
+  label: string
+  title?: string
+  kind: SkillTreeNodeKind
+  platformId?: string
+  skillCount: number
+  branches: SkillTreeBranch[]
 }
 
 const props = defineProps<{
@@ -77,10 +100,10 @@ const emit = defineEmits<{
 }>()
 
 const { t } = useI18n()
-const expandedAgents = shallowRef<Set<string>>(new Set())
-const expandedScopes = shallowRef<Set<string>>(new Set())
-const knownAgents = new Set<string>()
-const knownScopes = new Set<string>()
+const expandedRoots = shallowRef<Set<string>>(new Set())
+const expandedBranches = shallowRef<Set<string>>(new Set())
+const knownRoots = new Set<string>()
+const knownBranches = new Set<string>()
 
 function scopeIdentity(installation: SkillInstallation): {
   key: string
@@ -117,7 +140,7 @@ function scopeIdentity(installation: SkillInstallation): {
   }
 }
 
-const tree = computed<SkillTreeAgent[]>(() => {
+const agentTree = computed<SkillTreeAgent[]>(() => {
   const skillsByName = new Map(props.skills.map((skill) => [skill.name, skill]))
   const agents = new Map<
     string,
@@ -156,6 +179,8 @@ const tree = computed<SkillTreeAgent[]>(() => {
             return {
               skill,
               installations,
+              agentId: id,
+              projectFilter: meta.projectFilter,
               readOnly: writable.length === 0,
               allDisabled: writable.length > 0 && disabled === writable.length,
               partiallyDisabled: disabled > 0 && disabled < writable.length,
@@ -175,89 +200,144 @@ const tree = computed<SkillTreeAgent[]>(() => {
     .sort((a, b) => a.label.localeCompare(b.label))
 })
 
+const tree = computed<SkillTreeRoot[]>(() => {
+  const projectRoot = props.projectFilter
+  if (projectRoot && projectRoot !== 'user') {
+    const branches = agentTree.value.flatMap((agent): SkillTreeBranch[] => {
+      const skills = agent.scopes
+        .filter((scope) => scope.projectFilter === projectRoot)
+        .flatMap((scope) => scope.skills)
+      if (skills.length === 0) return []
+      return [
+        {
+          key: `agent:${agent.id}`,
+          label: agent.label,
+          kind: 'agent',
+          platformId: agent.id,
+          skills,
+        },
+      ]
+    })
+    return [
+      {
+        key: `project:${projectRoot}`,
+        label: t('skillTree.project', { root: pathBasename(projectRoot) }),
+        title: projectRoot,
+        kind: 'scope',
+        skillCount: new Set(
+          branches.flatMap((branch) => branch.skills.map((leaf) => leaf.skill.name)),
+        ).size,
+        branches,
+      },
+    ]
+  }
+
+  return agentTree.value.map((agent): SkillTreeRoot => ({
+    key: `agent:${agent.id}`,
+    label: agent.label,
+    kind: 'agent',
+    platformId: agent.id,
+    skillCount: agent.skillCount,
+    branches: agent.scopes.map((scope): SkillTreeBranch => ({
+      key: scope.key,
+      label: scope.label,
+      title: scope.title,
+      kind: 'scope',
+      skills: scope.skills,
+    })),
+  }))
+})
+
 watch(
   tree,
-  (agents) => {
-    const nextAgents = new Set(expandedAgents.value)
-    const nextScopes = new Set(expandedScopes.value)
-    for (const agent of agents) {
-      if (!knownAgents.has(agent.id)) {
-        knownAgents.add(agent.id)
-        nextAgents.add(agent.id)
+  (roots) => {
+    const nextRoots = new Set(expandedRoots.value)
+    const nextBranches = new Set(expandedBranches.value)
+    for (const root of roots) {
+      if (!knownRoots.has(root.key)) {
+        knownRoots.add(root.key)
+        nextRoots.add(root.key)
       }
-      for (const scope of agent.scopes) {
-        const key = `${agent.id}:${scope.key}`
-        if (knownScopes.has(key)) continue
-        knownScopes.add(key)
-        nextScopes.add(key)
+      for (const branch of root.branches) {
+        const key = `${root.key}:${branch.key}`
+        if (knownBranches.has(key)) continue
+        knownBranches.add(key)
+        nextBranches.add(key)
       }
     }
-    expandedAgents.value = nextAgents
-    expandedScopes.value = nextScopes
+    expandedRoots.value = nextRoots
+    expandedBranches.value = nextBranches
   },
   { immediate: true },
 )
 
-function toggleAgent(key: string): void {
-  const next = new Set(expandedAgents.value)
+function toggleRoot(key: string): void {
+  const next = new Set(expandedRoots.value)
   if (next.has(key)) next.delete(key)
   else next.add(key)
-  expandedAgents.value = next
+  expandedRoots.value = next
 }
 
-function toggleScope(key: string): void {
-  const next = new Set(expandedScopes.value)
+function toggleBranch(key: string): void {
+  const next = new Set(expandedBranches.value)
   if (next.has(key)) next.delete(key)
   else next.add(key)
-  expandedScopes.value = next
+  expandedBranches.value = next
 }
 </script>
 
 <template>
   <div class="overflow-hidden rounded-lg border bg-background">
-    <section v-for="agent in tree" :key="agent.id" class="border-b last:border-b-0">
+    <section v-for="root in tree" :key="root.key" class="border-b last:border-b-0">
       <button
         type="button"
         class="flex w-full cursor-pointer items-center gap-2 bg-muted/35 px-3 py-3 text-left text-base transition-colors hover:bg-muted/60"
-        @click="toggleAgent(agent.id)"
+        :title="root.title"
+        @click="toggleRoot(root.key)"
       >
         <ChevronRight
           :class="[
             'size-4 shrink-0 text-muted-foreground transition-transform',
-            expandedAgents.has(agent.id) && 'rotate-90',
+            expandedRoots.has(root.key) && 'rotate-90',
           ]"
         />
-        <PlatformIcon :id="agent.id" :size="18" />
-        <span class="font-semibold">{{ agent.label }}</span>
+        <PlatformIcon v-if="root.kind === 'agent'" :id="root.platformId ?? ''" :size="18" />
+        <Folder v-else class="size-[18px] shrink-0 text-muted-foreground" />
+        <span class="min-w-0 truncate font-semibold">{{ root.label }}</span>
         <span class="ml-auto text-sm tabular-nums text-muted-foreground">
-          {{ t('skillTree.skillCount', { n: agent.skillCount }) }}
+          {{ t('skillTree.skillCount', { n: root.skillCount }) }}
         </span>
       </button>
 
-      <div v-if="expandedAgents.has(agent.id)">
-        <section v-for="scope in agent.scopes" :key="scope.key" class="tree-scope">
+      <div v-if="expandedRoots.has(root.key)">
+        <section v-for="branch in root.branches" :key="branch.key" class="tree-branch">
           <button
             type="button"
-            class="tree-scope-row flex w-full cursor-pointer items-center gap-2 py-2.5 pl-7 pr-8 text-left text-base transition-colors hover:bg-muted/40"
-            :title="scope.title"
-            @click="toggleScope(`${agent.id}:${scope.key}`)"
+            class="tree-branch-row flex w-full cursor-pointer items-center gap-2 py-2.5 pl-7 pr-8 text-left text-base transition-colors hover:bg-muted/40"
+            :title="branch.title"
+            @click="toggleBranch(`${root.key}:${branch.key}`)"
           >
             <ChevronRight
               :class="[
                 'size-3.5 shrink-0 text-muted-foreground transition-transform',
-                expandedScopes.has(`${agent.id}:${scope.key}`) && 'rotate-90',
+                expandedBranches.has(`${root.key}:${branch.key}`) && 'rotate-90',
               ]"
             />
-            <Folder class="size-[18px] shrink-0 text-muted-foreground" />
-            <span class="min-w-0 truncate font-medium">{{ scope.label }}</span>
+            <PlatformIcon
+              v-if="branch.kind === 'agent'"
+              :id="branch.platformId ?? ''"
+              :size="18"
+            />
+            <Folder v-else class="size-[18px] shrink-0 text-muted-foreground" />
+            <span class="min-w-0 truncate font-medium">{{ branch.label }}</span>
             <span class="ml-auto text-sm tabular-nums text-muted-foreground">
-              {{ scope.skills.length }}
+              {{ branch.skills.length }}
             </span>
           </button>
 
-          <div v-if="expandedScopes.has(`${agent.id}:${scope.key}`)" class="bg-muted/10">
+          <div v-if="expandedBranches.has(`${root.key}:${branch.key}`)" class="bg-muted/10">
             <div
-              v-for="leaf in scope.skills"
+              v-for="leaf in branch.skills"
               :key="leaf.skill.name"
               :class="[
                 'tree-skill-row group flex cursor-pointer items-center gap-3 py-3 pr-3 transition-colors hover:bg-muted/40',
@@ -344,7 +424,7 @@ function toggleScope(key: string): void {
                       v-if="!leaf.readOnly"
                       :disabled="props.busyNames.has(leaf.skill.name)"
                       class="flex cursor-pointer select-none items-center gap-2 rounded-[5px] px-2.5 py-2 text-sm outline-none data-[disabled]:pointer-events-none data-[disabled]:opacity-40 data-[highlighted]:bg-accent"
-                      @select="emit('toggleEnabled', leaf.skill, agent.id, scope.projectFilter)"
+                      @select="emit('toggleEnabled', leaf.skill, leaf.agentId, leaf.projectFilter)"
                     >
                       <PowerOff v-if="leaf.hasEnabled" class="size-4" />
                       <Power v-else class="size-4" />
@@ -363,7 +443,7 @@ function toggleScope(key: string): void {
                       v-else
                       :disabled="leaf.readOnly || props.busyNames.has(leaf.skill.name)"
                       class="flex cursor-pointer select-none items-center gap-2 rounded-[5px] px-2.5 py-2 text-sm text-destructive outline-none data-[disabled]:pointer-events-none data-[disabled]:opacity-40 data-[highlighted]:bg-destructive/10"
-                      @select="emit('uninstall', leaf.skill, agent.id, scope.projectFilter)"
+                      @select="emit('uninstall', leaf.skill, leaf.agentId, leaf.projectFilter)"
                     >
                       <Trash2 class="size-4" />
                       {{ t('skillTree.uninstall') }}
@@ -380,7 +460,7 @@ function toggleScope(key: string): void {
 </template>
 
 <style scoped lang="scss">
-.tree-scope {
+.tree-branch {
   position: relative;
 
   &::before {
@@ -399,7 +479,7 @@ function toggleScope(key: string): void {
   }
 }
 
-.tree-scope-row {
+.tree-branch-row {
   position: relative;
 
   &::before {

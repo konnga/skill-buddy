@@ -42,6 +42,7 @@ const statusVariant = computed(() => {
 const cannotManage = computed(
   () => props.busy || props.state.manageableInstallations === 0,
 )
+const shouldEnable = computed(() => props.state.status !== 'enabled')
 </script>
 
 <template>
@@ -145,21 +146,12 @@ const cannotManage = computed(
           variant="outline"
           size="sm"
           class="cursor-pointer"
-          :disabled="cannotManage || state.status === 'enabled'"
-          @click.stop="emit('enable')"
+          :disabled="cannotManage"
+          @click.stop="shouldEnable ? emit('enable') : emit('disable')"
         >
-          <Power class="size-3.5" />
-          {{ t('groups.enableGroup') }}
-        </Button>
-        <Button
-          variant="outline"
-          size="sm"
-          class="cursor-pointer"
-          :disabled="cannotManage || state.status === 'disabled'"
-          @click.stop="emit('disable')"
-        >
-          <PowerOff class="size-3.5" />
-          {{ t('groups.disableGroup') }}
+          <Power v-if="shouldEnable" class="size-3.5" />
+          <PowerOff v-else class="size-3.5" />
+          {{ t(shouldEnable ? 'groups.enableGroup' : 'groups.disableGroup') }}
         </Button>
       </span>
     </CardContent>

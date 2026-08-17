@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, shallowRef } from 'vue'
 import { useI18n } from 'vue-i18n'
 import {
   ArrowLeft,
@@ -43,7 +43,9 @@ import { useSettings, syncCustomPlatforms } from '@/composables/useSettings'
 import { useSkills } from '@/composables/useSkills'
 import { useTeamLibraries } from '@/composables/useTeamLibraries'
 import { showToast } from '@/composables/useToast'
+import type { SettingsCategory } from '@/lib/navigation'
 
+const props = defineProps<{ initialCategory?: SettingsCategory }>()
 const emit = defineEmits<{ back: [] }>()
 
 const {
@@ -67,49 +69,41 @@ const { t } = useI18n()
 const { platforms, refresh } = useSkills()
 const { catalogs: teamLibraryCatalogs, errors: teamLibraryErrors, warnings: teamLibraryWarnings } = useTeamLibraries()
 
-type Category =
-  | 'general'
-  | 'appearance'
-  | 'behavior'
-  | 'team-library'
-  | 'platforms'
-  | 'network'
-  | 'projects'
-  | 'data'
-  | 'about'
-const category = ref<Category>('general')
+const category = shallowRef<SettingsCategory>(props.initialCategory ?? 'general')
 const query = ref('')
 
-const groups: { labelKey: string; items: { id: Category; labelKey: string; icon: unknown }[] }[] =
-  [
-    {
-      labelKey: 'settings.groupPersonal',
-      items: [
-        { id: 'general', labelKey: 'settings.catGeneral', icon: Settings2 },
-        { id: 'appearance', labelKey: 'settings.catAppearance', icon: Palette },
-        { id: 'behavior', labelKey: 'settings.catBehavior', icon: SlidersHorizontal },
-      ],
-    },
-    {
-      labelKey: 'settings.groupIntegrations',
-      items: [
-        { id: 'team-library', labelKey: 'settings.catTeamLibrary', icon: Users },
-        { id: 'platforms', labelKey: 'settings.catPlatforms', icon: Blocks },
-        { id: 'network', labelKey: 'settings.catNetwork', icon: Globe },
-      ],
-    },
-    {
-      labelKey: 'settings.groupWorkspace',
-      items: [
-        { id: 'projects', labelKey: 'settings.catProjects', icon: FolderGit2 },
-        { id: 'data', labelKey: 'settings.catData', icon: Database },
-      ],
-    },
-    {
-      labelKey: 'settings.groupApp',
-      items: [{ id: 'about', labelKey: 'settings.catAbout', icon: Info }],
-    },
-  ]
+const groups: {
+  labelKey: string
+  items: { id: SettingsCategory; labelKey: string; icon: unknown }[]
+}[] = [
+  {
+    labelKey: 'settings.groupPersonal',
+    items: [
+      { id: 'general', labelKey: 'settings.catGeneral', icon: Settings2 },
+      { id: 'appearance', labelKey: 'settings.catAppearance', icon: Palette },
+      { id: 'behavior', labelKey: 'settings.catBehavior', icon: SlidersHorizontal },
+    ],
+  },
+  {
+    labelKey: 'settings.groupIntegrations',
+    items: [
+      { id: 'team-library', labelKey: 'settings.catTeamLibrary', icon: Users },
+      { id: 'platforms', labelKey: 'settings.catPlatforms', icon: Blocks },
+      { id: 'network', labelKey: 'settings.catNetwork', icon: Globe },
+    ],
+  },
+  {
+    labelKey: 'settings.groupWorkspace',
+    items: [
+      { id: 'projects', labelKey: 'settings.catProjects', icon: FolderGit2 },
+      { id: 'data', labelKey: 'settings.catData', icon: Database },
+    ],
+  },
+  {
+    labelKey: 'settings.groupApp',
+    items: [{ id: 'about', labelKey: 'settings.catAbout', icon: Info }],
+  },
+]
 
 const searching = computed(() => query.value.trim().length > 0)
 
@@ -127,7 +121,7 @@ function visible(...texts: string[]): boolean {
 }
 
 /** Show a category's content when selected, or always while searching. */
-function showCat(id: Category): boolean {
+function showCat(id: SettingsCategory): boolean {
   return searching.value ? true : category.value === id
 }
 

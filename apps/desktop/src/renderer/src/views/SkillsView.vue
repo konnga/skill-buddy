@@ -1008,11 +1008,14 @@ watch(groupFilter, (name) => {
           </Button>
           <Button
             variant="outline"
+            size="icon"
             class="cursor-pointer"
+            :title="t('app.rescan')"
+            :aria-label="t('app.rescan')"
             :disabled="loading"
             @click="refresh"
           >
-            <RefreshCw :class="loading ? 'animate-spin' : ''" />
+            <RefreshCw :class="['size-4', loading && 'animate-spin']" />
           </Button>
         </div>
       </template>

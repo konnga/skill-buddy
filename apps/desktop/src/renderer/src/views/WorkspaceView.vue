@@ -10,7 +10,11 @@ import SkillDetailPage from '@/components/SkillDetailPage.vue'
 import { useSkills } from '@/composables/useSkills'
 import type { SkillBundle } from '@/lib/bundles'
 import type { MarketItem } from '@/lib/market'
-import type { SkillFocus, WorkspaceView as WorkspaceViewName } from '@/lib/navigation'
+import type {
+  SettingsCategory,
+  SkillFocus,
+  WorkspaceView as WorkspaceViewName,
+} from '@/lib/navigation'
 import DashboardView from '@/views/DashboardView.vue'
 import GroupsView from '@/views/GroupsView.vue'
 import SkillsView from '@/views/SkillsView.vue'
@@ -23,7 +27,7 @@ const props = defineProps<{
   inset?: boolean
 }>()
 const emit = defineEmits<{
-  openSettings: []
+  openSettings: [category: SettingsCategory]
   importSkills: []
   navigate: [view: WorkspaceViewName]
 }>()
@@ -168,7 +172,7 @@ watch(skills, (value) => {
     <TeamView
       v-else-if="props.view === 'team'"
       :inset="props.inset"
-      @open-settings="emit('openSettings')"
+      @open-settings="emit('openSettings', $event)"
     />
     <McpServersView
       v-else-if="props.view === 'mcp'"

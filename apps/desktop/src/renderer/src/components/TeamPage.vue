@@ -12,7 +12,7 @@ import { Button } from '@/components/ui/button'
 import { useSettings } from '@/composables/useSettings'
 import { useTeamLibraries } from '@/composables/useTeamLibraries'
 
-const emit = defineEmits<{ openSettings: [] }>()
+const emit = defineEmits<{ openSettings: [category: 'team-library'] }>()
 const { teamLibraries } = useSettings()
 const { catalogs, loading, warnings, errors, compliance, syncAll } = useTeamLibraries()
 const { t } = useI18n()
@@ -38,7 +38,12 @@ async function refreshTeam(): Promise<void> {
     >
       <Users class="size-8 text-muted-foreground" />
       <p class="max-w-sm text-sm text-muted-foreground">{{ t('team.configureHint') }}</p>
-      <Button variant="outline" size="sm" class="cursor-pointer" @click="emit('openSettings')">
+      <Button
+        variant="outline"
+        size="sm"
+        class="cursor-pointer"
+        @click="emit('openSettings', 'team-library')"
+      >
         {{ t('team.configureAction') }}
       </Button>
     </div>
@@ -75,13 +80,13 @@ async function refreshTeam(): Promise<void> {
         <span class="flex-1">团队库已配置但还没有可用资源。请进入“管理”从市场添加 Skill 或 MCP。</span>
         <Button variant="outline" size="sm" class="cursor-pointer" @click="activeTab = 'manage'">打开管理</Button>
       </div>
-      <div class="flex w-fit max-w-full flex-wrap items-center rounded-md bg-muted p-1" role="tablist">
+      <div class="grid w-full grid-cols-5 items-center rounded-md bg-muted p-1" role="tablist">
         <button
           type="button"
           role="tab"
           :aria-selected="activeTab === 'bundles'"
           :class="[
-            'flex cursor-pointer items-center gap-2 rounded px-3 py-1.5 text-sm transition-colors',
+            'flex min-w-0 cursor-pointer items-center justify-center gap-2 whitespace-nowrap rounded px-3 py-1.5 text-sm transition-colors',
             activeTab === 'bundles' ? 'bg-background font-medium shadow-sm' : 'text-muted-foreground hover:text-foreground',
           ]"
           @click="activeTab = 'bundles'"
@@ -94,7 +99,7 @@ async function refreshTeam(): Promise<void> {
           role="tab"
           :aria-selected="activeTab === 'skills'"
           :class="[
-            'flex cursor-pointer items-center gap-2 rounded px-3 py-1.5 text-sm transition-colors',
+            'flex min-w-0 cursor-pointer items-center justify-center gap-2 whitespace-nowrap rounded px-3 py-1.5 text-sm transition-colors',
             activeTab === 'skills' ? 'bg-background font-medium shadow-sm' : 'text-muted-foreground hover:text-foreground',
           ]"
           @click="activeTab = 'skills'"
@@ -107,7 +112,7 @@ async function refreshTeam(): Promise<void> {
           role="tab"
           :aria-selected="activeTab === 'mcp'"
           :class="[
-            'flex cursor-pointer items-center gap-2 rounded px-3 py-1.5 text-sm transition-colors',
+            'flex min-w-0 cursor-pointer items-center justify-center gap-2 whitespace-nowrap rounded px-3 py-1.5 text-sm transition-colors',
             activeTab === 'mcp' ? 'bg-background font-medium shadow-sm' : 'text-muted-foreground hover:text-foreground',
           ]"
           @click="activeTab = 'mcp'"
@@ -120,7 +125,7 @@ async function refreshTeam(): Promise<void> {
           role="tab"
           :aria-selected="activeTab === 'projects'"
           :class="[
-            'flex cursor-pointer items-center gap-2 rounded px-3 py-1.5 text-sm transition-colors',
+            'flex min-w-0 cursor-pointer items-center justify-center gap-2 whitespace-nowrap rounded px-3 py-1.5 text-sm transition-colors',
             activeTab === 'projects' ? 'bg-background font-medium shadow-sm' : 'text-muted-foreground hover:text-foreground',
           ]"
           @click="activeTab = 'projects'"
@@ -133,7 +138,7 @@ async function refreshTeam(): Promise<void> {
           role="tab"
           :aria-selected="activeTab === 'manage'"
           :class="[
-            'flex cursor-pointer items-center gap-2 rounded px-3 py-1.5 text-sm transition-colors',
+            'flex min-w-0 cursor-pointer items-center justify-center gap-2 whitespace-nowrap rounded px-3 py-1.5 text-sm transition-colors',
             activeTab === 'manage' ? 'bg-background font-medium shadow-sm' : 'text-muted-foreground hover:text-foreground',
           ]"
           @click="activeTab = 'manage'"

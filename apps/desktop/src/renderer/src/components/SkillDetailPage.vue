@@ -114,31 +114,47 @@ function installationEnabled(installation: Installation): boolean {
   return installation.enabled !== false
 }
 
+function pathBaseName(path: string): string {
+  const normalized = path.replaceAll('\\', '/').replace(/\/+$/, '')
+  return normalized.split('/').pop() ?? normalized
+}
+
+function installationProjectName(installation: Installation): string {
+  return installation.projectRoot ? pathBaseName(installation.projectRoot) : ''
+}
+
 function originLabel(installation: Installation): string {
+  let label: string
   switch (installation.origin) {
     case 'legacy':
-      return t('detail.originLegacy')
+      label = t('detail.originLegacy')
+      break
     case 'admin':
-      return t('detail.originAdmin')
+      label = t('detail.originAdmin')
+      break
     case 'system':
-      return t('detail.originSystem')
+      label = t('detail.originSystem')
+      break
     case 'plugin':
-      return t('detail.originPlugin')
+      label = t('detail.originPlugin')
+      break
     case 'project':
-      return t('detail.scopeProject')
+      label = t('detail.scopeProject')
+      break
     default:
-      return t('detail.scopeUser')
+      label = t('detail.scopeUser')
   }
+  const projectName = installationProjectName(installation)
+  return installation.scope === 'project' && projectName
+    ? `${label} · ${projectName}`
+    : label
 }
 
 function installationLocationLabel(installation: Installation): string {
   const scopeLabel =
     installation.scope === 'project'
       ? t('detail.projectScope', {
-          root:
-            installation.projectRoot?.split(/[\\/]/).filter(Boolean).pop() ??
-            installation.projectRoot ??
-            '',
+          root: installationProjectName(installation),
         })
       : t('detail.userScope')
   return `${agentLabel(installation.agent)} · ${scopeLabel}`
@@ -364,8 +380,8 @@ async function runUninstall(): Promise<void> {
           {{ skill.description || t('card.noDescription') }}
         </p>
 
-        <section v-if="!props.focus" class="mb-6 rounded-lg border p-4">
-          <div class="mb-3 flex items-center justify-between gap-3">
+        <section v-if="!props.focus" class="mb-6">
+          <div class="mb-2 flex items-center justify-between gap-3">
             <h3 class="text-sm font-medium">{{ t('groups.membership') }}</h3>
             <button
               type="button"
@@ -376,30 +392,32 @@ async function runUninstall(): Promise<void> {
               {{ t('groups.createTitle') }}
             </button>
           </div>
-          <div v-if="memberGroups.length > 0" class="flex flex-wrap gap-2">
-            <button
-              v-for="group in memberGroups"
-              :key="group.name"
-              type="button"
-              class="cursor-pointer rounded-full border border-foreground bg-foreground px-2.5 py-0.5 text-sm text-background transition-colors hover:bg-foreground/85"
-              @click="toggleGroup(group.name)"
-            >
-              {{ group.name }}
-            </button>
-          </div>
-          <p v-else class="text-sm text-muted-foreground">{{ t('groups.noneAssigned') }}</p>
-          <div v-if="availableGroups.length > 0" class="mt-3 border-t pt-3">
-            <p class="mb-2 text-sm text-muted-foreground">{{ t('groups.available') }}</p>
-            <div class="flex flex-wrap gap-2">
+          <div class="rounded-lg border p-4">
+            <div v-if="memberGroups.length > 0" class="flex flex-wrap gap-2">
               <button
-                v-for="group in availableGroups"
+                v-for="group in memberGroups"
                 :key="group.name"
                 type="button"
-                class="cursor-pointer rounded-full border px-2.5 py-0.5 text-sm text-muted-foreground transition-colors hover:border-foreground/40 hover:text-foreground"
+                class="cursor-pointer rounded-full border border-foreground bg-foreground px-2.5 py-0.5 text-sm text-background transition-colors hover:bg-foreground/85"
                 @click="toggleGroup(group.name)"
               >
                 {{ group.name }}
               </button>
+            </div>
+            <p v-else class="text-sm text-muted-foreground">{{ t('groups.noneAssigned') }}</p>
+            <div v-if="availableGroups.length > 0" class="mt-3 border-t pt-3">
+              <p class="mb-2 text-sm text-muted-foreground">{{ t('groups.available') }}</p>
+              <div class="flex flex-wrap gap-2">
+                <button
+                  v-for="group in availableGroups"
+                  :key="group.name"
+                  type="button"
+                  class="cursor-pointer rounded-full border px-2.5 py-0.5 text-sm text-muted-foreground transition-colors hover:border-foreground/40 hover:text-foreground"
+                  @click="toggleGroup(group.name)"
+                >
+                  {{ group.name }}
+                </button>
+              </div>
             </div>
           </div>
         </section>
@@ -445,7 +463,7 @@ async function runUninstall(): Promise<void> {
 
         <!-- installations -->
         <section class="mb-8">
-          <h3 class="mb-2 text-sm font-medium uppercase tracking-wide text-muted-foreground">
+          <h3 class="mb-2 text-sm font-medium">
             {{ t('detail.installedLocations') }}
           </h3>
           <ul class="flex flex-col gap-2">
@@ -459,9 +477,10 @@ async function runUninstall(): Promise<void> {
                 <span class="shrink-0 text-sm">{{ agentLabel(inst.agent) }}</span>
                 <Badge
                   variant="secondary"
-                  class="shrink-0 whitespace-nowrap rounded-md px-2 py-0.5 font-normal"
+                  class="max-w-48 shrink-0 rounded-md px-2 py-0.5 font-normal"
+                  :title="inst.scope === 'project' ? inst.projectRoot : undefined"
                 >
-                  {{ originLabel(inst) }}
+                  <span class="truncate">{{ originLabel(inst) }}</span>
                 </Badge>
                 <Badge
                   variant="outline"
@@ -476,16 +495,13 @@ async function runUninstall(): Promise<void> {
                       : t('detail.disabled')
                   }}
                 </Badge>
-                <code class="select-text truncate text-sm text-muted-foreground/70">{{
-                  inst.path
-                }}</code>
               </div>
               <span class="flex shrink-0 items-center gap-0.5">
                 <CopyButton :text="inst.path" class="size-7" />
                 <Button
                   variant="ghost"
                   size="icon"
-                  class="size-7"
+                  class="size-7 text-muted-foreground"
                   :title="t('detail.revealInFinder')"
                   @click="reveal(inst.path)"
                 >

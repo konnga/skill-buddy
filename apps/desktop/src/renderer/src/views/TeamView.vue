@@ -5,7 +5,7 @@ import TeamPage from '@/components/TeamPage.vue'
 import { ScrollArea } from '@/components/ui/scroll-area'
 
 const props = defineProps<{ inset?: boolean }>()
-const emit = defineEmits<{ openSettings: [] }>()
+const emit = defineEmits<{ openSettings: [category: 'team-library'] }>()
 const { t } = useI18n()
 </script>
 
@@ -21,7 +21,7 @@ const { t } = useI18n()
       <h1 class="text-sm font-semibold leading-5 tracking-tight">{{ t('team.title') }}</h1>
     </header>
     <ScrollArea class="flex-1">
-      <TeamPage @open-settings="emit('openSettings')" />
+      <TeamPage @open-settings="emit('openSettings', $event)" />
     </ScrollArea>
   </div>
 </template>
