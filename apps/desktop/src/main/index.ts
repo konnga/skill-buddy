@@ -10,7 +10,9 @@ import { registerSystemIpc } from './ipc/system.js'
 import { registerTeamLibraryIpc } from './ipc/team-library.js'
 import { PathAccessPolicy } from './path-policy.js'
 import {
+  flushDesktopPreferences,
   getDesktopPreferences,
+  hasPendingDesktopPreferenceSaves,
   loadDesktopPreferences,
   onDesktopPreferencesChanged,
 } from './preferences.js'
@@ -26,6 +28,7 @@ import {
 const pathPolicy = new PathAccessPolicy()
 let disposeMcp: (() => void) | undefined
 let trayController: TrayController | undefined
+let waitingForPreferenceFlush = false
 
 function registerIpc(tray: TrayController): void {
   registerSkillsIpc(pathPolicy)
@@ -65,6 +68,7 @@ void app.whenReady().then(async () => {
   trayController.setEnabled(getDesktopPreferences().backgroundMode)
   onDesktopPreferencesChanged((preferences) => {
     trayController?.setEnabled(preferences.backgroundMode)
+    if (!preferences.backgroundMode) showMainWindow()
   })
 
   registerIpc(trayController)
@@ -88,8 +92,17 @@ app.on('window-all-closed', () => {
   if (!getDesktopPreferences().backgroundMode) app.quit()
 })
 
-app.on('before-quit', () => {
+app.on('before-quit', (event) => {
   setQuitting(true)
   disposeMcp?.()
+  disposeMcp = undefined
+  if (!hasPendingDesktopPreferenceSaves()) return
+  event.preventDefault()
+  if (waitingForPreferenceFlush) return
+  waitingForPreferenceFlush = true
+  void flushDesktopPreferences().finally(() => {
+    waitingForPreferenceFlush = false
+    app.quit()
+  })
 })
 app.on('will-quit', () => trayController?.dispose())

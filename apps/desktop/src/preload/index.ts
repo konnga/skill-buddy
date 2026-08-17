@@ -281,6 +281,8 @@ const api = {
   getLoginItem: (): Promise<boolean> => ipcRenderer.invoke('system:get-login-item'),
   setLoginItem: (openAtLogin: boolean): Promise<void> =>
     ipcRenderer.invoke('system:set-login-item', openAtLogin),
+  getDesktopPreferences: (): Promise<DesktopPreferences> =>
+    ipcRenderer.invoke('system:get-desktop-preferences'),
   setDesktopPreferences: (
     preferences: DesktopPreferences,
   ): Promise<DesktopPreferences> =>

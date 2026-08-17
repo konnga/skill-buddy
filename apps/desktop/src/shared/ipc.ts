@@ -365,6 +365,11 @@ export interface DesktopPreferences {
   launchHidden: boolean
 }
 
+export const DEFAULT_DESKTOP_PREFERENCES: DesktopPreferences = {
+  backgroundMode: true,
+  launchHidden: false,
+}
+
 /** 菜单栏/系统托盘当前展示状态。 */
 export interface TrayStatus {
   phase: 'idle' | 'scanning' | 'error'

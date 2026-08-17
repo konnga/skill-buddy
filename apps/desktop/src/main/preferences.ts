@@ -1,15 +1,14 @@
 import { app } from 'electron'
-import { mkdir, readFile, writeFile } from 'node:fs/promises'
+import { mkdir, readFile, rename, writeFile } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
-import type { DesktopPreferences } from '../shared/ipc.js'
+import {
+  DEFAULT_DESKTOP_PREFERENCES,
+  type DesktopPreferences,
+} from '../shared/ipc.js'
 
-const DEFAULT_PREFERENCES: DesktopPreferences = {
-  backgroundMode: true,
-  launchHidden: false,
-}
-
-let preferences: DesktopPreferences = { ...DEFAULT_PREFERENCES }
+let preferences: DesktopPreferences = { ...DEFAULT_DESKTOP_PREFERENCES }
 let saveQueue = Promise.resolve()
+let pendingSaves = 0
 const listeners = new Set<(value: DesktopPreferences) => void>()
 
 function preferencesPath(): string {
@@ -21,18 +20,20 @@ function normalize(value: Partial<DesktopPreferences> | null | undefined): Deskt
     backgroundMode:
       typeof value?.backgroundMode === 'boolean'
         ? value.backgroundMode
-        : DEFAULT_PREFERENCES.backgroundMode,
+        : DEFAULT_DESKTOP_PREFERENCES.backgroundMode,
     launchHidden:
       typeof value?.launchHidden === 'boolean'
         ? value.launchHidden
-        : DEFAULT_PREFERENCES.launchHidden,
+        : DEFAULT_DESKTOP_PREFERENCES.launchHidden,
   }
 }
 
 async function persist(value: DesktopPreferences): Promise<void> {
   const path = preferencesPath()
+  const temporaryPath = `${path}.${process.pid}.tmp`
   await mkdir(dirname(path), { recursive: true })
-  await writeFile(path, `${JSON.stringify(value, null, 2)}\n`, 'utf8')
+  await writeFile(temporaryPath, `${JSON.stringify(value, null, 2)}\n`, 'utf8')
+  await rename(temporaryPath, path)
 }
 
 /** 在应用就绪后加载影响启动和窗口生命周期的桌面偏好。 */
@@ -41,7 +42,7 @@ export async function loadDesktopPreferences(): Promise<DesktopPreferences> {
     const raw = await readFile(preferencesPath(), 'utf8')
     preferences = normalize(JSON.parse(raw) as Partial<DesktopPreferences>)
   } catch {
-    preferences = { ...DEFAULT_PREFERENCES }
+    preferences = { ...DEFAULT_DESKTOP_PREFERENCES }
   }
   return getDesktopPreferences()
 }
@@ -66,9 +67,25 @@ export async function setDesktopPreferences(
   preferences = next
   const snapshot = getDesktopPreferences()
   for (const listener of listeners) listener(snapshot)
-  saveQueue = saveQueue.catch(() => undefined).then(() => persist(snapshot))
+  pendingSaves += 1
+  saveQueue = saveQueue
+    .catch(() => undefined)
+    .then(() => persist(snapshot))
+    .finally(() => {
+      pendingSaves -= 1
+    })
   await saveQueue
   return snapshot
+}
+
+/** 返回是否仍有未完成的偏好落盘任务。 */
+export function hasPendingDesktopPreferenceSaves(): boolean {
+  return pendingSaves > 0
+}
+
+/** 等待当前偏好写入队列结束，供应用退出前收口。 */
+export async function flushDesktopPreferences(): Promise<void> {
+  await saveQueue.catch(() => undefined)
 }
 
 /** 订阅桌面偏好变化。 */

@@ -18,11 +18,12 @@ import {
   Trash2,
   Users,
 } from '@lucide/vue'
-import type {
-  AppInfo,
-  CustomPlatformInput,
-  TeamLibraryConfig,
-  UpdateCheckResult,
+import {
+  DEFAULT_DESKTOP_PREFERENCES,
+  type AppInfo,
+  type CustomPlatformInput,
+  type TeamLibraryConfig,
+  type UpdateCheckResult,
 } from '../../../shared/ipc.js'
 import { teamLibraryConfigKey } from '../../../shared/team-library.js'
 import { Badge } from '@/components/ui/badge'
@@ -63,8 +64,10 @@ const {
   globalShortcut,
   globalShortcutOk,
   launchAtLogin,
+  launchAtLoginReady,
   backgroundMode,
   launchHidden,
+  desktopPreferencesReady,
   teamLibraries,
 } = useSettings()
 const { t } = useI18n()
@@ -252,6 +255,17 @@ async function importConfig(): Promise<void> {
     const parsed = JSON.parse(content) as Record<string, unknown>
     const keys = Object.keys(parsed).filter((key) => key.startsWith('skm.'))
     if (keys.length === 0) throw new Error('empty')
+    const currentDesktopPreferences = await window.skillsManager.getDesktopPreferences()
+    await window.skillsManager.setDesktopPreferences({
+      backgroundMode:
+        typeof parsed['skm.backgroundMode'] === 'boolean'
+          ? parsed['skm.backgroundMode']
+          : currentDesktopPreferences.backgroundMode,
+      launchHidden:
+        typeof parsed['skm.launchHidden'] === 'boolean'
+          ? parsed['skm.launchHidden']
+          : currentDesktopPreferences.launchHidden,
+    })
     for (const key of keys) localStorage.setItem(key, JSON.stringify(parsed[key]))
     location.reload()
   } catch {
@@ -268,6 +282,7 @@ async function resetConfig(): Promise<void> {
     danger: true,
   })
   if (!confirmed) return
+  await window.skillsManager.setDesktopPreferences(DEFAULT_DESKTOP_PREFERENCES)
   for (const key of Object.keys(collectLocalConfig())) localStorage.removeItem(key)
   location.reload()
 }
@@ -486,7 +501,7 @@ async function copyDiagnostics(): Promise<void> {
                   {{ t('settings.backgroundModeDesc') }}
                 </p>
               </div>
-              <Switch v-model="backgroundMode" />
+              <Switch v-model="backgroundMode" :disabled="!desktopPreferencesReady" />
             </div>
             <div
               v-if="visible(t('settings.launchAtLoginTitle'), t('settings.launchAtLoginDesc'))"
@@ -498,7 +513,7 @@ async function copyDiagnostics(): Promise<void> {
                   {{ t('settings.launchAtLoginDesc') }}
                 </p>
               </div>
-              <Switch v-model="launchAtLogin" />
+              <Switch v-model="launchAtLogin" :disabled="!launchAtLoginReady" />
             </div>
             <div
               v-if="visible(t('settings.launchHiddenTitle'), t('settings.launchHiddenDesc'))"
@@ -512,7 +527,12 @@ async function copyDiagnostics(): Promise<void> {
               </div>
               <Switch
                 v-model="launchHidden"
-                :disabled="!backgroundMode || !launchAtLogin"
+                :disabled="
+                  !desktopPreferencesReady ||
+                  !launchAtLoginReady ||
+                  !backgroundMode ||
+                  !launchAtLogin
+                "
               />
             </div>
             <div

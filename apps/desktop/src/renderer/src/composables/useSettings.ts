@@ -71,16 +71,24 @@ watch(globalShortcut, async (v) => {
 })
 
 /** 开机自启动：真值以系统为准，启动时读入，修改时写回。 */
-const launchAtLogin = ref(false)
+const launchAtLogin = shallowRef(false)
+const launchAtLoginReady = shallowRef(false)
 void (async () => {
-  launchAtLogin.value = (await window.skillsManager?.getLoginItem()) ?? false
-  watch(launchAtLogin, (v) => void window.skillsManager?.setLoginItem(v))
+  try {
+    launchAtLogin.value = (await window.skillsManager?.getLoginItem()) ?? false
+  } catch {
+    launchAtLogin.value = false
+  } finally {
+    launchAtLoginReady.value = true
+    watch(launchAtLogin, (value) => void window.skillsManager?.setLoginItem(value))
+  }
 })()
 
 /** 关闭主窗口后继续在菜单栏/系统托盘中运行。 */
 const backgroundMode = shallowRef<boolean>(load('skm.backgroundMode', true))
 /** 通过开机自启动进入应用时不主动显示主窗口。 */
 const launchHidden = shallowRef<boolean>(load('skm.launchHidden', false))
+const desktopPreferencesReady = shallowRef(false)
 
 function syncDesktopPreferences(): void {
   localStorage.setItem('skm.backgroundMode', JSON.stringify(backgroundMode.value))
@@ -91,7 +99,21 @@ function syncDesktopPreferences(): void {
   })
 }
 
-watch([backgroundMode, launchHidden], syncDesktopPreferences, { immediate: true })
+void (async () => {
+  try {
+    const preferences = await window.skillsManager.getDesktopPreferences()
+    backgroundMode.value = preferences.backgroundMode
+    launchHidden.value = preferences.launchHidden
+  } catch {
+    backgroundMode.value = load('skm.backgroundMode', true)
+    launchHidden.value = load('skm.launchHidden', false)
+  } finally {
+    localStorage.setItem('skm.backgroundMode', JSON.stringify(backgroundMode.value))
+    localStorage.setItem('skm.launchHidden', JSON.stringify(launchHidden.value))
+    desktopPreferencesReady.value = true
+    watch([backgroundMode, launchHidden], syncDesktopPreferences)
+  }
+})()
 
 /** 企业团队库 Git 仓库；顺序同时表示目录展示优先级。 */
 const teamLibraries = shallowRef<TeamLibraryConfig[]>(load('skm.teamLibraries', []))
@@ -201,8 +223,10 @@ export function useSettings() {
     globalShortcut,
     globalShortcutOk,
     launchAtLogin,
+    launchAtLoginReady,
     backgroundMode,
     launchHidden,
+    desktopPreferencesReady,
     teamLibraries,
   }
 }

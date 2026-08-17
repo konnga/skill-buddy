@@ -104,6 +104,10 @@ export function registerSystemIpc(): void {
     applyLoginItemSettings(openAtLogin)
   })
   ipcMain.handle(
+    'system:get-desktop-preferences',
+    () => getDesktopPreferences(),
+  )
+  ipcMain.handle(
     'system:set-desktop-preferences',
     (_event, preferences: DesktopPreferences) => setDesktopPreferences(preferences),
   )
