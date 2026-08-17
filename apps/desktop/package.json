@@ -6,10 +6,23 @@
   "description": "SkillBuddy desktop app (Electron + Vue 3)",
   "main": "./out/main/index.js",
   "build": {
+    "mac": {
+      "icon": "resources/icons/icon.icns"
+    },
+    "win": {
+      "icon": "resources/icons/icon.ico"
+    },
+    "linux": {
+      "icon": "resources/icons/icon.png"
+    },
     "extraResources": [
       {
         "from": "resources/skills",
         "to": "skills"
+      },
+      {
+        "from": "resources/icons/icon.png",
+        "to": "icon.png"
       }
     ]
   },

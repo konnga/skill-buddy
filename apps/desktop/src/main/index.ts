@@ -9,7 +9,7 @@ import { registerSkillsIpc } from './ipc/skills.js'
 import { registerSystemIpc } from './ipc/system.js'
 import { registerTeamLibraryIpc } from './ipc/team-library.js'
 import { PathAccessPolicy } from './path-policy.js'
-import { createWindow } from './window.js'
+import { createWindow, desktopIconPath } from './window.js'
 
 const pathPolicy = new PathAccessPolicy()
 let disposeMcp: (() => void) | undefined
@@ -28,6 +28,8 @@ function registerIpc(): void {
 }
 
 app.whenReady().then(() => {
+  if (process.platform === 'darwin') app.dock.setIcon(desktopIconPath())
+
   registerIpc()
   createWindow()
 

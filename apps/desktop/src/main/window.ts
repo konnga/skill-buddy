@@ -1,6 +1,13 @@
-import { BrowserWindow } from 'electron'
+import { app, BrowserWindow } from 'electron'
 import { join } from 'node:path'
 import { openLink } from './in-app-browser.js'
+
+/** 返回开发态与打包态均可访问的桌面应用图标路径。 */
+export function desktopIconPath(): string {
+  return app.isPackaged
+    ? join(process.resourcesPath, 'icon.png')
+    : join(import.meta.dirname, '../../resources/icons/icon.png')
+}
 
 /** 创建并配置 SkillBuddy 主窗口。 */
 export function createWindow(): void {
@@ -10,6 +17,7 @@ export function createWindow(): void {
     minWidth: 960,
     minHeight: 600,
     show: false,
+    icon: desktopIconPath(),
     autoHideMenuBar: true,
     titleBarStyle: process.platform === 'darwin' ? 'hiddenInset' : 'default',
     ...(process.platform === 'darwin'
