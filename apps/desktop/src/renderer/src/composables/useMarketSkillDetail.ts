@@ -32,7 +32,7 @@ interface UseMarketSkillDetailOptions {
 }
 
 export function useMarketSkillDetail(options: UseMarketSkillDetailOptions) {
-  const { installSkill, detectedPlatforms, refresh } = useSkills()
+  const { installSkill, detectedPlatforms } = useSkills()
   const { groups } = useSettings()
   const { t } = useI18n()
   const item = computed(() => toValue(options.item))
@@ -43,10 +43,21 @@ export function useMarketSkillDetail(options: UseMarketSkillDetailOptions) {
   const overviewLoading = shallowRef(true)
   const matched = shallowRef<FoundSkill | null>(null)
   const sourceRoot = shallowRef<string | null>(null)
+  const matchedItemKey = shallowRef<string | null>(null)
   let sourceRequestId = 0
+  let installRequestId = 0
+  let disposed = false
+  const activeInstallRoots = new Set<string>()
+  const pendingCleanupRoots = new Set<string>()
 
-  const overviewContent = computed(() => matched.value?.skill.content ?? null)
-  const groupSkillName = computed(() => matched.value?.skill.name ?? item.value.name)
+  const overviewContent = computed(() =>
+    matchedItemKey.value === item.value.key ? (matched.value?.skill.content ?? null) : null,
+  )
+  const groupSkillName = computed(() =>
+    matchedItemKey.value === item.value.key
+      ? (matched.value?.skill.name ?? item.value.name)
+      : item.value.name,
+  )
   const groupOptions = computed<MarketGroupOption[]>(() =>
     groups.value.map((group) => ({
       name: group.name,
@@ -54,20 +65,38 @@ export function useMarketSkillDetail(options: UseMarketSkillDetailOptions) {
     })),
   )
 
+  /** 安装仍在读取资源时延迟删除源码目录，避免主进程复制到一半失去源文件。 */
+  async function cleanupRoot(root: string): Promise<void> {
+    if (activeInstallRoots.has(root)) {
+      pendingCleanupRoots.add(root)
+      return
+    }
+    await window.skillsManager.cleanupImport(root).catch(() => undefined)
+  }
+
   async function cleanupSourceRoot(): Promise<void> {
     const root = sourceRoot.value
     sourceRoot.value = null
-    if (root) await window.skillsManager.cleanupImport(root).catch(() => undefined)
+    if (root) await cleanupRoot(root)
+  }
+
+  async function releaseInstallRoot(root: string | null): Promise<void> {
+    if (!root) return
+    activeInstallRoots.delete(root)
+    if (!pendingCleanupRoots.delete(root)) return
+    await window.skillsManager.cleanupImport(root).catch(() => undefined)
   }
 
   /** 条目切换后丢弃旧源码结果，并清理迟到的临时目录。 */
   async function loadSource(): Promise<void> {
     const requestId = ++sourceRequestId
+    const requestedItem = item.value
     overviewLoading.value = true
     matched.value = null
+    matchedItemKey.value = null
     await cleanupSourceRoot()
+    if (requestId !== sourceRequestId || requestedItem.key !== item.value.key) return
     try {
-      const requestedItem = item.value
       const result = await fetchMarketSkillSource(requestedItem)
       if (requestId !== sourceRequestId || requestedItem.key !== item.value.key) {
         await window.skillsManager.cleanupImport(result.root).catch(() => undefined)
@@ -75,8 +104,12 @@ export function useMarketSkillDetail(options: UseMarketSkillDetailOptions) {
       }
       sourceRoot.value = result.root
       matched.value = matchMarketSkill(requestedItem, result.items) ?? null
+      matchedItemKey.value = requestedItem.key
     } catch {
-      if (requestId === sourceRequestId) matched.value = null
+      if (requestId === sourceRequestId) {
+        matched.value = null
+        matchedItemKey.value = null
+      }
     } finally {
       if (requestId === sourceRequestId) overviewLoading.value = false
     }
@@ -110,40 +143,62 @@ export function useMarketSkillDetail(options: UseMarketSkillDetailOptions) {
 
   /** 优先复用概览源码；概览失败时只为本次安装重新下载并清理。 */
   async function install(): Promise<void> {
+    if (busy.value) return
     const requestedTargets = targets.value.map((target) => ({ ...target }))
     if (requestedTargets.length === 0) return
+    const requestedItem = item.value
+    const requestId = ++installRequestId
     busy.value = true
     error.value = null
     let temporaryRoot: string | null = null
+    let installRoot: string | null = null
     try {
-      let found = matched.value
+      let found = matchedItemKey.value === requestedItem.key ? matched.value : null
+      if (found && sourceRoot.value) {
+        installRoot = sourceRoot.value
+        activeInstallRoots.add(installRoot)
+      }
       if (!found) {
-        const requestedItem = item.value
         const result = await fetchMarketSkillSource(requestedItem)
         temporaryRoot = result.root
+        if (
+          disposed ||
+          requestId !== installRequestId ||
+          requestedItem.key !== item.value.key
+        ) return
         found = matchMarketSkill(requestedItem, result.items) ?? null
       }
       if (!found) {
-        error.value = t('market.notFound')
+        if (requestId === installRequestId) error.value = t('market.notFound')
         return
       }
       const results = await installSkill(found.skill, requestedTargets)
       const failed = results.filter((result) => !result.ok)
       if (failed.length > 0) {
-        error.value = failed
-          .map((result) => `${agentLabel(result.target.agent)}: ${result.error}`)
-          .join('；')
+        if (requestId === installRequestId) {
+          error.value = failed
+            .map((result) => `${agentLabel(result.target.agent)}: ${result.error}`)
+            .join('；')
+        }
         return
       }
-      await refresh()
-      options.onInstalled()
+      if (
+        !disposed &&
+        requestId === installRequestId &&
+        requestedItem.key === item.value.key
+      ) {
+        options.onInstalled()
+      }
     } catch (cause) {
-      error.value = cause instanceof Error ? cause.message : String(cause)
+      if (requestId === installRequestId) {
+        error.value = cause instanceof Error ? cause.message : String(cause)
+      }
     } finally {
       if (temporaryRoot) {
         await window.skillsManager.cleanupImport(temporaryRoot).catch(() => undefined)
       }
-      busy.value = false
+      await releaseInstallRoot(installRoot)
+      if (requestId === installRequestId) busy.value = false
     }
   }
 
@@ -158,6 +213,8 @@ export function useMarketSkillDetail(options: UseMarketSkillDetailOptions) {
   watch(
     () => item.value.key,
     () => {
+      installRequestId += 1
+      busy.value = false
       selectedGroups.value = new Set()
       error.value = null
       void loadSource()
@@ -165,7 +222,9 @@ export function useMarketSkillDetail(options: UseMarketSkillDetailOptions) {
   )
 
   onBeforeUnmount(() => {
+    disposed = true
     sourceRequestId += 1
+    installRequestId += 1
     void cleanupSourceRoot()
   })
 
