@@ -79,6 +79,10 @@ async function restore(): Promise<void> {
     }
     const currentId = rememberedWorkspaceId()
     const restored = persisted.find((item) => item.id === currentId) ?? persisted[0]
+    if (!restored) {
+      rememberWorkspace(null)
+      return
+    }
     workspace.value = restored
     rememberWorkspace(restored.id)
     await refreshDraft()
