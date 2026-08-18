@@ -2,17 +2,17 @@
  * @Author: wjc
  * @Date: 2026-08-10 10:14:11
  * @LastEditors: wjc
- * @LastEditTime: 2026-08-18 17:49:20
+ * @LastEditTime: 2026-08-19 00:02:10
  * @Description:
  */
-import claudeIcon from '@lobehub/icons-static-svg/icons/claudecode-color.svg'
+import claudeIcon from '@lobehub/icons-static-svg/icons/claude-color.svg'
 import codebuddyIcon from '@lobehub/icons-static-svg/icons/codebuddy-color.svg'
-import codexIcon from '@lobehub/icons-static-svg/icons/codex-color.svg'
+import codexIcon from '@lobehub/icons-static-svg/icons/openai.svg'
 import cursorIcon from '@lobehub/icons-static-svg/icons/cursor.svg'
-import doubaoIcon from '@lobehub/icons-static-svg/icons/doubao-color.svg'
+import doubaoIcon from '@/assets/platform-icons/doubao.webp'
 import geminiIcon from '@lobehub/icons-static-svg/icons/gemini-color.svg'
 import githubcopilotIcon from '@lobehub/icons-static-svg/icons/githubcopilot.svg'
-import kimiIcon from '@lobehub/icons-static-svg/icons/kimi-color.svg'
+import kimiIcon from '@lobehub/icons-static-svg/icons/kimi.svg'
 import opencodeIcon from '@lobehub/icons-static-svg/icons/opencode.svg'
 import traeIcon from '@lobehub/icons-static-svg/icons/trae-color.svg'
 import workbuddyIcon from '@/assets/platform-icons/workbuddy.svg'
