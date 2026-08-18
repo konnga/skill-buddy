@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import {
   DialogContent,
@@ -8,146 +7,44 @@ import {
   DialogRoot,
   DialogTitle,
 } from 'reka-ui'
-import { FolderOpen, GitBranch, X } from '@lucide/vue'
-import type { FoundSkill } from '@skillbuddy/core'
-import type { InstallTarget } from '../../../shared/ipc.js'
-import MarkdownView from '@/components/MarkdownView.vue'
-import { Badge } from '@/components/ui/badge'
+import { X } from '@lucide/vue'
+import FoundSkillList from '@/components/import/FoundSkillList.vue'
+import ImportSourcePicker from '@/components/import/ImportSourcePicker.vue'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import PlatformTargetPicker from '@/components/PlatformTargetPicker.vue'
-import { agentLabel } from '@/lib/agents'
-import { hasScriptResources } from '@/lib/resources'
-import { useSkills } from '@/composables/useSkills'
+import { useSkillImportWorkflow } from '@/composables/useSkillImportWorkflow'
 
 const props = defineProps<{ open: boolean }>()
 const emit = defineEmits<{ close: [] }>()
-
-const { installSkill, refresh } = useSkills()
 const { t } = useI18n()
-
-const tab = ref<'local' | 'git'>('local')
-const gitUrl = ref('')
-const fetching = ref(false)
-const items = ref<FoundSkill[]>([])
-const searched = ref(false)
-/** temp clone root to clean up (git imports only) */
-const cloneRoot = ref<string | null>(null)
-
-const selected = ref<Set<string>>(new Set())
-const previewDir = ref<string | null>(null)
-const targets = ref<InstallTarget[]>([])
-const busy = ref(false)
-const error = ref<string | null>(null)
-
-watch(
-  () => props.open,
-  async (open) => {
-    if (open) {
-      tab.value = 'local'
-      gitUrl.value = ''
-      items.value = []
-      searched.value = false
-      selected.value = new Set()
-      targets.value = []
-      error.value = null
-    } else if (cloneRoot.value) {
-      await window.skillsManager.cleanupImport(cloneRoot.value)
-      cloneRoot.value = null
-    }
-  },
-)
-
-function setItems(found: FoundSkill[]): void {
-  items.value = found
-  searched.value = true
-  selected.value = new Set(found.map((f) => f.dir))
-}
-
-async function pickLocalDir(): Promise<void> {
-  error.value = null
-  const dir = await window.skillsManager.pickDirectory()
-  if (!dir) return
-  fetching.value = true
-  try {
-    setItems(await window.skillsManager.findSkillsInDir(dir))
-  } catch (e) {
-    error.value = e instanceof Error ? e.message : String(e)
-  } finally {
-    fetching.value = false
-  }
-}
-
-async function onDrop(event: DragEvent): Promise<void> {
-  error.value = null
-  const file = event.dataTransfer?.files[0] as (File & { path?: string }) | undefined
-  if (!file?.path) return
-  fetching.value = true
-  try {
-    setItems(await window.skillsManager.findSkillsInDir(file.path))
-  } catch (e) {
-    error.value = e instanceof Error ? e.message : String(e)
-  } finally {
-    fetching.value = false
-  }
-}
-
-async function fetchGit(): Promise<void> {
-  if (!gitUrl.value.trim()) return
-  error.value = null
-  fetching.value = true
-  try {
-    if (cloneRoot.value) await window.skillsManager.cleanupImport(cloneRoot.value)
-    const result = await window.skillsManager.importFromGit(gitUrl.value.trim())
-    cloneRoot.value = result.root
-    setItems(result.items)
-  } catch (e) {
-    error.value = e instanceof Error ? e.message : String(e)
-  } finally {
-    fetching.value = false
-  }
-}
-
-function toggleItem(dir: string): void {
-  const next = new Set(selected.value)
-  if (next.has(dir)) next.delete(dir)
-  else next.add(dir)
-  selected.value = next
-}
-
-async function runImport(): Promise<void> {
-  error.value = null
-  const chosen = items.value.filter((f) => selected.value.has(f.dir))
-  if (chosen.length === 0 || targets.value.length === 0) {
-    error.value = t('import.errTargets')
-    return
-  }
-  busy.value = true
-  try {
-    const failures: string[] = []
-    for (const f of chosen) {
-      const results = await installSkill(f.skill, targets.value)
-      failures.push(
-        ...results
-          .filter((r) => !r.ok)
-          .map((r) => `${f.skill.name} → ${agentLabel(r.target.agent)}: ${r.error}`),
-      )
-    }
-    if (failures.length > 0) {
-      error.value = failures.join('；')
-      return
-    }
-    await refresh()
-    emit('close')
-  } finally {
-    busy.value = false
-  }
-}
+const {
+  tab,
+  gitUrl,
+  fetching,
+  items,
+  searched,
+  selected,
+  previewDir,
+  targets,
+  busy,
+  error,
+  setTab,
+  setGitUrl,
+  setTargets,
+  pickLocalDir,
+  onDrop,
+  fetchGit,
+  toggleItem,
+  togglePreview,
+  runImport,
+} = useSkillImportWorkflow({
+  open: () => props.open,
+  onComplete: () => emit('close'),
+})
 </script>
 
 <template>
-  <DialogRoot :open="open" @update:open="(o) => !o && emit('close')">
+  <DialogRoot :open="props.open" @update:open="(open) => !open && emit('close')">
     <DialogPortal>
       <DialogOverlay class="fixed inset-0 z-40 bg-black/30" />
       <DialogContent
@@ -158,142 +55,63 @@ async function runImport(): Promise<void> {
           <DialogTitle class="text-base font-semibold tracking-tight">
             {{ t('import.title') }}
           </DialogTitle>
-          <Button variant="ghost" size="icon" @click="emit('close')"><X /></Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            class="cursor-pointer"
+            @click="emit('close')"
+          >
+            <X />
+          </Button>
         </header>
 
         <ScrollArea class="flex-1">
           <div class="flex flex-col gap-4 px-6 py-4">
-          <!-- source tabs -->
-          <div class="flex gap-2">
-            <button
-              :class="[
-                'flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-sm transition-colors',
-                tab === 'local'
-                  ? 'border-foreground bg-foreground text-background'
-                  : 'hover:border-foreground/40',
-              ]"
-              @click="tab = 'local'"
-            >
-              <FolderOpen class="size-3.5" />
-              {{ t('import.tabLocal') }}
-            </button>
-            <button
-              :class="[
-                'flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-sm transition-colors',
-                tab === 'git'
-                  ? 'border-foreground bg-foreground text-background'
-                  : 'hover:border-foreground/40',
-              ]"
-              @click="tab = 'git'"
-            >
-              <GitBranch class="size-3.5" />
-              {{ t('import.tabGit') }}
-            </button>
-          </div>
-
-          <!-- local source -->
-          <button
-            v-if="tab === 'local'"
-            type="button"
-            class="flex flex-col items-center gap-2 rounded-md border border-dashed px-6 py-8 text-sm text-muted-foreground transition-colors hover:border-foreground/40"
-            @click="pickLocalDir"
-            @dragover.prevent
-            @drop.prevent="onDrop"
-          >
-            <FolderOpen class="size-6" />
-            {{ t('import.dropHint') }}
-          </button>
-
-          <!-- git source -->
-          <div v-else class="flex gap-2">
-            <Input
-              v-model="gitUrl"
-              class="flex-1 text-sm"
-              :placeholder="t('import.gitPh')"
-              @keydown.enter="fetchGit"
+            <ImportSourcePicker
+              :tab="tab"
+              :git-url="gitUrl"
+              :fetching="fetching"
+              @update:tab="setTab"
+              @update:git-url="setGitUrl"
+              @pick-local="pickLocalDir"
+              @drop="onDrop"
+              @fetch-git="fetchGit"
             />
-            <Button size="sm" :disabled="fetching || !gitUrl.trim()" @click="fetchGit">
-              {{ fetching ? t('import.fetching') : t('import.fetch') }}
-            </Button>
-          </div>
 
-          <!-- results -->
-          <template v-if="searched">
-            <p v-if="items.length === 0" class="text-sm text-muted-foreground">
-              {{ t('import.none') }}
-            </p>
-            <div v-else class="flex flex-col gap-2">
-              <p class="text-sm text-muted-foreground">
-                {{ t('import.found', { n: items.length }) }}
+            <template v-if="searched">
+              <p v-if="items.length === 0" class="text-sm text-muted-foreground">
+                {{ t('import.none') }}
               </p>
-              <label
-                v-for="f in items"
-                :key="f.dir"
-                class="flex cursor-pointer items-start gap-2.5 rounded-md border px-3 py-2.5"
-              >
-                <input
-                  type="checkbox"
-                  class="mt-0.5 accent-foreground"
-                  :checked="selected.has(f.dir)"
-                  @change="toggleItem(f.dir)"
+              <div v-else class="flex flex-col gap-2">
+                <FoundSkillList
+                  :items="items"
+                  :selected="selected"
+                  :preview-dir="previewDir"
+                  :targets="targets"
+                  @toggle="toggleItem"
+                  @preview="togglePreview"
+                  @update:targets="setTargets"
                 />
-                <span class="flex min-w-0 flex-1 flex-col gap-0.5">
-                  <span class="flex items-center gap-2 text-sm font-medium">
-                    {{ f.skill.name }}
-                    <Badge v-if="f.skill.version" variant="outline">v{{ f.skill.version }}</Badge>
-                    <Badge
-                      v-if="hasScriptResources(f.skill.resources)"
-                      variant="outline"
-                      class="border-amber-500/40 text-amber-600 dark:text-amber-400"
-                      :title="t('detail.scriptWarning')"
-                    >
-                      {{ t('import.hasScripts') }}
-                    </Badge>
-                  </span>
-                  <span class="line-clamp-1 text-sm text-muted-foreground">
-                    {{ f.skill.description || t('card.noDescription') }}
-                  </span>
-                  <button
-                    type="button"
-                    class="w-fit text-sm text-muted-foreground underline-offset-2 hover:underline"
-                    @click.prevent.stop="previewDir = previewDir === f.dir ? null : f.dir"
-                  >
-                    {{ t('import.viewContent') }} {{ previewDir === f.dir ? '−' : '+' }}
-                  </button>
-                  <ScrollArea
-                    v-if="previewDir === f.dir"
-                    class="max-h-56 rounded-md border bg-muted/40"
-                    viewport-class="max-h-56 px-3 py-2"
-                    @click.prevent.stop
-                  >
-                    <MarkdownView :content="f.skill.content" :preview-id="`import-${f.dir}`" />
-                  </ScrollArea>
-                  <ul v-if="previewDir === f.dir && f.skill.resources" class="flex flex-col gap-0.5">
-                    <li
-                      v-for="rel in Object.keys(f.skill.resources)"
-                      :key="rel"
-                      class="text-sm text-muted-foreground"
-                    >
-                      <code>{{ rel }}</code>
-                    </li>
-                  </ul>
-                </span>
-              </label>
+              </div>
+            </template>
 
-              <PlatformTargetPicker v-model="targets" :label="t('import.targets')" />
-            </div>
-          </template>
-
-          <p v-if="error" class="break-all text-sm text-destructive">{{ error }}</p>
+            <p v-if="error" class="break-all text-sm text-destructive">{{ error }}</p>
           </div>
         </ScrollArea>
 
         <footer class="flex items-center justify-end gap-2 border-t px-6 py-3">
-          <Button variant="ghost" size="sm" :disabled="busy" @click="emit('close')">
+          <Button
+            variant="ghost"
+            size="sm"
+            class="cursor-pointer"
+            :disabled="busy"
+            @click="emit('close')"
+          >
             {{ t('common.cancel') }}
           </Button>
           <Button
             size="sm"
+            class="cursor-pointer"
             :disabled="busy || selected.size === 0 || targets.length === 0"
             @click="runImport"
           >
