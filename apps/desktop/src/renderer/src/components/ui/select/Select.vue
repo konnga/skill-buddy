@@ -17,6 +17,7 @@ import { cn } from '@/lib/utils'
 export interface SelectOption {
   value: string
   label: string
+  previewColor?: string
 }
 
 const props = defineProps<{

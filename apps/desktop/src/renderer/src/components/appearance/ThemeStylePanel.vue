@@ -29,9 +29,17 @@ const colors = computed(() => appearance.value[props.mode])
 const isMac = navigator.platform.toLowerCase().includes('mac')
 
 const presetOptions = computed(() => {
-  const options = themePresets.map((p) => ({ value: p.id, label: t(p.labelKey) }))
+  const options = themePresets.map((themePreset) => ({
+    value: themePreset.id,
+    label: t(themePreset.labelKey),
+    previewColor: themePreset[props.mode].accent,
+  }))
   if (matchPreset(props.mode) === 'custom') {
-    options.push({ value: 'custom', label: t('settings.appearancePresetCustom') })
+    options.push({
+      value: 'custom',
+      label: t('settings.appearancePresetCustom'),
+      previewColor: colors.value.accent,
+    })
   }
   return options
 })
@@ -92,6 +100,16 @@ function confirmImport(): void {
                 Aa
               </span>
               {{ option?.label }}
+            </span>
+          </template>
+          <template #option="{ option }">
+            <span class="flex items-center gap-2">
+              <span
+                aria-hidden="true"
+                class="size-2.5 shrink-0 rounded-full border border-black/15 shadow-sm dark:border-white/20"
+                :style="{ backgroundColor: option.previewColor }"
+              />
+              {{ option.label }}
             </span>
           </template>
         </Select>
