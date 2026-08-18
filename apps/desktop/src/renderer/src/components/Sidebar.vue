@@ -262,7 +262,7 @@ async function addProjectRoot(): Promise<void> {
                 @click="filterPlatform(platform.id)"
               >
                 <span class="flex min-w-0 items-center gap-2">
-                  <PlatformIcon :id="platform.id" :size="15" class="text-foreground/70" />
+                  <PlatformIcon :id="platform.id" :size="15" />
                   <span class="truncate">{{ platform.displayName }}</span>
                 </span>
                 <span class="text-sm tabular-nums text-muted-foreground">

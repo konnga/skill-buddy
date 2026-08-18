@@ -1,4 +1,11 @@
-import claudeIcon from '@lobehub/icons-static-svg/icons/claude-color.svg'
+/*
+ * @Author: wjc
+ * @Date: 2026-08-10 10:14:11
+ * @LastEditors: wjc
+ * @LastEditTime: 2026-08-18 17:49:20
+ * @Description:
+ */
+import claudeIcon from '@lobehub/icons-static-svg/icons/claudecode-color.svg'
 import codebuddyIcon from '@lobehub/icons-static-svg/icons/codebuddy-color.svg'
 import codexIcon from '@lobehub/icons-static-svg/icons/codex-color.svg'
 import cursorIcon from '@lobehub/icons-static-svg/icons/cursor.svg'
