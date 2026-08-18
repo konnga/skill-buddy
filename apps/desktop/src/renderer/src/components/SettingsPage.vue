@@ -1,8 +1,7 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, shallowRef } from 'vue'
+import { computed, ref, shallowRef } from 'vue'
 import { useI18n } from 'vue-i18n'
 import {
-  ArrowLeft,
   Blocks,
   Database,
   FolderGit2,
@@ -11,19 +10,15 @@ import {
   Globe,
   Info,
   Palette,
-  Plus,
-  Search,
   Settings2,
   SlidersHorizontal,
   Trash2,
   Users,
 } from '@lucide/vue'
+import type { PlatformStatus } from '@skillbuddy/core'
 import {
-  DEFAULT_DESKTOP_PREFERENCES,
-  type AppInfo,
   type CustomPlatformInput,
   type TeamLibraryConfig,
-  type UpdateCheckResult,
 } from '../../../shared/ipc.js'
 import { teamLibraryConfigKey } from '../../../shared/team-library.js'
 import { Badge } from '@/components/ui/badge'
@@ -32,18 +27,20 @@ import { Input } from '@/components/ui/input'
 import { Select } from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import skillbuddyMarkUrl from '@/assets/logo.svg'
 import CopyButton from '@/components/CopyButton.vue'
-import PlatformIcon from '@/components/PlatformIcon.vue'
 import ThemeCodePreview from '@/components/appearance/ThemeCodePreview.vue'
 import ThemeModeCards from '@/components/appearance/ThemeModeCards.vue'
 import ThemeStylePanel from '@/components/appearance/ThemeStylePanel.vue'
-import GitBackupPanel from '@/components/settings/GitBackupPanel.vue'
+import SettingsAboutSection from '@/components/settings/SettingsAboutSection.vue'
+import SettingsDataSection from '@/components/settings/SettingsDataSection.vue'
 import TeamLibrarySetupPanel from '@/components/settings/TeamLibrarySetupPanel.vue'
+import SettingsPlatformsSection, {
+  type CustomPlatformForm,
+} from '@/components/settings/SettingsPlatformsSection.vue'
+import SettingsSidebar, { type SettingsNavGroup } from '@/components/settings/SettingsSidebar.vue'
 import { useSettings, syncCustomPlatforms } from '@/composables/useSettings'
 import { useSkills } from '@/composables/useSkills'
 import { useTeamLibraries } from '@/composables/useTeamLibraries'
-import { showToast } from '@/composables/useToast'
 import type { SettingsCategory } from '@/lib/navigation'
 
 const props = defineProps<{ initialCategory?: SettingsCategory }>()
@@ -75,12 +72,9 @@ const { platforms, refresh } = useSkills()
 const { catalogs: teamLibraryCatalogs, errors: teamLibraryErrors, warnings: teamLibraryWarnings } = useTeamLibraries()
 
 const category = shallowRef<SettingsCategory>(props.initialCategory ?? 'general')
-const query = ref('')
+const query = shallowRef('')
 
-const groups: {
-  labelKey: string
-  items: { id: SettingsCategory; labelKey: string; icon: unknown }[]
-}[] = [
+const groups: SettingsNavGroup[] = [
   {
     labelKey: 'settings.groupPersonal',
     items: [
@@ -125,6 +119,10 @@ function visible(...texts: string[]): boolean {
   return texts.some((text) => text.toLowerCase().includes(q))
 }
 
+const visiblePlatforms = computed<PlatformStatus[]>(() =>
+  platforms.value.filter((platform) => visible(platform.displayName, platform.id)),
+)
+
 /** Show a category's content when selected, or always while searching. */
 function showCat(id: SettingsCategory): boolean {
   return searching.value ? true : category.value === id
@@ -150,15 +148,15 @@ async function removeProjectRoot(root: string): Promise<void> {
 }
 
 /* custom platforms */
-const showForm = ref(false)
-const form = ref({
+const showForm = shallowRef(false)
+const form = ref<CustomPlatformForm>({
   id: '',
   displayName: '',
   userSkillsDir: '',
   projectSkillsDir: '',
   detectPath: '',
 })
-const formError = ref<string | null>(null)
+const formError = shallowRef<string | null>(null)
 
 async function addCustomPlatform(): Promise<void> {
   formError.value = null
@@ -224,159 +222,19 @@ function removeTeamLibrary(key: string): void {
   )
 }
 
-/* data：配置导出 / 导入 / 重置 */
-function collectLocalConfig(): Record<string, unknown> {
-  const data: Record<string, unknown> = {}
-  for (let i = 0; i < localStorage.length; i += 1) {
-    const key = localStorage.key(i)
-    if (!key?.startsWith('skm.')) continue
-    const raw = localStorage.getItem(key)
-    if (raw === null) continue
-    try {
-      data[key] = JSON.parse(raw)
-    } catch {
-      data[key] = raw
-    }
-  }
-  return data
-}
-
-async function exportConfig(): Promise<void> {
-  const saved = await window.skillsManager.exportConfig(
-    JSON.stringify(collectLocalConfig(), null, 2),
-  )
-  if (saved) showToast({ message: t('settings.dataExported') })
-}
-
-async function importConfig(): Promise<void> {
-  const content = await window.skillsManager.importConfig()
-  if (content === null) return
-  try {
-    const parsed = JSON.parse(content) as Record<string, unknown>
-    const keys = Object.keys(parsed).filter((key) => key.startsWith('skm.'))
-    if (keys.length === 0) throw new Error('empty')
-    const currentDesktopPreferences = await window.skillsManager.getDesktopPreferences()
-    await window.skillsManager.setDesktopPreferences({
-      backgroundMode:
-        typeof parsed['skm.backgroundMode'] === 'boolean'
-          ? parsed['skm.backgroundMode']
-          : currentDesktopPreferences.backgroundMode,
-      launchHidden:
-        typeof parsed['skm.launchHidden'] === 'boolean'
-          ? parsed['skm.launchHidden']
-          : currentDesktopPreferences.launchHidden,
-    })
-    for (const key of keys) localStorage.setItem(key, JSON.stringify(parsed[key]))
-    location.reload()
-  } catch {
-    showToast({ message: t('settings.dataImportInvalid') })
-  }
-}
-
-async function resetConfig(): Promise<void> {
-  const confirmed = await window.skillsManager.confirmDialog({
-    title: t('settings.dataResetTitle'),
-    message: t('settings.dataResetMsg'),
-    confirmLabel: t('settings.dataResetAction'),
-    cancelLabel: t('common.cancel'),
-    danger: true,
-  })
-  if (!confirmed) return
-  await window.skillsManager.setDesktopPreferences(DEFAULT_DESKTOP_PREFERENCES)
-  for (const key of Object.keys(collectLocalConfig())) localStorage.removeItem(key)
-  location.reload()
-}
-
-/* about：版本、更新检查与诊断 */
-const appInfo = ref<AppInfo | null>(null)
-onMounted(async () => {
-  appInfo.value = await window.skillsManager.getAppInfo()
-})
-
-const updateChecking = ref(false)
-const updateResult = ref<UpdateCheckResult | null>(null)
-
-async function checkUpdate(): Promise<void> {
-  updateChecking.value = true
-  updateResult.value = null
-  try {
-    updateResult.value = await window.skillsManager.checkUpdate()
-  } finally {
-    updateChecking.value = false
-  }
-}
-
-function openReleasePage(): void {
-  if (updateResult.value?.status === 'update') {
-    void window.skillsManager.openLink(updateResult.value.url)
-  }
-}
-
-function openUserData(): void {
-  void window.skillsManager.openUserData()
-}
-
-async function copyDiagnostics(): Promise<void> {
-  const info = appInfo.value
-  const lines = [
-    `SkillBuddy ${info?.version ?? '?'} (${info?.platform ?? '?'} ${info?.arch ?? ''})`.trim(),
-    `Electron ${info?.electron ?? '?'} / Chromium ${info?.chrome ?? '?'} / Node ${info?.node ?? '?'}`,
-    `Platforms: ${platforms.value.map((p) => `${p.id}${p.detected ? '' : ' (not detected)'}`).join(', ') || 'none'}`,
-    `Project roots: ${projectRoots.value.length}`,
-  ]
-  await navigator.clipboard.writeText(lines.join('\n'))
-  showToast({ message: t('settings.aboutDiagCopied') })
-}
 </script>
 
 <template>
   <div class="flex h-screen">
-    <!-- settings sidebar -->
-    <aside class="sidebar-surface flex w-[276px] shrink-0 flex-col">
-      <div class="app-drag px-4 pb-2 pt-10">
-        <button
-          type="button"
-          class="app-no-drag flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-accent/60 hover:text-foreground"
-          @click="emit('back')"
-        >
-          <ArrowLeft class="size-4" />
-          {{ t('settings.back') }}
-        </button>
-      </div>
-      <div class="px-4 pb-2">
-        <div class="relative">
-          <Search
-            class="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground"
-          />
-          <Input v-model="query" :placeholder="t('settings.searchPh')" class="h-8 pl-8 text-sm" />
-        </div>
-      </div>
-
-      <ScrollArea class="flex-1">
-        <nav class="flex flex-col gap-0.5 px-3 pb-4">
-          <template v-for="group in groups" :key="group.labelKey">
-          <p
-            class="mb-1 mt-4 px-2 text-sm font-medium uppercase tracking-wide text-muted-foreground"
-          >
-            {{ t(group.labelKey) }}
-          </p>
-          <button
-            v-for="item in group.items"
-            :key="item.id"
-            :class="[
-              'flex items-center gap-2.5 rounded-md px-2.5 py-1.5 text-sm transition-colors',
-              !searching && category === item.id ? 'nav-active' : 'hover:bg-accent/60',
-            ]"
-            @click="((category = item.id), (query = ''))"
-          >
-            <component :is="item.icon" class="size-4 text-foreground/70" />
-            {{ t(item.labelKey) }}
-          </button>
-          </template>
-        </nav>
-      </ScrollArea>
-    </aside>
-
+    <SettingsSidebar
+      :groups="groups"
+      :category="category"
+      :query="query"
+      :searching="searching"
+      @back="emit('back')"
+      @update:category="category = $event"
+      @update:query="query = $event"
+    />
     <!-- content -->
     <ScrollArea class="content-surface min-w-0 flex-1">
       <main>
@@ -609,77 +467,18 @@ async function copyDiagnostics(): Promise<void> {
           </div>
         </section>
 
-        <!-- platforms -->
-        <section v-if="showCat('platforms')" class="mb-10">
-          <div class="mb-3 flex items-center justify-between gap-6">
-            <h2 class="text-sm font-medium">{{ t('settings.sectionPlatforms') }}</h2>
-            <Button variant="outline" size="sm" @click="showForm = !showForm">
-              <Plus />
-              {{ t('settings.customPlatform') }}
-            </Button>
-          </div>
-          <p class="mb-3 text-sm text-muted-foreground">{{ t('settings.platformsDesc') }}</p>
-
-          <div v-if="showForm" class="mb-3 flex flex-col gap-2 rounded-xl border px-5 py-4">
-            <div class="grid grid-cols-2 gap-2">
-              <Input v-model="form.id" :placeholder="t('settings.formIdPh')" class="text-sm" />
-              <Input
-                v-model="form.displayName"
-                :placeholder="t('settings.formNamePh')"
-                class="text-sm"
-              />
-            </div>
-            <Input
-              v-model="form.detectPath"
-              :placeholder="t('settings.formDetectPh')"
-              class="text-sm"
-            />
-            <Input
-              v-model="form.userSkillsDir"
-              :placeholder="t('settings.formUserDirPh')"
-              class="text-sm"
-            />
-            <Input
-              v-model="form.projectSkillsDir"
-              :placeholder="t('settings.formProjectDirPh')"
-              class="text-sm"
-            />
-            <p v-if="formError" class="text-sm text-destructive">{{ formError }}</p>
-            <div class="flex justify-end gap-2">
-              <Button variant="ghost" size="sm" @click="showForm = false">
-                {{ t('common.cancel') }}
-              </Button>
-              <Button size="sm" @click="addCustomPlatform">{{ t('common.add') }}</Button>
-            </div>
-          </div>
-
-          <div class="divide-y rounded-xl border">
-            <div
-              v-for="p in platforms.filter((pf) => visible(pf.displayName, pf.id))"
-              :key="p.id"
-              class="flex items-center justify-between gap-2 px-5 py-3"
-            >
-              <div class="flex min-w-0 items-center gap-2.5">
-                <PlatformIcon :id="p.id" :size="16" />
-                <span class="text-sm">{{ p.displayName }}</span>
-                <Badge :variant="p.detected ? 'success' : 'secondary'">
-                  {{ p.detected ? t('settings.detected') : t('settings.notDetected') }}
-                </Badge>
-              </div>
-              <Button
-                v-if="customPlatforms.some((c) => c.id === p.id)"
-                variant="ghost"
-                size="icon"
-                class="size-7 shrink-0 text-muted-foreground"
-                :title="t('settings.removeNote')"
-                @click="removeCustomPlatform(p.id)"
-              >
-                <Trash2 class="size-3.5" />
-              </Button>
-            </div>
-          </div>
-        </section>
-
+        <SettingsPlatformsSection
+          v-if="showCat('platforms')"
+          :platforms="visiblePlatforms"
+          :custom-platforms="customPlatforms"
+          :show-form="showForm"
+          :form="form"
+          :form-error="formError"
+          @update:showForm="showForm = $event"
+          @update:form="form = $event"
+          @add="addCustomPlatform"
+          @remove="removeCustomPlatform"
+        />
         <!-- network -->
         <section v-if="showCat('network')" class="mb-10">
           <h2 class="mb-3 text-sm font-medium">{{ t('settings.catNetwork') }}</h2>
@@ -750,141 +549,9 @@ async function copyDiagnostics(): Promise<void> {
           </div>
         </section>
 
-        <!-- data -->
-        <section v-if="showCat('data')" class="mb-10">
-          <h2 class="mb-3 text-sm font-medium">{{ t('settings.catData') }}</h2>
-          <GitBackupPanel
-            v-if="!searching || visible(t('settings.backupTitle'), t('settings.backupDesc'))"
-            class="mb-5"
-          />
-          <div class="divide-y rounded-xl border">
-            <div
-              v-if="visible(t('settings.dataExportTitle'), t('settings.dataExportDesc'))"
-              class="flex items-center justify-between gap-6 px-5 py-4"
-            >
-              <div class="min-w-0">
-                <p class="text-sm font-medium">{{ t('settings.dataExportTitle') }}</p>
-                <p class="mt-0.5 text-sm text-muted-foreground">
-                  {{ t('settings.dataExportDesc') }}
-                </p>
-              </div>
-              <Button variant="outline" size="sm" class="shrink-0" @click="exportConfig">
-                {{ t('settings.dataExportAction') }}
-              </Button>
-            </div>
-            <div
-              v-if="visible(t('settings.dataImportTitle'), t('settings.dataImportDesc'))"
-              class="flex items-center justify-between gap-6 px-5 py-4"
-            >
-              <div class="min-w-0">
-                <p class="text-sm font-medium">{{ t('settings.dataImportTitle') }}</p>
-                <p class="mt-0.5 text-sm text-muted-foreground">
-                  {{ t('settings.dataImportDesc') }}
-                </p>
-              </div>
-              <Button variant="outline" size="sm" class="shrink-0" @click="importConfig">
-                {{ t('settings.dataImportAction') }}
-              </Button>
-            </div>
-            <div
-              v-if="visible(t('settings.dataResetTitle'), t('settings.dataResetDesc'))"
-              class="flex items-center justify-between gap-6 px-5 py-4"
-            >
-              <div class="min-w-0">
-                <p class="text-sm font-medium">{{ t('settings.dataResetTitle') }}</p>
-                <p class="mt-0.5 text-sm text-muted-foreground">
-                  {{ t('settings.dataResetDesc') }}
-                </p>
-              </div>
-              <Button
-                variant="outline"
-                size="sm"
-                class="shrink-0 text-destructive"
-                @click="resetConfig"
-              >
-                {{ t('settings.dataResetAction') }}
-              </Button>
-            </div>
-          </div>
-        </section>
+        <SettingsDataSection v-if="showCat('data')" :query="query" />
 
-        <!-- about -->
-        <section v-if="showCat('about')" class="mb-10">
-          <h2 class="mb-3 text-sm font-medium">{{ t('settings.catAbout') }}</h2>
-          <div class="divide-y rounded-xl border">
-            <div
-              v-if="visible(t('settings.aboutVersionTitle'), t('settings.aboutCheckUpdate'))"
-              class="flex flex-col gap-2 px-5 py-4"
-            >
-              <div class="flex items-center justify-between gap-6">
-                <div class="flex min-w-0 items-center gap-3">
-                  <img
-                    :src="skillbuddyMarkUrl"
-                    alt=""
-                    class="size-14 shrink-0 rounded-[10px]"
-                    aria-hidden="true"
-                  />
-                  <div class="min-w-0">
-                    <p class="mt-0.5 text-base text-muted-foreground">
-                      SkillBuddy v{{ appInfo?.version ?? '…' }}
-                    </p>
-                  </div>
-                </div>
-                <span class="flex shrink-0 items-center gap-2">
-                  <Button v-if="updateResult?.status === 'update'" size="sm" @click="openReleasePage">
-                    {{ t('settings.aboutDownload') }}
-                  </Button>
-                  <Button variant="outline" size="sm" :disabled="updateChecking" @click="checkUpdate">
-                    {{ updateChecking ? t('settings.aboutChecking') : t('settings.aboutCheckUpdate') }}
-                  </Button>
-                </span>
-              </div>
-              <p v-if="updateResult" class="text-sm text-muted-foreground">
-                <template v-if="updateResult.status === 'update'">
-                  {{ t('settings.aboutUpdateAvailable', { v: updateResult.latest }) }}
-                </template>
-                <template v-else-if="updateResult.status === 'latest'">
-                  {{ t('settings.aboutUpToDate', { v: appInfo?.version ?? '' }) }}
-                </template>
-                <template v-else-if="updateResult.status === 'none'">
-                  {{ t('settings.aboutNoRelease') }}
-                </template>
-                <template v-else>
-                  {{ t('settings.aboutCheckFailed', { msg: updateResult.message }) }}
-                </template>
-              </p>
-            </div>
-            <div
-              v-if="visible(t('settings.aboutRuntimeTitle'))"
-              class="flex items-center justify-between gap-6 px-5 py-4"
-            >
-              <div class="min-w-0">
-                <p class="text-sm font-medium">{{ t('settings.aboutRuntimeTitle') }}</p>
-                <p class="mt-0.5 text-sm text-muted-foreground">
-                  Electron {{ appInfo?.electron }} · Chromium {{ appInfo?.chrome }} · Node
-                  {{ appInfo?.node }}
-                </p>
-              </div>
-              <Button variant="outline" size="sm" class="shrink-0" @click="copyDiagnostics">
-                {{ t('settings.aboutCopyDiagnostics') }}
-              </Button>
-            </div>
-            <div
-              v-if="visible(t('settings.aboutOpenDataTitle'), t('settings.aboutOpenDataDesc'))"
-              class="flex items-center justify-between gap-6 px-5 py-4"
-            >
-              <div class="min-w-0">
-                <p class="text-sm font-medium">{{ t('settings.aboutOpenDataTitle') }}</p>
-                <p class="mt-0.5 text-sm text-muted-foreground">
-                  {{ t('settings.aboutOpenDataDesc') }}
-                </p>
-              </div>
-              <Button variant="outline" size="sm" class="shrink-0" @click="openUserData">
-                {{ t('settings.aboutOpenDataAction') }}
-              </Button>
-            </div>
-          </div>
-        </section>
+        <SettingsAboutSection v-if="showCat('about')" :query="query" />
         </div>
       </main>
     </ScrollArea>
