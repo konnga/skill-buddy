@@ -37,11 +37,11 @@ const MESSAGES: Record<TrayLocale, TrayMessages> = {
     error: '扫描失败，点击重试',
     lastChecked: (time) => `上次检查：${time}`,
     neverChecked: '尚未完成检查',
-    open: '打开 SkillBuddy',
+    open: '打开主界面',
     refresh: '立即刷新',
     autoRefresh: '自动监控',
     settings: '设置',
-    quit: '退出 SkillBuddy',
+    quit: '退出',
   },
   en: {
     title: 'SkillBuddy',
@@ -51,11 +51,11 @@ const MESSAGES: Record<TrayLocale, TrayMessages> = {
     error: 'Scan failed — click to retry',
     lastChecked: (time) => `Last checked: ${time}`,
     neverChecked: 'Not checked yet',
-    open: 'Open SkillBuddy',
+    open: 'Open main window',
     refresh: 'Refresh now',
     autoRefresh: 'Automatic monitoring',
     settings: 'Settings',
-    quit: 'Quit SkillBuddy',
+    quit: 'Quit',
   },
 }
 
@@ -179,7 +179,19 @@ export class TrayController {
           : null
 
     return [
-      { label: messages.title, enabled: false },
+      { label: messages.open, click: this.#options.showWindow },
+      {
+        label: messages.refresh,
+        enabled: this.#status.phase !== 'scanning',
+        click: () => this.#options.sendCommand('refresh'),
+      },
+      {
+        label: messages.autoRefresh,
+        type: 'checkbox',
+        checked: this.#status.autoRefresh,
+        click: () => this.#options.sendCommand('toggle-auto-refresh'),
+      },
+      { type: 'separator' },
       {
         label: this.#statusLabel(),
         enabled: statusCommand !== null,
@@ -193,19 +205,6 @@ export class TrayController {
           : {}),
       },
       { label: this.#lastCheckedLabel(), enabled: false },
-      { type: 'separator' },
-      { label: messages.open, click: this.#options.showWindow },
-      {
-        label: messages.refresh,
-        enabled: this.#status.phase !== 'scanning',
-        click: () => this.#options.sendCommand('refresh'),
-      },
-      {
-        label: messages.autoRefresh,
-        type: 'checkbox',
-        checked: this.#status.autoRefresh,
-        click: () => this.#options.sendCommand('toggle-auto-refresh'),
-      },
       { type: 'separator' },
       {
         label: messages.settings,
