@@ -32,6 +32,8 @@ export default {
     empty: 'No installed skills found',
     emptyHint: 'Detected {n} agent platforms. Install a skill in any of them, then hit Rescan.',
     noMatch: 'No skills matching "{q}"',
+    noFilteredMatch: 'No Skills match the current filters',
+    clearFilters: 'Clear filters',
   },
   skillTree: {
     global: 'Global',

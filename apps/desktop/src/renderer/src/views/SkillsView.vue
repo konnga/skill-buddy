@@ -308,6 +308,16 @@ const installationFilter = computed(() => ({
   ownershipFilter: ownershipFilter.value,
 }))
 
+const hasActiveFilters = computed(
+  () =>
+    Boolean(search.value.trim()) ||
+    platformFilter.value !== null ||
+    projectFilter.value !== null ||
+    ownershipFilter.value !== null ||
+    driftOnly.value ||
+    groupFilter.value !== null,
+)
+
 const selectedSkills = computed(() =>
   filtered.value.filter((skill) => selectedNames.value.has(skill.name)),
 )
@@ -358,6 +368,15 @@ function toggleSelectAll(): void {
 
 function clearSelection(): void {
   selectedNames.value = new Set()
+}
+
+function clearFilters(): void {
+  search.value = ''
+  platformFilter.value = null
+  projectFilter.value = null
+  ownershipFilter.value = null
+  driftOnly.value = false
+  filterGroup(null)
 }
 
 function handleBatchModeChange(enabled: boolean): void {
@@ -1159,8 +1178,27 @@ watch(groupFilter, (name) => {
           {{ t('app.emptyHint', { n: detectedPlatforms.length }) }}
         </p>
       </div>
-      <div v-else-if="filtered.length === 0" class="py-24 text-center text-sm text-muted-foreground">
-        {{ t('app.noMatch', { q: search }) }}
+      <div
+        v-else-if="filtered.length === 0"
+        class="flex flex-col items-center gap-3 py-24 text-center text-sm text-muted-foreground"
+      >
+        <p>
+          {{
+            search.trim()
+              ? t('app.noMatch', { q: search.trim() })
+              : t('app.noFilteredMatch')
+          }}
+        </p>
+        <Button
+          v-if="hasActiveFilters"
+          variant="outline"
+          size="sm"
+          class="cursor-pointer gap-1.5"
+          @click="clearFilters"
+        >
+          <X class="size-3.5" />
+          {{ t('app.clearFilters') }}
+        </Button>
       </div>
       <SkillAgentTree
         v-else-if="viewMode === 'tree'"

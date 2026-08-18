@@ -32,6 +32,8 @@ export default {
     empty: '未发现已安装的 skills',
     emptyHint: '已检测到 {n} 个 agent 平台。在任一平台安装 skill 后点击「重新扫描」。',
     noMatch: '没有匹配「{q}」的 skill',
+    noFilteredMatch: '当前筛选条件下没有匹配的 Skill',
+    clearFilters: '清除筛选',
   },
   skillTree: {
     global: '全局',
