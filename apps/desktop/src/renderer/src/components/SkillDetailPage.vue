@@ -5,12 +5,7 @@ import SidebarToggle from '@/components/SidebarToggle.vue'
 import MarkdownView from '@/components/MarkdownView.vue'
 import {
   ArrowLeft,
-  Eye,
-  FileText,
-  FolderOpen,
-  LockKeyhole,
   Pencil,
-  Plus,
   TriangleAlert,
   Trash2,
 } from '@lucide/vue'
@@ -18,17 +13,17 @@ import type { AggregatedSkill, Installation } from '@skillbuddy/core'
 import type { InstallTarget } from '../../../shared/ipc.js'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import CopyButton from '@/components/CopyButton.vue'
 import DiffView from '@/components/DiffView.vue'
 import PlatformIcon from '@/components/PlatformIcon.vue'
 import PlatformTargetPicker from '@/components/PlatformTargetPicker.vue'
-import ResourcePreviewDialog from '@/components/ResourcePreviewDialog.vue'
+import SkillGroupMembershipSection from '@/components/skill-detail/SkillGroupMembershipSection.vue'
+import SkillInstallationsSection from '@/components/skill-detail/SkillInstallationsSection.vue'
+import SkillResourcesSection from '@/components/skill-detail/SkillResourcesSection.vue'
 import SkillEditor from '@/components/SkillEditor.vue'
 import { agentLabel } from '@/lib/agents'
 import { hasScriptResources } from '@/lib/resources'
-import { useSettings } from '@/composables/useSettings'
 import { useSkills } from '@/composables/useSkills'
 import { showToast } from '@/composables/useToast'
 import type { SkillFocus } from '@/lib/navigation'
@@ -42,11 +37,11 @@ const props = defineProps<{
 const emit = defineEmits<{ close: [] }>()
 
 const { install, installSkill, refresh, setEnabled } = useSkills()
-const { groups } = useSettings()
 
 const driftSection = useTemplateRef<HTMLElement>('driftSection')
 const installSection = useTemplateRef<HTMLElement>('installSection')
 
+/** 从注意事项入口进入详情时，将对应操作区域滚动到可见位置并建立键盘焦点。 */
 function focusSection(): void {
   if (!props.focus) return
   const target = props.focus === 'drift' ? driftSection.value : installSection.value
@@ -58,48 +53,9 @@ function focusSection(): void {
 onMounted(() => void nextTick(focusSection))
 watch(() => props.focus, () => void nextTick(focusSection))
 
-/* ---------- groups membership ---------- */
-
-function inGroup(name: string): boolean {
-  return groups.value.find((g) => g.name === name)?.skills.includes(props.skill.name) ?? false
-}
-
-const memberGroups = computed(() => groups.value.filter((group) => inGroup(group.name)))
-const availableGroups = computed(() => groups.value.filter((group) => !inGroup(group.name)))
-
-const newGroupOpen = ref(false)
-const newGroupName = ref('')
-
-function openNewGroup(): void {
-  newGroupName.value = ''
-  newGroupOpen.value = true
-}
-
-function closeNewGroup(): void {
-  newGroupOpen.value = false
-  newGroupName.value = ''
-}
-
-function createGroupWithSkill(): void {
-  const name = newGroupName.value.trim()
-  if (!name || groups.value.some((g) => g.name === name)) return
-  groups.value = [...groups.value, { name, skills: [props.skill.name] }]
-  closeNewGroup()
-}
-
-watch(() => props.skill.name, closeNewGroup)
-
-function toggleGroup(name: string): void {
-  groups.value = groups.value.map((g) => {
-    if (g.name !== name) return g
-    return g.skills.includes(props.skill.name)
-      ? { ...g, skills: g.skills.filter((n) => n !== props.skill.name) }
-      : { ...g, skills: [...g.skills, props.skill.name] }
-  })
-}
 const { t } = useI18n()
 
-const mode = ref<'view' | 'edit'>(props.initialMode ?? 'view')
+const mode = shallowRef<'view' | 'edit'>(props.initialMode ?? 'view')
 
 const writableInstallations = computed(() =>
   props.skill.installations.filter((installation) => !installation.readOnly),
@@ -167,18 +123,6 @@ const resourceList = computed(() =>
   Object.entries(resources.value).sort(([left], [right]) => left.localeCompare(right)),
 )
 const containsScripts = computed(() => hasScriptResources(resources.value))
-const resourcePreviewTarget = shallowRef<{ path: string; source: string } | null>(null)
-
-function previewResource(path: string, source: string): void {
-  resourcePreviewTarget.value = { path, source }
-}
-
-watch(
-  () => props.skill.name,
-  () => {
-    resourcePreviewTarget.value = null
-  },
-)
 
 /* ---------- install to ---------- */
 
@@ -190,9 +134,9 @@ const installedTargets = computed<InstallTarget[]>(() =>
   })),
 )
 const targets = ref<InstallTarget[]>([])
-const busy = ref(false)
-const actionError = ref<string | null>(null)
-const confirmUninstall = ref(false)
+const busy = shallowRef(false)
+const actionError = shallowRef<string | null>(null)
+const confirmUninstall = shallowRef(false)
 
 function reveal(path: string): void {
   void window.skillsManager.revealInFolder(path)
@@ -218,7 +162,7 @@ async function runInstall(): Promise<void> {
 
 /* ---------- drift ---------- */
 
-const basePath = ref<string | null>(null)
+const basePath = shallowRef<string | null>(null)
 const baseInstallation = computed(
   () =>
     props.skill.installations.find((i) => i.path === basePath.value) ??
@@ -260,6 +204,7 @@ async function syncFromBase(): Promise<void> {
 
 /* ---------- uninstall (to trash) ---------- */
 
+/** 统一执行可撤销删除，只有整批路径全部成功时才允许调用方继续刷新或关闭页面。 */
 async function trashWithUndo(paths: string[]): Promise<boolean> {
   const { token, results } = await window.skillsManager.trashUndoable(paths)
   const failed = results.filter((r) => !r.ok)
@@ -342,7 +287,12 @@ async function runUninstall(): Promise<void> {
     <!-- header -->
     <header :class="['app-drag relative flex h-14 shrink-0 items-center gap-3 border-b px-6', props.inset && 'pl-[118px]']">
       <SidebarToggle />
-      <Button variant="ghost" size="icon" class="app-no-drag" @click="emit('close')">
+      <Button
+        variant="ghost"
+        size="icon"
+        class="app-no-drag cursor-pointer"
+        @click="emit('close')"
+      >
         <ArrowLeft class="!size-5 translate-y-px" />
       </Button>
       <div class="flex h-9 min-w-0 items-center gap-2">
@@ -358,7 +308,7 @@ async function runUninstall(): Promise<void> {
         v-if="mode === 'view' && canEdit"
         variant="outline"
         size="sm"
-        class="app-no-drag"
+        class="app-no-drag cursor-pointer"
         @click="mode = 'edit'"
       >
         <Pencil />
@@ -380,177 +330,15 @@ async function runUninstall(): Promise<void> {
           {{ skill.description || t('card.noDescription') }}
         </p>
 
-        <section v-if="!props.focus" class="mb-6">
-          <div class="mb-2 flex items-center justify-between gap-3">
-            <h3 class="text-sm font-medium">{{ t('groups.membership') }}</h3>
-            <button
-              type="button"
-              class="flex shrink-0 cursor-pointer items-center gap-1 rounded-md border border-dashed px-2.5 py-1 text-sm text-muted-foreground transition-colors hover:border-foreground/40 hover:text-foreground"
-              @click.stop="openNewGroup"
-            >
-              <Plus class="size-3.5" />
-              {{ t('groups.createTitle') }}
-            </button>
-          </div>
-          <div class="rounded-lg border p-4">
-            <div v-if="memberGroups.length > 0" class="flex flex-wrap gap-2">
-              <button
-                v-for="group in memberGroups"
-                :key="group.name"
-                type="button"
-                class="cursor-pointer rounded-full border border-foreground bg-foreground px-2.5 py-0.5 text-sm text-background transition-colors hover:bg-foreground/85"
-                @click="toggleGroup(group.name)"
-              >
-                {{ group.name }}
-              </button>
-            </div>
-            <p v-else class="text-sm text-muted-foreground">{{ t('groups.noneAssigned') }}</p>
-            <div v-if="availableGroups.length > 0" class="mt-3 border-t pt-3">
-              <p class="mb-2 text-sm text-muted-foreground">{{ t('groups.available') }}</p>
-              <div class="flex flex-wrap gap-2">
-                <button
-                  v-for="group in availableGroups"
-                  :key="group.name"
-                  type="button"
-                  class="cursor-pointer rounded-full border px-2.5 py-0.5 text-sm text-muted-foreground transition-colors hover:border-foreground/40 hover:text-foreground"
-                  @click="toggleGroup(group.name)"
-                >
-                  {{ group.name }}
-                </button>
-              </div>
-            </div>
-          </div>
-        </section>
+        <SkillGroupMembershipSection v-if="!props.focus" :skill-name="skill.name" />
 
-        <DialogRoot
-          v-if="!props.focus && newGroupOpen"
-          :open="newGroupOpen"
-          @update:open="(open: boolean) => !open && closeNewGroup()"
-        >
-          <DialogPortal>
-            <DialogOverlay class="fixed inset-0 z-40 bg-black/40" />
-            <DialogContent
-              class="fixed left-1/2 top-1/2 z-50 w-80 -translate-x-1/2 -translate-y-1/2 rounded-2xl border bg-background p-6 outline-none"
-              @open-auto-focus.prevent
-            >
-              <DialogTitle class="mb-4 text-base font-semibold tracking-tight">
-                {{ t('groups.createTitle') }}
-              </DialogTitle>
-              <Input
-                v-model="newGroupName"
-                :placeholder="t('groups.createPh')"
-                class="text-sm"
-                autofocus
-                @keydown.enter="createGroupWithSkill"
-              />
-              <div class="mt-4 flex justify-end gap-2">
-                <Button variant="ghost" size="sm" @click="closeNewGroup">
-                  {{ t('common.cancel') }}
-                </Button>
-                <Button
-                  size="sm"
-                  :disabled="
-                    !newGroupName.trim() || groups.some((g) => g.name === newGroupName.trim())
-                  "
-                  @click="createGroupWithSkill"
-                >
-                  {{ t('common.add') }}
-                </Button>
-              </div>
-            </DialogContent>
-          </DialogPortal>
-        </DialogRoot>
-
-        <!-- installations -->
-        <section class="mb-8">
-          <h3 class="mb-2 text-sm font-medium">
-            {{ t('detail.installedLocations') }}
-          </h3>
-          <ul class="flex flex-col gap-2">
-            <li
-              v-for="inst in skill.installations"
-              :key="inst.path"
-              class="flex items-center justify-between gap-2 rounded-md border px-3 py-2"
-            >
-              <div class="flex min-w-0 items-center gap-2">
-                <PlatformIcon :id="inst.agent" :size="15" />
-                <span class="shrink-0 text-sm">{{ agentLabel(inst.agent) }}</span>
-                <Badge
-                  variant="secondary"
-                  class="max-w-48 shrink-0 rounded-md px-2 py-0.5 font-normal"
-                  :title="inst.scope === 'project' ? inst.projectRoot : undefined"
-                >
-                  <span class="truncate">{{ originLabel(inst) }}</span>
-                </Badge>
-                <Badge
-                  variant="outline"
-                  :class="[
-                    'shrink-0 whitespace-nowrap rounded-md px-2 py-0.5 font-normal',
-                    !installationEnabled(inst) && 'border-amber-500/40 text-amber-600 dark:text-amber-400',
-                  ]"
-                >
-                  {{
-                    installationEnabled(inst)
-                      ? t('detail.enabled')
-                      : t('detail.disabled')
-                  }}
-                </Badge>
-              </div>
-              <span class="flex shrink-0 items-center gap-0.5">
-                <CopyButton :text="inst.path" class="size-7" />
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  class="size-7 text-muted-foreground"
-                  :title="t('detail.revealInFinder')"
-                  @click="reveal(inst.path)"
-                >
-                  <FolderOpen class="size-3.5" />
-                </Button>
-                <Button
-                  v-if="!inst.readOnly"
-                  variant="ghost"
-                  size="icon"
-                  class="size-7 text-muted-foreground hover:text-destructive"
-                  :disabled="busy"
-                  :title="t('detail.removeOne')"
-                  @click="removeInstallation(inst.path)"
-                >
-                  <Trash2 class="size-3.5" />
-                </Button>
-                <LockKeyhole
-                  v-else
-                  class="mx-1.5 size-3.5 text-muted-foreground"
-                  :title="t('detail.readOnly')"
-                />
-                <button
-                  v-if="!inst.readOnly"
-                  type="button"
-                  role="switch"
-                  :aria-checked="installationEnabled(inst)"
-                  :aria-label="
-                    t(installationEnabled(inst) ? 'detail.disable' : 'detail.enable')
-                  "
-                  :title="t(installationEnabled(inst) ? 'detail.disable' : 'detail.enable')"
-                  :disabled="busy"
-                  class="relative inline-flex h-5 w-9 shrink-0 cursor-pointer items-center rounded-full transition-all disabled:cursor-not-allowed disabled:opacity-50"
-                  :class="
-                    installationEnabled(inst)
-                      ? 'bg-emerald-500 shadow-sm ring-2 ring-emerald-500/20'
-                      : 'bg-muted-foreground/25'
-                  "
-                  @click="toggleInstallation(inst)"
-                >
-                  <span
-                    class="size-3.5 rounded-full bg-white shadow-sm transition-transform"
-                    :class="installationEnabled(inst) ? 'translate-x-[18px]' : 'translate-x-[3px]'"
-                  />
-                </button>
-              </span>
-            </li>
-          </ul>
-        </section>
-
+        <SkillInstallationsSection
+          :installations="skill.installations"
+          :busy="busy"
+          @reveal="reveal"
+          @remove="removeInstallation"
+          @toggle="toggleInstallation"
+        />
         <!-- drift -->
         <section
           v-if="skill.hasDrift"
@@ -574,7 +362,7 @@ async function runUninstall(): Promise<void> {
               :key="inst.path"
               type="button"
               :class="[
-                'flex items-center gap-2 rounded-md border px-3 py-1.5 text-sm transition-colors',
+                'flex cursor-pointer items-center gap-2 rounded-md border px-3 py-1.5 text-sm transition-colors',
                 baseInstallation?.path === inst.path
                   ? 'border-foreground bg-foreground text-background'
                   : 'hover:border-foreground/40',
@@ -618,6 +406,7 @@ async function runUninstall(): Promise<void> {
           </div>
           <Button
             size="sm"
+            class="cursor-pointer"
             :disabled="busy || writableDriftOthers.length === 0"
             @click="syncFromBase"
           >
@@ -644,7 +433,7 @@ async function runUninstall(): Promise<void> {
             :excluded="installedTargets"
           />
           <Button
-            class="mt-3"
+            class="mt-3 cursor-pointer"
             size="sm"
             :disabled="targets.length === 0 || busy"
             @click="runInstall"
@@ -654,44 +443,11 @@ async function runUninstall(): Promise<void> {
           <p v-if="actionError" class="mt-2 text-sm text-destructive">{{ actionError }}</p>
         </section>
 
-        <!-- resources -->
-        <section v-if="resourceList.length > 0" class="mb-8">
-          <h3 class="mb-2 text-sm font-medium uppercase tracking-wide text-muted-foreground">
-            {{ t('detail.resources') }}
-          </h3>
-          <div
-            v-if="containsScripts"
-            class="mb-2 flex items-center gap-2 rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm text-amber-700 dark:text-amber-400"
-          >
-            <TriangleAlert class="size-3.5 shrink-0" />
-            {{ t('detail.scriptWarning') }}
-          </div>
-          <ScrollArea class="max-h-96" viewport-class="max-h-96 pr-2">
-            <ul class="flex flex-col gap-1.5">
-              <li v-for="[rel, abs] in resourceList" :key="rel">
-                <button
-                  type="button"
-                  class="group flex h-10 w-full cursor-pointer items-center gap-2.5 rounded-md border px-3 text-left transition-colors hover:border-foreground/30 hover:bg-muted/35"
-                  :aria-label="t('detail.previewResource', { name: rel })"
-                  :title="t('detail.previewResource', { name: rel })"
-                  @click="previewResource(rel, abs)"
-                >
-                  <FileText class="size-4 shrink-0 text-muted-foreground" />
-                  <code class="min-w-0 flex-1 select-text truncate text-sm">{{ rel }}</code>
-                  <Eye
-                    class="size-4 shrink-0 text-muted-foreground transition-colors group-hover:text-foreground"
-                  />
-                </button>
-              </li>
-            </ul>
-          </ScrollArea>
-        </section>
-
-        <ResourcePreviewDialog
-          :resource="resourcePreviewTarget"
-          @close="resourcePreviewTarget = null"
+        <SkillResourcesSection
+          :skill-name="skill.name"
+          :resources="resourceList"
+          :contains-scripts="containsScripts"
         />
-
         <!-- content -->
         <section class="mb-8">
           <h3 class="mb-2 text-sm font-medium uppercase tracking-wide text-muted-foreground">
@@ -713,10 +469,21 @@ async function runUninstall(): Promise<void> {
               <span class="text-sm text-muted-foreground">
                 {{ t('detail.deleteConfirm', { n: writableInstallations.length }) }}
               </span>
-              <Button variant="destructive" size="sm" :disabled="busy" @click="runUninstall">
+              <Button
+                variant="destructive"
+                size="sm"
+                class="cursor-pointer"
+                :disabled="busy"
+                @click="runUninstall"
+              >
                 {{ t('detail.confirmDelete') }}
               </Button>
-              <Button variant="ghost" size="sm" @click="confirmUninstall = false">
+              <Button
+                variant="ghost"
+                size="sm"
+                class="cursor-pointer"
+                @click="confirmUninstall = false"
+              >
                 {{ t('common.cancel') }}
               </Button>
             </template>
@@ -724,7 +491,7 @@ async function runUninstall(): Promise<void> {
               v-else
               variant="ghost"
               size="sm"
-              class="text-destructive hover:text-destructive"
+              class="cursor-pointer text-destructive hover:text-destructive"
               @click="confirmUninstall = true"
             >
               <Trash2 />
