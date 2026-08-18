@@ -1,21 +1,13 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, shallowRef, watch } from 'vue'
+import { computed, onMounted, shallowRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { Plus, RefreshCw, Search, ServerCog, Store, TriangleAlert } from '@lucide/vue'
 import type { McpInstallation, McpServerDefinition, McpTarget } from '@skillbuddy/core'
-import {
-  DialogContent,
-  DialogDescription,
-  DialogOverlay,
-  DialogPortal,
-  DialogRoot,
-  DialogTitle,
-} from 'reka-ui'
 import McpPlanDialog from '@/components/mcp/McpPlanDialog.vue'
 import McpServerDetail from '@/components/mcp/McpServerDetail.vue'
 import McpServerForm from '@/components/mcp/McpServerForm.vue'
 import McpServerList from '@/components/mcp/McpServerList.vue'
-import McpTargetPicker from '@/components/mcp/McpTargetPicker.vue'
+import McpSyncDialog from '@/components/mcp/McpSyncDialog.vue'
 import SidebarToggle from '@/components/SidebarToggle.vue'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -52,37 +44,26 @@ const selectedName = shallowRef('')
 const marketPageOpen = shallowRef(false)
 const newOpen = shallowRef(false)
 const syncSource = shallowRef<McpInstallation | null>(null)
-const syncTargets = ref<McpTarget[]>([])
 
 const selectedServer = computed(
   () => servers.value.find((server) => server.name === selectedName.value) ?? null,
 )
-const installedTargets = computed<McpTarget[]>(() =>
-  (selectedServer.value?.installations ?? []).map((installation) => ({
+const syncInstalledTargets = computed<McpTarget[]>(() => {
+  const sourceId = syncSource.value?.id
+  const sourceServer = sourceId
+    ? servers.value.find((server) =>
+        server.installations.some((installation) => installation.id === sourceId),
+      )
+    : null
+  return (sourceServer?.installations ?? []).map((installation) => ({
     agent: installation.source.agent,
     surface: installation.source.surface,
     scope: installation.source.scope,
     ...(installation.source.projectRoot
       ? { projectRoot: installation.source.projectRoot }
       : {}),
-  })),
-)
-
-/** 同步源自身不可作为同步目标；其余已安装目标可选，选中即覆盖以收敛漂移。 */
-const syncSourceTargets = computed<McpTarget[]>(() =>
-  syncSource.value
-    ? [
-        {
-          agent: syncSource.value.source.agent,
-          surface: syncSource.value.source.surface,
-          scope: syncSource.value.source.scope,
-          ...(syncSource.value.source.projectRoot
-            ? { projectRoot: syncSource.value.source.projectRoot }
-            : {}),
-        },
-      ]
-    : [],
-)
+  }))
+})
 
 watch(
   servers,
@@ -98,13 +79,11 @@ onMounted(() => void refresh())
 
 function openSync(installation: McpInstallation): void {
   syncSource.value = installation
-  syncTargets.value = []
 }
 
-async function reviewSync(): Promise<void> {
-  if (!syncSource.value || syncTargets.value.length === 0) return
-  const plan = await planSync(syncSource.value.id, syncTargets.value)
-  if (plan) syncSource.value = null
+async function reviewSync(source: McpInstallation, targets: McpTarget[]): Promise<void> {
+  const plan = await planSync(source.id, targets)
+  if (plan && syncSource.value?.id === source.id) syncSource.value = null
 }
 
 async function reviewCreate(
@@ -174,7 +153,7 @@ async function executePlan(): Promise<void> {
       <Button
         variant="outline"
         size="icon"
-        class="app-no-drag"
+        class="app-no-drag cursor-pointer"
         :title="t('mcp.new')"
         :aria-label="t('mcp.new')"
         @click="newOpen = true"
@@ -184,7 +163,7 @@ async function executePlan(): Promise<void> {
       <Button
         variant="outline"
         size="icon"
-        class="app-no-drag"
+        class="app-no-drag cursor-pointer"
         :disabled="loading"
         :title="t('app.rescan')"
         :aria-label="t('app.rescan')"
@@ -220,7 +199,7 @@ async function executePlan(): Promise<void> {
         <ServerCog class="size-10" />
         <p class="text-sm font-medium text-foreground">{{ t('mcp.empty') }}</p>
         <div class="flex items-center gap-2">
-          <Button size="sm" @click="newOpen = true">
+          <Button size="sm" class="cursor-pointer" @click="newOpen = true">
             <Plus />
             {{ t('mcp.new') }}
           </Button>
@@ -279,36 +258,14 @@ async function executePlan(): Promise<void> {
       @apply="executePlan"
     />
 
-    <DialogRoot :open="syncSource !== null" @update:open="(open) => !open && (syncSource = null)">
-      <DialogPortal>
-        <DialogOverlay class="fixed inset-0 z-40 bg-black/40" />
-        <DialogContent
-          class="fixed left-1/2 top-1/2 z-50 w-[min(540px,calc(100vw-32px))] -translate-x-1/2 -translate-y-1/2 rounded-lg border bg-background p-5 shadow-xl outline-none"
-        >
-          <DialogTitle class="text-base font-semibold">{{ t('mcp.sync.title') }}</DialogTitle>
-          <DialogDescription class="mt-1 text-sm text-muted-foreground">
-            {{ syncSource?.definition.name }} · {{ syncSource?.source.agent }}
-          </DialogDescription>
-          <div class="mt-4">
-            <McpTargetPicker
-              v-model="syncTargets"
-              :platforms="platforms"
-              :project-roots="projectRoots"
-              :excluded="syncSourceTargets"
-              :excluded-label="t('mcp.target.syncSource')"
-              :installed="installedTargets"
-            />
-          </div>
-          <div class="mt-5 flex justify-end gap-2">
-            <Button variant="ghost" size="sm" @click="syncSource = null">
-              {{ t('common.cancel') }}
-            </Button>
-            <Button size="sm" :disabled="syncTargets.length === 0 || planning" @click="reviewSync">
-              {{ t('mcp.form.review') }}
-            </Button>
-          </div>
-        </DialogContent>
-      </DialogPortal>
-    </DialogRoot>
+    <McpSyncDialog
+      :source="syncSource"
+      :platforms="platforms"
+      :project-roots="projectRoots"
+      :installed-targets="syncInstalledTargets"
+      :planning="planning"
+      @close="syncSource = null"
+      @review="reviewSync"
+    />
   </div>
 </template>
