@@ -16,7 +16,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import CopyButton from '@/components/CopyButton.vue'
 import PlatformIcon from '@/components/PlatformIcon.vue'
 import { agentLabel } from '@/lib/agents'
-import { matchesSkillInstallation } from '@/lib/skill-installations'
+import {
+  deriveSkillInstallationStatus,
+  matchesSkillInstallation,
+} from '@/lib/skill-installations'
 
 const props = defineProps<{
   skill: AggregatedSkill
@@ -58,27 +61,14 @@ const visibleInstallations = computed(() => {
 })
 const agents = computed(() => [...new Set(visibleInstallations.value.map((i) => i.agent))])
 const hasProject = computed(() => visibleInstallations.value.some((i) => i.scope === 'project'))
-const readOnly = computed(
-  () =>
-    visibleInstallations.value.length > 0 &&
-    visibleInstallations.value.every((installation) => installation.readOnly),
+const installationStatus = computed(() =>
+  deriveSkillInstallationStatus(visibleInstallations.value),
 )
-const visibleWritableInstallations = computed(() =>
-  visibleInstallations.value.filter((installation) => !installation.readOnly),
-)
-const visibleDisabledCount = computed(
-  () =>
-    visibleWritableInstallations.value.filter((installation) => installation.enabled === false)
-      .length,
-)
-const visibleAllDisabled = computed(
-  () =>
-    visibleWritableInstallations.value.length > 0 &&
-    visibleDisabledCount.value === visibleWritableInstallations.value.length,
-)
-const visibleHasEnabled = computed(() =>
-  visibleWritableInstallations.value.some((installation) => installation.enabled !== false),
-)
+const readOnly = computed(() => installationStatus.value.readOnly)
+const visibleWritableInstallations = computed(() => installationStatus.value.writable)
+const visibleDisabledCount = computed(() => installationStatus.value.disabledCount)
+const visibleAllDisabled = computed(() => installationStatus.value.allDisabled)
+const visibleHasEnabled = computed(() => installationStatus.value.hasEnabled)
 const toggleLabel = computed(() => {
   if (props.scopeFilter && props.currentPlatform) {
     return t(visibleHasEnabled.value ? 'card.disableScopeAgent' : 'card.enableScopeAgent', {

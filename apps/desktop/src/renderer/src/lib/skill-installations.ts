@@ -9,6 +9,31 @@ export interface SkillInstallationFilter {
   ownershipFilter?: 'managed' | 'agent' | null
 }
 
+export interface SkillInstallationStatus {
+  writable: SkillInstallation[]
+  disabledCount: number
+  readOnly: boolean
+  allDisabled: boolean
+  partiallyDisabled: boolean
+  hasEnabled: boolean
+}
+
+/** 汇总当前可见安装集合的可编辑和启停状态。 */
+export function deriveSkillInstallationStatus(
+  installations: SkillInstallation[],
+): SkillInstallationStatus {
+  const writable = installations.filter((installation) => !installation.readOnly)
+  const disabledCount = writable.filter((installation) => installation.enabled === false).length
+  return {
+    writable,
+    disabledCount,
+    readOnly: installations.length > 0 && writable.length === 0,
+    allDisabled: writable.length > 0 && disabledCount === writable.length,
+    partiallyDisabled: disabledCount > 0 && disabledCount < writable.length,
+    hasEnabled: writable.some((installation) => installation.enabled !== false),
+  }
+}
+
 /** Match one installation against the current Agent, scope and ownership view. */
 export function matchesSkillInstallation(
   installation: SkillInstallation,
