@@ -1,23 +1,20 @@
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
+import { computed, onMounted, onUnmounted, ref, shallowRef } from 'vue'
 import { useI18n } from 'vue-i18n'
 import SidebarToggle from '@/components/SidebarToggle.vue'
 import {
   ArrowLeft,
   BadgeCheck,
-  ChevronDown,
-  ChevronRight,
   Download,
   ExternalLink,
-  FileText,
-  Folder,
   KeyRound,
-  ShieldCheck,
   Star,
 } from '@lucide/vue'
 import type { FoundSkill } from '@skillbuddy/core'
 import type { InstallTarget } from '../../../shared/ipc.js'
 import MarkdownView from '@/components/MarkdownView.vue'
+import MarketFilesTab from '@/components/market/MarketFilesTab.vue'
+import MarketVersionsTab from '@/components/market/MarketVersionsTab.vue'
 import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -42,18 +39,16 @@ const { installSkill, refresh } = useSkills()
 const { groups } = useSettings()
 const { t } = useI18n()
 
-const iconBroken = ref(false)
+const iconBroken = shallowRef(false)
 const targets = ref<InstallTarget[]>([])
-const busy = ref(false)
-const error = ref<string | null>(null)
+const busy = shallowRef(false)
+const error = shallowRef<string | null>(null)
 const selectedGroups = ref<Set<string>>(new Set())
 
-/* ---------- source download (shared by overview / files / install) ---------- */
-
-const overviewLoading = ref(true)
-const matched = ref<FoundSkill | null>(null)
-/** downloaded source root, kept alive so install() can reuse it */
-const sourceRoot = ref<string | null>(null)
+const overviewLoading = shallowRef(true)
+const matched = shallowRef<FoundSkill | null>(null)
+/** 缓存已下载的源码目录，供概览、文件标签和安装流程复用。 */
+const sourceRoot = shallowRef<string | null>(null)
 
 const overviewContent = computed(() => matched.value?.skill.content ?? null)
 const groupSkillName = computed(() => matched.value?.skill.name ?? props.item.name)
@@ -101,7 +96,6 @@ onMounted(async () => {
     sourceRoot.value = result.root
     matched.value = matchSkill(result.items) ?? null
   } catch {
-    // overview is best-effort; install() retries the download itself
   } finally {
     overviewLoading.value = false
   }
@@ -111,177 +105,17 @@ onUnmounted(() => {
   if (sourceRoot.value) void window.skillsManager.cleanupImport(sourceRoot.value)
 })
 
-/* ---------- tabs ---------- */
-
 type TabId = 'overview' | 'files' | 'versions'
-const tab = ref<TabId>('overview')
+const tab = shallowRef<TabId>('overview')
 
 const tabs = computed(() => [
   { id: 'overview' as TabId, label: t('market.overview') },
   { id: 'files' as TabId, label: t('market.files') },
-  // version history is a SkillHub-only API
   ...(props.item.kind === 'skillhub'
     ? [{ id: 'versions' as TabId, label: t('market.versionHistory') }]
     : []),
 ])
 
-/* ---------- versions tab (SkillHub only) ---------- */
-
-interface VersionEntry {
-  version: string
-  changelog: string
-  createdAt: number | null
-  security: { name: string; status: string; statusText: string; reportUrl: string }[]
-}
-
-const versions = ref<VersionEntry[] | null>(null)
-const versionsLoading = ref(false)
-
-async function loadVersions(): Promise<void> {
-  if (versions.value || versionsLoading.value || props.item.kind !== 'skillhub') return
-  versionsLoading.value = true
-  try {
-    versions.value = await window.skillsManager.skillhubVersions(
-      props.item.slug!,
-      props.item.namespace ?? '',
-    )
-  } catch {
-    versions.value = []
-  } finally {
-    versionsLoading.value = false
-  }
-}
-
-function formatDate(ms: number): string {
-  const d = new Date(ms)
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-}
-
-function openReport(url: string): void {
-  if (url) void window.skillsManager.openLink(url)
-}
-
-/* ---------- files tab ---------- */
-
-interface TreeEntry {
-  path: string
-  size: number
-  isDir: boolean
-}
-
-interface TreeNode extends TreeEntry {
-  name: string
-  children: TreeNode[]
-}
-
-const treeEntries = ref<TreeEntry[] | null>(null)
-const treeLoading = ref(false)
-const expanded = ref<Set<string>>(new Set())
-
-const fileCount = computed(() => (treeEntries.value ?? []).filter((e) => !e.isDir).length)
-
-const tree = computed<TreeNode[]>(() => {
-  const root: TreeNode[] = []
-  const byPath = new Map<string, TreeNode>()
-  for (const e of treeEntries.value ?? []) {
-    const node: TreeNode = { ...e, name: e.path.split('/').pop()!, children: [] }
-    byPath.set(e.path, node)
-    const slash = e.path.lastIndexOf('/')
-    const parent = slash > 0 ? byPath.get(e.path.slice(0, slash)) : undefined
-    ;(parent ? parent.children : root).push(node)
-  }
-  const sortNodes = (nodes: TreeNode[]): void => {
-    nodes.sort((a, b) =>
-      a.isDir === b.isDir ? a.name.localeCompare(b.name) : a.isDir ? -1 : 1,
-    )
-    for (const n of nodes) sortNodes(n.children)
-  }
-  sortNodes(root)
-  return root
-})
-
-const visibleRows = computed(() => {
-  const rows: { node: TreeNode; depth: number }[] = []
-  const walk = (nodes: TreeNode[], depth: number): void => {
-    for (const n of nodes) {
-      rows.push({ node: n, depth })
-      if (n.isDir && expanded.value.has(n.path)) walk(n.children, depth + 1)
-    }
-  }
-  walk(tree.value, 0)
-  return rows
-})
-
-function toggleDir(path: string): void {
-  const next = new Set(expanded.value)
-  if (next.has(path)) next.delete(path)
-  else next.add(path)
-  expanded.value = next
-}
-
-async function loadTree(): Promise<void> {
-  if (treeEntries.value || treeLoading.value || !matched.value) return
-  treeLoading.value = true
-  try {
-    treeEntries.value = await window.skillsManager.listTree(matched.value.dir)
-  } catch {
-    treeEntries.value = []
-  } finally {
-    treeLoading.value = false
-  }
-}
-
-watch([tab, matched], () => {
-  if (tab.value === 'files') void loadTree()
-  if (tab.value === 'versions') void loadVersions()
-})
-
-/* ---------- file preview ---------- */
-
-const BINARY_EXT = new Set([
-  'png', 'jpg', 'jpeg', 'gif', 'webp', 'ico', 'icns', 'bmp',
-  'zip', 'gz', 'tar', 'bz2', '7z', 'pdf',
-  'woff', 'woff2', 'ttf', 'otf', 'eot',
-  'mp3', 'mp4', 'mov', 'avi', 'wasm', 'node', 'dylib', 'so', 'dll',
-])
-
-const openedFile = ref<{ path: string; size: number } | null>(null)
-const fileContent = ref<string | null>(null)
-const fileTruncated = ref(false)
-const fileLoading = ref(false)
-
-const openedIsMarkdown = computed(
-  () => openedFile.value?.path.toLowerCase().endsWith('.md') ?? false,
-)
-const openedIsBinary = computed(() => {
-  const ext = openedFile.value?.path.split('.').pop()?.toLowerCase()
-  return ext ? BINARY_EXT.has(ext) : false
-})
-
-async function openFile(node: TreeNode): Promise<void> {
-  openedFile.value = { path: node.path, size: node.size }
-  fileContent.value = null
-  fileTruncated.value = false
-  if (openedIsBinary.value || !matched.value) return
-  fileLoading.value = true
-  try {
-    const result = await window.skillsManager.readFile(`${matched.value.dir}/${node.path}`)
-    fileContent.value = result.content
-    fileTruncated.value = result.truncated
-  } catch {
-    fileContent.value = null
-  } finally {
-    fileLoading.value = false
-  }
-}
-
-function formatSize(bytes: number): string {
-  if (bytes >= 1024 * 1024) return `${(bytes / 1024 / 1024).toFixed(1)} MB`
-  if (bytes >= 1024) return `${(bytes / 1024).toFixed(1)} KB`
-  return `${bytes} B`
-}
-
-/* ---------- meta ---------- */
 
 function timeAgo(ms: number): string {
   const min = Math.floor((Date.now() - ms) / 60_000)
@@ -296,8 +130,7 @@ function openLink(): void {
   void window.skillsManager.openLink(props.item.link)
 }
 
-/* ---------- install ---------- */
-
+/** 优先复用概览源码；概览加载失败时重新下载，并在本次安装结束后清理临时目录。 */
 async function install(): Promise<void> {
   if (targets.value.length === 0) return
   busy.value = true
@@ -336,14 +169,24 @@ async function install(): Promise<void> {
     <!-- header -->
     <header :class="['app-drag relative flex h-14 shrink-0 items-center gap-3 border-b px-6', props.inset && 'pl-[118px]']">
       <SidebarToggle />
-      <Button variant="ghost" size="icon" class="app-no-drag" @click="emit('close')">
+      <Button
+        variant="ghost"
+        size="icon"
+        class="app-no-drag cursor-pointer"
+        @click="emit('close')"
+      >
         <ArrowLeft class="!size-5 translate-y-px" />
       </Button>
       <h1 class="select-text min-w-0 truncate text-base font-semibold leading-5 tracking-tight">
         {{ item.name }}
       </h1>
       <div class="flex-1" />
-      <Button variant="outline" size="sm" class="app-no-drag" @click="openLink">
+      <Button
+        variant="outline"
+        size="sm"
+        class="app-no-drag cursor-pointer"
+        @click="openLink"
+      >
         <ExternalLink class="size-3.5" />
         {{ t('market.viewSource') }}
       </Button>
@@ -381,7 +224,8 @@ async function install(): Promise<void> {
               />
             </div>
             <button
-              class="select-text w-fit max-w-full truncate text-left text-sm text-muted-foreground underline-offset-2 hover:underline"
+              type="button"
+              class="select-text w-fit max-w-full cursor-pointer truncate text-left text-sm text-muted-foreground underline-offset-2 hover:underline"
               :title="t('market.viewSource')"
               @click="openLink"
             >
@@ -456,7 +300,7 @@ async function install(): Promise<void> {
           <PlatformTargetPicker v-model="targets" :label="t('team.installTo')" />
           <p v-if="error" class="break-all text-sm text-destructive">{{ error }}</p>
           <Button
-            class="mt-1 w-fit"
+            class="mt-1 w-fit cursor-pointer"
             :disabled="busy || targets.length === 0"
             @click="install"
           >
@@ -505,8 +349,9 @@ async function install(): Promise<void> {
           <button
             v-for="tb in tabs"
             :key="tb.id"
+            type="button"
             :class="[
-              '-mb-px border-b-2 pb-2 text-sm transition-colors',
+              '-mb-px cursor-pointer border-b-2 pb-2 text-sm transition-colors',
               tab === tb.id
                 ? 'border-foreground font-semibold text-foreground'
                 : 'border-transparent text-muted-foreground hover:text-foreground',
@@ -518,7 +363,7 @@ async function install(): Promise<void> {
         </div>
 
         <!-- overview tab -->
-        <section v-if="tab === 'overview'">
+        <section v-show="tab === 'overview'">
           <div v-if="overviewLoading" class="flex flex-col gap-3 py-2">
             <Skeleton class="h-6 w-1/3" />
             <Skeleton class="h-4 w-full" />
@@ -540,172 +385,19 @@ async function install(): Promise<void> {
           </p>
         </section>
 
-        <!-- versions tab -->
-        <section v-else-if="tab === 'versions'">
-          <div v-if="versionsLoading || versions === null" class="flex flex-col py-2">
-            <div v-for="i in 3" :key="i" :class="['flex flex-col gap-2 py-4', i > 1 && 'border-t']">
-              <div class="flex items-center gap-3">
-                <Skeleton class="h-4 w-16" />
-                <div class="flex-1" />
-                <Skeleton class="h-3 w-20" />
-              </div>
-              <Skeleton class="h-4 w-2/3" />
-              <div class="flex gap-2">
-                <Skeleton class="h-5 w-24 rounded-full" />
-                <Skeleton class="h-5 w-24 rounded-full" />
-              </div>
-            </div>
-          </div>
-          <p
-            v-else-if="versions.length === 0"
-            class="py-8 text-center text-sm text-muted-foreground"
-          >
-            {{ t('market.versionsEmpty') }}
-          </p>
-          <ul v-else class="flex flex-col">
-            <li
-              v-for="(v, i) in versions"
-              :key="v.version"
-              :class="['flex flex-col gap-1.5 py-4', i > 0 && 'border-t']"
-            >
-              <div class="flex items-center gap-3">
-                <span class="text-sm font-semibold tabular-nums">v{{ v.version }}</span>
-                <span
-                  v-if="i === 0"
-                  class="rounded-full border border-emerald-500/40 bg-emerald-500/10 px-2 py-0.5 text-[10px] text-emerald-700 dark:text-emerald-400"
-                >
-                  {{ t('market.latest') }}
-                </span>
-                <div class="flex-1" />
-                <span v-if="v.createdAt" class="text-sm tabular-nums text-muted-foreground">
-                  {{ formatDate(v.createdAt) }}
-                </span>
-              </div>
-              <p v-if="v.changelog" class="select-text text-sm text-foreground/80">
-                {{ v.changelog }}
-              </p>
-              <div v-if="v.security.length > 0" class="flex flex-wrap items-center gap-2">
-                <button
-                  v-for="report in v.security"
-                  :key="report.name"
-                  :class="[
-                    'flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] transition-colors',
-                    report.status === 'benign'
-                      ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400'
-                      : 'text-muted-foreground',
-                    report.reportUrl ? 'cursor-pointer hover:opacity-80' : 'cursor-default',
-                  ]"
-                  :title="report.reportUrl ? t('market.viewReport') : undefined"
-                  @click="openReport(report.reportUrl)"
-                >
-                  <ShieldCheck v-if="report.status === 'benign'" class="size-3" />
-                  {{ report.name }} · {{ report.statusText || report.status }}
-                </button>
-              </div>
-            </li>
-          </ul>
-        </section>
+        <MarketVersionsTab
+          v-if="item.kind === 'skillhub'"
+          v-show="tab === 'versions'"
+          :active="tab === 'versions'"
+          :item="item"
+        />
 
-        <!-- files tab -->
-        <section v-else>
-          <div
-            v-if="treeLoading || (overviewLoading && !treeEntries)"
-            class="overflow-hidden rounded-xl border"
-          >
-            <div class="border-b bg-muted/20 px-4 py-2.5">
-              <Skeleton class="h-4 w-24" />
-            </div>
-            <div class="flex flex-col gap-1 px-4 py-2">
-              <div v-for="i in 8" :key="i" class="flex items-center gap-2 py-1.5">
-                <Skeleton class="size-4 shrink-0 rounded" />
-                <Skeleton :class="['h-4', i % 3 === 0 ? 'w-2/5' : i % 2 === 0 ? 'w-1/3' : 'w-1/4']" />
-                <div class="flex-1" />
-                <Skeleton v-if="i % 3 !== 1" class="h-3 w-12" />
-              </div>
-            </div>
-          </div>
-
-          <!-- file preview -->
-          <div v-else-if="openedFile" class="flex flex-col gap-3">
-            <div class="flex items-center gap-3">
-              <Button variant="outline" size="sm" @click="openedFile = null">
-                <ArrowLeft class="size-3.5" />
-                {{ t('market.backToFiles') }}
-              </Button>
-              <span class="min-w-0 truncate text-sm font-medium">{{ openedFile.path }}</span>
-              <span class="shrink-0 text-sm tabular-nums text-muted-foreground">
-                {{ formatSize(openedFile.size) }}
-              </span>
-            </div>
-            <p
-              v-if="fileTruncated"
-              class="rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-1.5 text-sm text-amber-700 dark:text-amber-400"
-            >
-              {{ t('market.fileTruncated') }}
-            </p>
-            <div v-if="fileLoading" class="flex flex-col gap-2.5 py-2">
-              <Skeleton class="h-4 w-full" />
-              <Skeleton class="h-4 w-11/12" />
-              <Skeleton class="h-4 w-full" />
-              <Skeleton class="h-4 w-3/4" />
-              <Skeleton class="h-4 w-5/6" />
-            </div>
-            <p
-              v-else-if="openedIsBinary || fileContent === null"
-              class="py-8 text-center text-sm text-muted-foreground"
-            >
-              {{ t('market.previewUnsupported') }}
-            </p>
-            <MarkdownView
-              v-else-if="openedIsMarkdown"
-              :content="fileContent"
-              preview-id="market-file"
-              class="select-text"
-            />
-            <ScrollArea
-              v-else
-              orientation="both"
-              class="max-h-[32rem] rounded-lg border bg-muted/30"
-              viewport-class="max-h-[32rem]"
-            >
-              <pre class="select-text px-4 py-3 text-sm leading-relaxed">{{ fileContent }}</pre>
-            </ScrollArea>
-          </div>
-
-          <!-- file tree -->
-          <div v-else class="overflow-hidden rounded-xl border">
-            <div class="border-b bg-muted/20 px-4 py-2.5 text-sm text-muted-foreground">
-              {{ t('market.filesCount', { n: fileCount }) }}
-            </div>
-            <ul class="py-1">
-              <li v-for="row in visibleRows" :key="row.node.path">
-                <button
-                  class="flex w-full items-center gap-2 py-1.5 pr-4 text-sm transition-colors hover:bg-accent/50"
-                  :style="{ paddingLeft: `${16 + row.depth * 20}px` }"
-                  @click="row.node.isDir ? toggleDir(row.node.path) : openFile(row.node)"
-                >
-                  <component
-                    :is="expanded.has(row.node.path) ? ChevronDown : ChevronRight"
-                    v-if="row.node.isDir"
-                    class="size-3.5 shrink-0 text-muted-foreground"
-                  />
-                  <span v-else class="w-3.5 shrink-0" />
-                  <component
-                    :is="row.node.isDir ? Folder : FileText"
-                    class="size-4 shrink-0 text-muted-foreground"
-                  />
-                  <span class="min-w-0 flex-1 truncate text-left">{{ row.node.name }}</span>
-                  <span
-                    v-if="!row.node.isDir"
-                    class="shrink-0 text-sm tabular-nums text-muted-foreground"
-                  >
-                    {{ formatSize(row.node.size) }}
-                  </span>
-                </button>
-              </li>
-            </ul>
-          </div>
-        </section>
+        <MarketFilesTab
+          v-show="tab === 'files'"
+          :active="tab === 'files'"
+          :matched="matched"
+          :source-loading="overviewLoading"
+        />
       </div>
     </ScrollArea>
   </div>
