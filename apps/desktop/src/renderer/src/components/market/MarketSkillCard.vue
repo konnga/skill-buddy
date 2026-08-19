@@ -64,7 +64,7 @@ const { t } = useI18n()
         variant="outline"
         size="icon"
         class="size-7 shrink-0 cursor-pointer rounded-lg"
-        :title="props.actionMode === 'team-library' ? '加入团队库' : t('market.install')"
+        :title="props.actionMode === 'team-library' ? t('team.addToLibrary') : t('market.install')"
         @click.stop="emit('open')"
       >
         <Plus class="size-3.5" />
@@ -81,7 +81,7 @@ const { t } = useI18n()
         <Download class="size-3.5" />
         {{ formatMarketCount(props.item.installs) }}
       </span>
-      <span v-if="props.item.stars !== null" class="flex items-center gap-1" title="stars">
+      <span v-if="props.item.stars !== null" class="flex items-center gap-1" :title="t('market.stars')">
         <Star class="size-3.5" />
         {{ formatMarketCount(props.item.stars) }}
       </span>

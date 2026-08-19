@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { Boxes, FilePlus2, FolderOpen, PackagePlus, ServerCog, Sparkles } from '@lucide/vue'
 import type { TeamContributionWorkspace } from '../../../../shared/ipc.js'
 import { Badge } from '@/components/ui/badge'
@@ -15,13 +16,14 @@ const emit = defineEmits<{
   'update:activeTab': [value: TeamLibraryTab]
   open: []
 }>()
+const { t } = useI18n()
 
 const tabs = computed(() => [
-  { id: 'skills' as const, label: 'Skills', icon: Sparkles },
-  { id: 'mcp' as const, label: 'MCP Servers', icon: ServerCog },
-  { id: 'bundles' as const, label: '岗位包', icon: PackagePlus },
-  { id: 'policy' as const, label: '规范', icon: Boxes },
-  { id: 'changes' as const, label: '变更', icon: FilePlus2 },
+  { id: 'skills' as const, label: t('team.skillsTab'), icon: Sparkles },
+  { id: 'mcp' as const, label: t('team.mcpTab'), icon: ServerCog },
+  { id: 'bundles' as const, label: t('team.bundlesTab'), icon: PackagePlus },
+  { id: 'policy' as const, label: t('team.policyTab'), icon: Boxes },
+  { id: 'changes' as const, label: t('team.changesTab'), icon: FilePlus2 },
 ])
 </script>
 
@@ -33,12 +35,12 @@ const tabs = computed(() => [
         <Badge variant="secondary">{{ props.workspace.libraryId }}</Badge>
       </span>
       <span class="block truncate text-xs text-muted-foreground">
-        所有变更仅在此草稿分支中，发布审核前不会影响团队成员。
+        {{ t('team.managementDraftHint') }}
       </span>
     </span>
     <Button variant="outline" size="sm" class="cursor-pointer" @click="emit('open')">
       <FolderOpen />
-      打开工作区
+      {{ t('team.contributionOpen') }}
     </Button>
   </div>
   <p v-if="props.error" class="break-all text-sm text-destructive">{{ props.error }}</p>

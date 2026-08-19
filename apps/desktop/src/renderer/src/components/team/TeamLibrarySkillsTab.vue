@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { DeepReadonly } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { LibraryBig, Pencil, Sparkles, Trash2 } from '@lucide/vue'
 import type { TeamLibraryCatalog } from '../../../../shared/ipc.js'
 import { Badge } from '@/components/ui/badge'
@@ -13,22 +14,23 @@ const emit = defineEmits<{
   edit: [path: string]
   remove: [path: string]
 }>()
+const { t } = useI18n()
 </script>
 
 <template>
   <section class="flex flex-col gap-3">
     <div class="flex flex-wrap items-center justify-between gap-3">
-      <p class="text-sm text-muted-foreground">从 Skills 市场精选统一使用的资源。</p>
+      <p class="text-sm text-muted-foreground">{{ t('team.skillMarketHint') }}</p>
       <Button size="sm" class="cursor-pointer" @click="emit('market')">
         <LibraryBig />
-        从 Skills 市场添加
+        {{ t('team.skillMarketAdd') }}
       </Button>
     </div>
     <p
       v-if="props.skills.length === 0"
       class="rounded-md border border-dashed py-12 text-center text-sm text-muted-foreground"
     >
-      团队库还没有 Skills，请从 Skills 市场选择资源加入当前草稿。
+      {{ t('team.skillDraftEmpty') }}
     </p>
     <ul v-else class="divide-y overflow-hidden rounded-md border">
       <li v-for="item in props.skills" :key="item.path" class="flex items-center gap-3 px-4 py-3">
@@ -44,7 +46,7 @@ const emit = defineEmits<{
           variant="ghost"
           size="icon"
           class="cursor-pointer"
-          title="编辑"
+          :title="t('common.edit')"
           @click="emit('edit', item.path)"
         >
           <Pencil class="size-4" />
@@ -53,7 +55,7 @@ const emit = defineEmits<{
           variant="ghost"
           size="icon"
           class="cursor-pointer text-destructive"
-          title="删除"
+          :title="t('common.delete')"
           @click="emit('remove', item.path)"
         >
           <Trash2 class="size-4" />

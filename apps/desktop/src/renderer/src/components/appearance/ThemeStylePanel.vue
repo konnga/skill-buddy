@@ -136,7 +136,14 @@ function confirmImport(): void {
       <div class="flex items-center justify-between gap-6 px-5 py-3.5">
         <p class="text-sm">{{ t('settings.appearanceContrast') }}</p>
         <div class="flex w-64 shrink-0 items-center gap-3">
-          <Slider v-model="colors.contrast" :min="0" :max="100" :step="1" class="flex-1" />
+          <Slider
+            v-model="colors.contrast"
+            :min="0"
+            :max="100"
+            :step="1"
+            :aria-label="t('settings.appearanceContrast')"
+            class="flex-1"
+          />
           <span class="w-7 text-right text-sm tabular-nums text-muted-foreground">
             {{ colors.contrast }}
           </span>

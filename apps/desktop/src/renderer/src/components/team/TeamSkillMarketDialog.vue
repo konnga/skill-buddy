@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import { DialogContent, DialogDescription, DialogOverlay, DialogPortal, DialogRoot, DialogTitle } from 'reka-ui'
 import { LoaderCircle, Store, X } from '@lucide/vue'
 import MarketDiscovery from '@/components/MarketDiscovery.vue'
@@ -15,6 +16,8 @@ const emit = defineEmits<{
   close: []
   select: [item: MarketItem]
 }>()
+
+const { t } = useI18n()
 </script>
 
 <template>
@@ -27,13 +30,21 @@ const emit = defineEmits<{
             <Store class="size-4" />
           </span>
           <span class="min-w-0 flex-1">
-            <DialogTitle class="text-base font-semibold">从 Skills 市场添加</DialogTitle>
+            <DialogTitle class="text-base font-semibold">{{ t('team.skillMarketDialogTitle') }}</DialogTitle>
             <DialogDescription class="mt-1 text-sm text-muted-foreground">
-              选择市场资源后，将完整 Skill 目录加入当前团队库变更草稿。
+              {{ t('team.skillMarketDialogDescription') }}
             </DialogDescription>
           </span>
           <LoaderCircle v-if="busy" class="mt-1 size-4 animate-spin text-muted-foreground" />
-          <Button v-else variant="ghost" size="icon" class="size-8 cursor-pointer" title="关闭" @click="emit('close')">
+          <Button
+            v-else
+            variant="ghost"
+            size="icon"
+            class="size-8 cursor-pointer"
+            :title="t('common.close')"
+            :aria-label="t('common.close')"
+            @click="emit('close')"
+          >
             <X />
           </Button>
         </div>

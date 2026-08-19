@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, watch, type DeepReadonly } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { DialogContent, DialogDescription, DialogOverlay, DialogPortal, DialogRoot, DialogTitle } from 'reka-ui'
 import type { TeamLibraryCatalog, TeamProjectConfig } from '../../../../shared/ipc.js'
 import { Button } from '@/components/ui/button'
@@ -13,6 +14,7 @@ const props = defineProps<{
   busy?: boolean
 }>()
 const emit = defineEmits<{ close: []; saved: [] }>()
+const { t } = useI18n()
 
 const libraryId = ref('')
 const teams = ref<string[]>([])
@@ -105,14 +107,14 @@ async function submit(): Promise<void> {
       <DialogOverlay class="fixed inset-0 z-40 bg-black/40" />
       <DialogContent class="fixed left-1/2 top-1/2 z-50 flex max-h-[90vh] w-[min(760px,calc(100vw-32px))] -translate-x-1/2 -translate-y-1/2 flex-col rounded-lg border bg-background shadow-xl outline-none">
         <div class="border-b px-5 py-4">
-          <DialogTitle class="text-base font-semibold">配置项目团队库</DialogTitle>
-          <DialogDescription class="mt-1 text-sm text-muted-foreground">为当前项目选择团队、岗位包及必需的 Skills 和 MCP。</DialogDescription>
+          <DialogTitle class="text-base font-semibold">{{ t('team.projectConfigTitle') }}</DialogTitle>
+          <DialogDescription class="mt-1 text-sm text-muted-foreground">{{ t('team.projectConfigHint') }}</DialogDescription>
         </div>
         <form class="min-h-0 flex-1 space-y-4 overflow-y-auto px-5 py-4" @submit.prevent="submit">
-          <label class="grid gap-1.5 text-sm font-medium">团队库<Select v-model="libraryId" :options="libraryOptions" /></label>
+          <label class="grid gap-1.5 text-sm font-medium">{{ t('team.managementLibrary') }}<Select v-model="libraryId" :options="libraryOptions" /></label>
           <template v-if="catalog">
             <section v-if="teamOptions.length" class="rounded-md border">
-              <h3 class="border-b bg-muted/25 px-3 py-2 text-sm font-medium">团队策略</h3>
+              <h3 class="border-b bg-muted/25 px-3 py-2 text-sm font-medium">{{ t('team.projectTeamPolicies') }}</h3>
               <label v-for="item in teamOptions" :key="item.id" class="flex cursor-pointer items-start gap-2 border-b px-3 py-2 text-sm last:border-b-0">
                 <input type="checkbox" :checked="teams.includes(item.id)" class="mt-1" @change="toggle(teams, item.id)" />
                 <span><span class="block font-medium">{{ item.name }}</span><span class="block text-xs text-muted-foreground">{{ item.id }}</span></span>
@@ -120,12 +122,12 @@ async function submit(): Promise<void> {
             </section>
             <div class="grid gap-4 lg:grid-cols-2">
               <section class="overflow-hidden rounded-md border">
-                <h3 class="border-b bg-muted/25 px-3 py-2 text-sm font-medium">岗位包</h3>
+                <h3 class="border-b bg-muted/25 px-3 py-2 text-sm font-medium">{{ t('team.bundlesTab') }}</h3>
                 <label v-for="item in bundleOptions" :key="item.path" class="flex cursor-pointer items-start gap-2 border-b px-3 py-2 text-sm last:border-b-0">
                   <input type="checkbox" :checked="bundles.includes(item.id)" class="mt-1" @change="toggle(bundles, item.id)" />
                   <span class="min-w-0"><span class="block truncate font-medium">{{ item.name }}</span><span class="block truncate text-xs text-muted-foreground">{{ item.id }}</span></span>
                 </label>
-                <p v-if="!bundleOptions.length" class="px-3 py-6 text-center text-sm text-muted-foreground">暂无岗位包</p>
+                <p v-if="!bundleOptions.length" class="px-3 py-6 text-center text-sm text-muted-foreground">{{ t('team.projectNoBundles') }}</p>
               </section>
               <section class="overflow-hidden rounded-md border">
                 <h3 class="border-b bg-muted/25 px-3 py-2 text-sm font-medium">Skills</h3>
@@ -133,7 +135,7 @@ async function submit(): Promise<void> {
                   <input type="checkbox" :checked="skills.includes(item.path)" class="mt-1" @change="toggle(skills, item.path)" />
                   <span class="min-w-0"><span class="block truncate font-medium">{{ item.name }}</span><span class="block truncate text-xs text-muted-foreground">{{ item.path }}</span></span>
                 </label>
-                <p v-if="!skillOptions.length" class="px-3 py-6 text-center text-sm text-muted-foreground">暂无 Skills</p>
+                <p v-if="!skillOptions.length" class="px-3 py-6 text-center text-sm text-muted-foreground">{{ t('team.projectNoSkills') }}</p>
               </section>
             </div>
             <section class="overflow-hidden rounded-md border">
@@ -142,15 +144,15 @@ async function submit(): Promise<void> {
                 <input type="checkbox" :checked="mcp.includes(item.path)" class="mt-1" @change="toggle(mcp, item.path)" />
                 <span class="min-w-0"><span class="block truncate font-medium">{{ item.name }}</span><span class="block truncate text-xs text-muted-foreground">{{ item.path }}</span></span>
               </label>
-              <p v-if="!mcpOptions.length" class="px-3 py-6 text-center text-sm text-muted-foreground">暂无 MCP Servers</p>
+              <p v-if="!mcpOptions.length" class="px-3 py-6 text-center text-sm text-muted-foreground">{{ t('team.projectNoMcp') }}</p>
             </section>
           </template>
-          <p v-if="!catalog" class="rounded-md border border-dashed px-3 py-8 text-center text-sm text-muted-foreground">请先同步一个有效的团队库。</p>
+          <p v-if="!catalog" class="rounded-md border border-dashed px-3 py-8 text-center text-sm text-muted-foreground">{{ t('team.projectLibraryUnavailable') }}</p>
           <p v-if="error" class="text-sm text-destructive">{{ error }}</p>
         </form>
         <div class="flex justify-end gap-2 border-t px-5 py-4">
-          <Button variant="ghost" size="sm" class="cursor-pointer" @click="emit('close')">取消</Button>
-          <Button size="sm" class="cursor-pointer" :disabled="busy || saving || !catalog" @click="submit">{{ busy || saving ? '保存中…' : '保存项目配置' }}</Button>
+          <Button variant="ghost" size="sm" class="cursor-pointer" @click="emit('close')">{{ t('common.cancel') }}</Button>
+          <Button size="sm" class="cursor-pointer" :disabled="busy || saving || !catalog" @click="submit">{{ busy || saving ? t('team.saving') : t('team.projectSaveConfig') }}</Button>
         </div>
       </DialogContent>
     </DialogPortal>

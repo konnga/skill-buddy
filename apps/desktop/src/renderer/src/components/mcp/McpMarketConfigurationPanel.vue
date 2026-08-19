@@ -100,7 +100,7 @@ const targetsModel = computed({
             variant="secondary"
             :class="!props.localNames.has(candidate.serverName) && 'ml-auto'"
           >
-            已在团队库
+            {{ t('team.alreadyInLibrary') }}
           </Badge>
         </button>
       </div>

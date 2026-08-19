@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, shallowRef } from 'vue'
 import { ChevronDown, CloudDownload, GitCommitHorizontal, Search } from '@lucide/vue'
+import { useI18n } from 'vue-i18n'
 import type { InstallTarget, TeamLibrarySkillSummary } from '../../../../shared/ipc.js'
 import { teamLibraryConfigKey } from '../../../../shared/team-library.js'
 import MarkdownView from '@/components/MarkdownView.vue'
@@ -13,6 +14,7 @@ import { useSettings } from '@/composables/useSettings'
 import { useTeamLibraries } from '@/composables/useTeamLibraries'
 import { agentLabel } from '@/lib/agents'
 
+const { t } = useI18n()
 const { teamLibraries } = useSettings()
 const { skills: localSkills, refresh } = useSkills()
 const { skills, catalogs, installations, refreshInstallations, policyState } = useTeamLibraries()
@@ -52,7 +54,7 @@ const installationStates = computed(() => {
 function configFor(item: TeamLibrarySkillSummary) {
   const itemKey = teamLibraryConfigKey(item)
   const config = teamLibraries.value.find((library) => teamLibraryConfigKey(library) === itemKey)
-  if (!config) throw new Error(`团队库配置不存在：${item.libraryId}`)
+  if (!config) throw new Error(t('team.libraryConfigMissing', { id: item.libraryId }))
   return config
 }
 
@@ -75,7 +77,7 @@ async function install(item: TeamLibrarySkillSummary): Promise<void> {
   if (targets.value.length === 0) return
   const state = policyState(item)
   if (state.blockedReason) {
-    error.value = `该 Skill 已被团队策略禁用：${state.blockedReason}`
+    error.value = t('team.skillPolicyBlocked', { reason: state.blockedReason })
     return
   }
   busy.value = true
@@ -105,11 +107,11 @@ async function install(item: TeamLibrarySkillSummary): Promise<void> {
   <div class="flex flex-col gap-4">
     <div class="relative">
       <Search class="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-      <Input v-model="query" placeholder="搜索团队 Skills…" class="pl-8" />
+      <Input v-model="query" :placeholder="t('team.searchPh')" class="pl-8" />
     </div>
     <p v-if="error" class="break-all text-sm text-destructive">{{ error }}</p>
     <p v-if="visibleSkills.length === 0" class="py-16 text-center text-sm text-muted-foreground">
-      团队库暂无 Skills
+      {{ t('team.empty') }}
     </p>
     <ul v-else class="flex flex-col gap-2">
       <li v-for="item in visibleSkills" :key="`${item.libraryId}:${item.path}`" class="rounded-md border px-4 py-3">
@@ -123,30 +125,30 @@ async function install(item: TeamLibrarySkillSummary): Promise<void> {
                 v-if="required.has(`${item.libraryId}:${item.path}`)"
                 variant="outline"
                 class="border-amber-500/50 text-amber-700 dark:text-amber-400"
-              >团队必装</Badge>
-              <Badge v-if="policyState(item).recommended" variant="secondary">推荐</Badge>
+              >{{ t('team.required') }}</Badge>
+              <Badge v-if="policyState(item).recommended" variant="secondary">{{ t('team.recommended') }}</Badge>
               <Badge
                 v-if="policyState(item).blockedReason"
                 variant="outline"
                 class="border-destructive/50 text-destructive"
-              >已禁用</Badge>
+              >{{ t('team.blocked') }}</Badge>
             </div>
-            <p class="line-clamp-1 text-sm text-muted-foreground">{{ item.description || '暂无描述' }}</p>
+            <p class="line-clamp-1 text-sm text-muted-foreground">{{ item.description || t('team.bundleNoDescription') }}</p>
           </div>
           <div class="flex shrink-0 items-center gap-2">
             <Badge
               v-if="installationStates.get(`${item.libraryId}:${item.path}`) === 'current'"
               variant="success"
-            >已从此来源安装</Badge>
+            >{{ t('team.installedFromSource') }}</Badge>
             <Badge
               v-else-if="installationStates.get(`${item.libraryId}:${item.path}`) === 'outdated'"
               variant="outline"
               class="border-amber-500/50 text-amber-700 dark:text-amber-400"
-            >可升级</Badge>
-            <Badge v-else-if="installationStates.get(`${item.libraryId}:${item.path}`) === 'missing'" variant="outline" class="border-destructive/50 text-destructive">本地安装已丢失</Badge>
-            <Badge v-else-if="localNames.has(item.name)" variant="outline">存在同名本地 Skill</Badge>
+            >{{ t('team.updateAvailable') }}</Badge>
+            <Badge v-else-if="installationStates.get(`${item.libraryId}:${item.path}`) === 'missing'" variant="outline" class="border-destructive/50 text-destructive">{{ t('team.localInstallMissing') }}</Badge>
+            <Badge v-else-if="localNames.has(item.name)" variant="outline">{{ t('team.localSkillNameConflict') }}</Badge>
             <Button variant="outline" size="sm" class="cursor-pointer" @click="toggle(item)">
-              <CloudDownload />安装
+              <CloudDownload />{{ t('team.install') }}
             </Button>
           </div>
         </div>
@@ -157,12 +159,12 @@ async function install(item: TeamLibrarySkillSummary): Promise<void> {
               <span class="flex items-center gap-1 font-mono"><GitCommitHorizontal class="size-3.5" />{{ detail.revision.slice(0, 12) }}</span>
             </div>
             <div v-if="detail.hasScripts" class="rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm text-amber-700 dark:text-amber-400">
-              该 Skill 包含脚本资源，请确认内容后再安装。
+              {{ t('team.skillScriptsWarning') }}
             </div>
           </template>
-          <PlatformTargetPicker v-model="targets" label="安装到" />
+          <PlatformTargetPicker v-model="targets" :label="t('team.installTo')" />
           <p v-if="policyState(item).blockedReason" class="text-sm text-destructive">
-            禁用原因：{{ policyState(item).blockedReason }}
+            {{ t('team.blockedReason', { reason: policyState(item).blockedReason }) }}
           </p>
           <Button
             size="sm"
@@ -170,17 +172,17 @@ async function install(item: TeamLibrarySkillSummary): Promise<void> {
             :disabled="busy || targets.length === 0 || Boolean(policyState(item).blockedReason)"
             @click="install(item)"
           >
-            {{ busy ? '安装中…' : `安装到 ${targets.length} 个目标` }}
+            {{ busy ? t('team.installing') : t('team.installTargets', { n: targets.length }) }}
           </Button>
           <section v-if="detail" class="flex flex-col gap-2 pt-1">
             <button
               type="button"
               class="flex w-full cursor-pointer items-center justify-between gap-3 rounded px-1 py-1 text-left transition-colors hover:bg-muted/40"
-              :title="overviewExpanded ? '收起概述' : '展开概述'"
+              :title="t(overviewExpanded ? 'team.collapseOverview' : 'team.expandOverview')"
               :aria-expanded="overviewExpanded"
               @click="overviewExpanded = !overviewExpanded"
             >
-              <span class="text-sm font-medium">概述</span>
+              <span class="text-sm font-medium">{{ t('team.overview') }}</span>
               <ChevronDown
                 :class="[
                   'size-4 shrink-0 text-muted-foreground transition-transform',

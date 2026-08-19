@@ -7,6 +7,7 @@
 -->
 <script setup lang="ts">
 import { shallowRef, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { DialogContent, DialogDescription, DialogOverlay, DialogPortal, DialogRoot, DialogTitle } from 'reka-ui'
 import { ArrowLeft, ServerCog, X } from '@lucide/vue'
 import type { TeamLibraryMcpDraft } from '../../../../shared/ipc.js'
@@ -28,6 +29,7 @@ const emit = defineEmits<{
 }>()
 
 const selected = shallowRef<McpMarketItem | null>(null)
+const { t } = useI18n()
 
 watch(() => props.open, (open) => {
   if (open) selected.value = null
@@ -45,7 +47,8 @@ watch(() => props.open, (open) => {
             variant="ghost"
             size="icon"
             class="size-8 cursor-pointer"
-            title="返回 MCP 市场"
+            :title="t('common.back')"
+            :aria-label="t('common.back')"
             @click="selected = null"
           >
             <ArrowLeft />
@@ -55,13 +58,24 @@ watch(() => props.open, (open) => {
           </span>
           <span class="min-w-0 flex-1">
             <DialogTitle class="truncate text-base font-semibold">
-              {{ selected ? selected.name : '从 MCP 市场添加' }}
+              {{ selected ? selected.name : t('team.mcpMarketDialogTitle') }}
             </DialogTitle>
             <DialogDescription class="mt-1 text-sm text-muted-foreground">
-              {{ selected ? '选择一个有效配置加入当前团队库变更草稿。' : '从 MCP 市场选择统一维护的服务配置。' }}
+              {{
+                selected
+                  ? t('team.mcpMarketDetailDescription')
+                  : t('team.mcpMarketDialogDescription')
+              }}
             </DialogDescription>
           </span>
-          <Button variant="ghost" size="icon" class="size-8 cursor-pointer" title="关闭" @click="emit('close')">
+          <Button
+            variant="ghost"
+            size="icon"
+            class="size-8 cursor-pointer"
+            :title="t('common.close')"
+            :aria-label="t('common.close')"
+            @click="emit('close')"
+          >
             <X />
           </Button>
         </div>

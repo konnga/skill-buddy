@@ -1,4 +1,5 @@
 import { computed, ref, shallowRef, watch, type DeepReadonly } from 'vue'
+import { useI18n } from 'vue-i18n'
 import type {
   TeamLibraryBundleDraft,
   TeamLibraryMcpDraft,
@@ -21,6 +22,7 @@ export interface TeamPolicyForm {
 }
 
 export function useTeamLibraryWorkspaceEditor() {
+  const { t } = useI18n()
   const { teamLibraries } = useSettings()
   const manager = useTeamLibraryManagement()
   const activeTab = shallowRef<TeamLibraryTab>('skills')
@@ -67,12 +69,12 @@ export function useTeamLibraryWorkspaceEditor() {
   )
   const catalog = computed(() => manager.catalog.value)
   const policyOptions = computed(() => [
-    { value: 'organization', label: '组织规范' },
+    { value: 'organization', label: t('team.policyOrganization') },
     ...(catalog.value?.manifest.teams.map((team) => ({
       value: team.id,
-      label: `团队 · ${team.name}`,
+      label: t('team.policyTeam', { name: team.name }),
     })) ?? []),
-    { value: '__new__', label: '新建团队规范…' },
+    { value: '__new__', label: t('team.policyNewTeam') },
   ])
   const existingSkillNames = computed(
     () => catalog.value?.skills.map((item) => item.name) ?? [],
@@ -201,9 +203,9 @@ export function useTeamLibraryWorkspaceEditor() {
       const result = await fetchMarketSkillSource(item)
       root = result.root
       const found = matchMarketSkill(item, result.items)
-      if (!found) throw new Error('市场资源中没有找到可导入的 Skill')
+      if (!found) throw new Error(t('team.marketSkillNotFound'))
       if (existingSkillNames.value.includes(found.skill.name)) {
-        throw new Error(`团队草稿中已存在同名 Skill：${found.skill.name}`)
+        throw new Error(t('team.duplicateDraftSkill', { name: found.skill.name }))
       }
       const mutation = await manager.importSkill({ sourcePath: found.dir })
       if (mutation) skillMarketOpen.value = false
@@ -221,7 +223,7 @@ export function useTeamLibraryWorkspaceEditor() {
     mcpMarketBusy.value = true
     mcpMarketError.value = null
     if (existingMcpNames.value.includes(input.definition.name)) {
-      mcpMarketError.value = `团队草稿中已存在同名 MCP Server：${input.definition.name}`
+      mcpMarketError.value = t('team.duplicateDraftMcp', { name: input.definition.name })
       mcpMarketBusy.value = false
       return
     }
@@ -250,7 +252,7 @@ export function useTeamLibraryWorkspaceEditor() {
     if (await manager.saveBundle(input)) {
       bundleDialogOpen.value = false
     } else {
-      bundleError.value = manager.error.value ?? '保存岗位包失败，请稍后重试'
+      bundleError.value = manager.error.value ?? t('team.bundleSaveFailed')
     }
   }
 
@@ -262,10 +264,10 @@ export function useTeamLibraryWorkspaceEditor() {
 
   async function remove(path: string, label: string): Promise<void> {
     const confirmed = await window.skillsManager.confirmDialog({
-      title: `删除${label}`,
-      message: `将从当前变更分支删除 ${path}。被岗位包引用时会同步移除该引用。`,
-      confirmLabel: '删除',
-      cancelLabel: '取消',
+      title: t('team.removeAssetTitle', { label }),
+      message: t('team.removeAssetMessage', { path }),
+      confirmLabel: t('common.delete'),
+      cancelLabel: t('common.cancel'),
       danger: true,
     })
     if (confirmed) await manager.remove(path)

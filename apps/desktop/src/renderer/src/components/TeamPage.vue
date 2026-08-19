@@ -77,8 +77,8 @@ async function refreshTeam(): Promise<void> {
       />
       <div v-if="catalogs.length === 0" class="flex items-center gap-3 rounded-md border border-dashed px-4 py-4 text-sm text-muted-foreground">
         <Boxes class="size-5 shrink-0" />
-        <span class="flex-1">团队库已配置但还没有可用资源。请进入“管理”从市场添加 Skill 或 MCP。</span>
-        <Button variant="outline" size="sm" class="cursor-pointer" @click="activeTab = 'manage'">打开管理</Button>
+        <span class="flex-1">{{ t('team.noResourcesHint') }}</span>
+        <Button variant="outline" size="sm" class="cursor-pointer" @click="activeTab = 'manage'">{{ t('team.openManagement') }}</Button>
       </div>
       <div class="grid w-full grid-cols-5 items-center rounded-md bg-muted p-1" role="tablist">
         <button
@@ -131,7 +131,7 @@ async function refreshTeam(): Promise<void> {
           @click="activeTab = 'projects'"
         >
           <FolderGit2 class="size-4" />
-          项目安装
+          {{ t('team.projectsTab') }}
         </button>
         <button
           type="button"
@@ -144,7 +144,7 @@ async function refreshTeam(): Promise<void> {
           @click="activeTab = 'manage'"
         >
           <Settings2 class="size-4" />
-          管理
+          {{ t('team.manageTab') }}
         </button>
       </div>
 

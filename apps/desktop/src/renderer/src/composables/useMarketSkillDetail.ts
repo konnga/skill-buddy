@@ -236,6 +236,7 @@ export function useMarketSkillDetail(options: UseMarketSkillDetailOptions) {
     overviewLoading,
     matched,
     overviewContent,
+    groupSkillName,
     groupOptions,
     setTargets,
     toggleGroup,

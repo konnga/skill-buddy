@@ -1,11 +1,15 @@
 <script setup lang="ts">
+import { shallowRef } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { Plus } from '@lucide/vue'
+import GroupCreateDialog from '@/components/groups/GroupCreateDialog.vue'
 import { Button } from '@/components/ui/button'
 import type { MarketGroupOption } from '@/composables/useMarketSkillDetail'
 
 const props = defineProps<{
   groups: MarketGroupOption[]
   selected: Set<string>
+  skillName: string
 }>()
 const emit = defineEmits<{
   toggle: [name: string]
@@ -13,11 +17,22 @@ const emit = defineEmits<{
 }>()
 
 const { t } = useI18n()
+const createOpen = shallowRef(false)
 </script>
 
 <template>
   <section class="flex flex-col gap-3 rounded-xl border px-5 py-4">
-    <h3 class="text-sm font-medium">{{ t('market.addToGroups') }}</h3>
+    <div class="flex items-center justify-between gap-3">
+      <h3 class="text-sm font-medium">{{ t('market.addToGroups') }}</h3>
+      <button
+        type="button"
+        class="flex shrink-0 cursor-pointer items-center gap-1 rounded-md border border-dashed px-2.5 py-1 text-sm text-muted-foreground transition-colors hover:border-foreground/40 hover:text-foreground"
+        @click="createOpen = true"
+      >
+        <Plus class="size-3.5" />
+        {{ t('groups.createTitle') }}
+      </button>
+    </div>
     <div v-if="props.groups.length > 0" class="flex flex-wrap gap-2">
       <button
         v-for="group in props.groups"
@@ -48,4 +63,9 @@ const { t } = useI18n()
       {{ t('market.addToGroupsAction', { n: props.selected.size }) }}
     </Button>
   </section>
+
+  <GroupCreateDialog
+    v-model:open="createOpen"
+    :skill-names="[props.skillName]"
+  />
 </template>

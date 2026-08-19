@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { Boxes, FilePlus2 } from '@lucide/vue'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -18,6 +19,7 @@ const emit = defineEmits<{
   'update:branchSlug': [value: string]
   start: []
 }>()
+const { t } = useI18n()
 
 const libraryModel = computed({
   get: () => props.libraryKey,
@@ -31,25 +33,25 @@ const branchModel = computed({
 
 <template>
   <div v-if="props.restoring" class="rounded-md border border-dashed px-5 py-8 text-center text-sm text-muted-foreground">
-    正在恢复本地团队库草稿…
+    {{ t('team.managementRestoring') }}
   </div>
   <div v-else class="rounded-md border border-dashed px-5 py-8">
     <div class="flex items-start gap-3">
       <Boxes class="mt-0.5 size-5 text-muted-foreground" />
       <div>
-        <h2 class="text-sm font-semibold">管理团队资源</h2>
+        <h2 class="text-sm font-semibold">{{ t('team.managementTitle') }}</h2>
         <p class="mt-1 text-sm text-muted-foreground">
-          创建独立 Git 变更分支后，可在 SkillBuddy 中管理 Skills、MCP、岗位包和组织规范。
+          {{ t('team.managementHint') }}
         </p>
       </div>
     </div>
     <div class="mt-5 grid gap-3 sm:grid-cols-2">
       <label class="grid gap-1.5 text-sm font-medium">
-        团队库
+        {{ t('team.managementLibrary') }}
         <Select v-model="libraryModel" :options="props.libraryOptions" />
       </label>
       <label class="grid gap-1.5 text-sm font-medium">
-        分支标识
+        {{ t('team.managementBranch') }}
         <Input v-model="branchModel" placeholder="add-security-skill" />
       </label>
     </div>
@@ -60,7 +62,7 @@ const branchModel = computed({
       @click="emit('start')"
     >
       <FilePlus2 />
-      {{ props.busy ? '准备中…' : '创建管理草稿' }}
+      {{ props.busy ? t('team.managementPreparing') : t('team.managementCreate') }}
     </Button>
   </div>
 </template>

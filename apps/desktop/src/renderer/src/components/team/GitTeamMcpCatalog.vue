@@ -2,6 +2,7 @@
 import { computed, shallowRef } from 'vue'
 import { CloudDownload, GitCommitHorizontal, KeyRound, Search, ServerCog } from '@lucide/vue'
 import type { McpTarget } from '@skillbuddy/core'
+import { useI18n } from 'vue-i18n'
 import type { TeamLibraryMcpSummary } from '../../../../shared/ipc.js'
 import { teamLibraryConfigKey } from '../../../../shared/team-library.js'
 import McpPlanDialog from '@/components/mcp/McpPlanDialog.vue'
@@ -13,6 +14,7 @@ import { useMcpServers } from '@/composables/useMcpServers'
 import { useSettings } from '@/composables/useSettings'
 import { useTeamLibraries } from '@/composables/useTeamLibraries'
 
+const { t } = useI18n()
 const { teamLibraries, projectRoots } = useSettings()
 const { mcpServers, catalogs, installations, refreshInstallations, policyState } = useTeamLibraries()
 const { platforms, currentPlan, planning, applying, planUpsert, applyPlan, closePlan, refresh } = useMcpServers()
@@ -47,7 +49,7 @@ const installationStates = computed(() => {
 function configFor(item: TeamLibraryMcpSummary) {
   const itemKey = teamLibraryConfigKey(item)
   const config = teamLibraries.value.find((library) => teamLibraryConfigKey(library) === itemKey)
-  if (!config) throw new Error(`团队库配置不存在：${item.libraryId}`)
+  if (!config) throw new Error(t('team.libraryConfigMissing', { id: item.libraryId }))
   return config
 }
 
@@ -69,7 +71,7 @@ async function review(): Promise<void> {
   if (!detail.value || targets.value.length === 0) return
   const state = policyState(detail.value)
   if (state.blockedReason) {
-    error.value = `该 MCP Server 已被团队策略禁用：${state.blockedReason}`
+    error.value = t('team.mcpPolicyBlocked', { reason: state.blockedReason })
     return
   }
   try {
@@ -113,10 +115,10 @@ async function apply(): Promise<void> {
   <div class="flex flex-col gap-4">
     <div class="relative">
       <Search class="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-      <Input v-model="query" placeholder="搜索团队 MCP Servers…" class="pl-8" />
+      <Input v-model="query" :placeholder="t('team.mcpSearchPh')" class="pl-8" />
     </div>
     <p v-if="error" class="break-all text-sm text-destructive">{{ error }}</p>
-    <p v-if="visibleItems.length === 0" class="py-16 text-center text-sm text-muted-foreground">团队库暂无 MCP Server</p>
+    <p v-if="visibleItems.length === 0" class="py-16 text-center text-sm text-muted-foreground">{{ t('team.mcpEmpty') }}</p>
     <ul v-else class="flex flex-col gap-2">
       <li v-for="item in visibleItems" :key="`${item.libraryId}:${item.path}`" class="rounded-md border px-4 py-3">
         <div class="flex items-center justify-between gap-3">
@@ -131,28 +133,28 @@ async function apply(): Promise<void> {
                 v-if="required.has(`${item.libraryId}:${item.path}`)"
                 variant="outline"
                 class="border-amber-500/50 text-amber-700 dark:text-amber-400"
-              >团队必装</Badge>
-              <Badge v-if="policyState(item).recommended" variant="secondary">推荐</Badge>
+              >{{ t('team.required') }}</Badge>
+              <Badge v-if="policyState(item).recommended" variant="secondary">{{ t('team.recommended') }}</Badge>
               <Badge
                 v-if="policyState(item).blockedReason"
                 variant="outline"
                 class="border-destructive/50 text-destructive"
-              >已禁用</Badge>
+              >{{ t('team.blocked') }}</Badge>
             </div>
-            <p class="line-clamp-1 text-sm text-muted-foreground">{{ item.description || '暂无描述' }}</p>
+            <p class="line-clamp-1 text-sm text-muted-foreground">{{ item.description || t('team.bundleNoDescription') }}</p>
           </div>
           <div class="flex shrink-0 items-center gap-2">
             <Badge
               v-if="installationStates.get(`${item.libraryId}:${item.path}`) === 'current'"
               variant="success"
-            >已从此来源安装</Badge>
+            >{{ t('team.installedFromSource') }}</Badge>
             <Badge
               v-else-if="installationStates.get(`${item.libraryId}:${item.path}`) === 'outdated'"
               variant="outline"
               class="border-amber-500/50 text-amber-700 dark:text-amber-400"
-            >可升级</Badge>
-            <Badge v-else-if="installationStates.get(`${item.libraryId}:${item.path}`) === 'missing'" variant="outline" class="border-destructive/50 text-destructive">本地安装已丢失</Badge>
-            <Button variant="outline" size="sm" class="cursor-pointer" @click="toggle(item)"><CloudDownload />安装</Button>
+            >{{ t('team.updateAvailable') }}</Badge>
+            <Badge v-else-if="installationStates.get(`${item.libraryId}:${item.path}`) === 'missing'" variant="outline" class="border-destructive/50 text-destructive">{{ t('team.localInstallMissing') }}</Badge>
+            <Button variant="outline" size="sm" class="cursor-pointer" @click="toggle(item)"><CloudDownload />{{ t('team.install') }}</Button>
           </div>
         </div>
         <div v-if="expanded === `${item.libraryId}:${item.path}`" class="mt-3 flex flex-col gap-3 border-t pt-3">
@@ -163,11 +165,11 @@ async function apply(): Promise<void> {
             </div>
             <div class="flex items-center gap-2 text-sm">
               <KeyRound class="size-4" />
-              <span>{{ detail.requiredSecrets.length ? detail.requiredSecrets.join('、') : '不需要额外密钥' }}</span>
+              <span>{{ detail.requiredSecrets.length ? detail.requiredSecrets.join(', ') : t('team.noRequiredSecrets') }}</span>
             </div>
             <McpTargetPicker v-model="targets" :platforms="platforms" :project-roots="projectRoots" />
             <p v-if="policyState(item).blockedReason" class="text-sm text-destructive">
-              禁用原因：{{ policyState(item).blockedReason }}
+              {{ t('team.blockedReason', { reason: policyState(item).blockedReason }) }}
             </p>
             <Button
               size="sm"
@@ -175,7 +177,7 @@ async function apply(): Promise<void> {
               :disabled="planning || applying || targets.length === 0 || Boolean(policyState(item).blockedReason)"
               @click="review"
             >
-              {{ planning ? '正在生成计划…' : '预览安装计划' }}
+              {{ planning ? t('team.preparingPlan') : t('team.reviewMcpInstall') }}
             </Button>
           </template>
         </div>

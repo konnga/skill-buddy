@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { shallowRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import {
   DialogContent,
@@ -12,12 +12,18 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { useGroups } from '@/composables/useGroups'
 
-const props = defineProps<{ open: boolean }>()
-const emit = defineEmits<{ 'update:open': [open: boolean] }>()
+const props = defineProps<{
+  open: boolean
+  skillNames?: string[]
+}>()
+const emit = defineEmits<{
+  'update:open': [open: boolean]
+  created: [name: string]
+}>()
 
 const { t } = useI18n()
 const { groups, createGroup } = useGroups()
-const name = ref('')
+const name = shallowRef('')
 
 watch(
   () => props.open,
@@ -27,7 +33,10 @@ watch(
 )
 
 function submit(): void {
-  if (createGroup(name.value)) emit('update:open', false)
+  const trimmed = name.value.trim()
+  if (!createGroup(trimmed, props.skillNames)) return
+  emit('created', trimmed)
+  emit('update:open', false)
 }
 </script>
 
@@ -50,11 +59,12 @@ function submit(): void {
           @keydown.enter.prevent="submit"
         />
         <div class="mt-4 flex justify-end gap-2">
-          <Button variant="ghost" size="sm" @click="emit('update:open', false)">
+          <Button variant="ghost" size="sm" class="cursor-pointer" @click="emit('update:open', false)">
             {{ t('common.cancel') }}
           </Button>
           <Button
             size="sm"
+            class="cursor-pointer"
             :disabled="!name.trim() || groups.some((g) => g.name === name.trim())"
             @click="submit"
           >

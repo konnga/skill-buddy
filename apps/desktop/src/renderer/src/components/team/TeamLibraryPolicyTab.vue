@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { Boxes } from '@lucide/vue'
 import type { SelectOption } from '@/components/ui/select'
 import { Button } from '@/components/ui/button'
@@ -12,6 +13,7 @@ const props = defineProps<{
   busy: boolean
 }>()
 const emit = defineEmits<{ save: [] }>()
+const { t } = useI18n()
 const policy = defineModel<TeamPolicyForm>('policy', { required: true })
 const policyScope = defineModel<string>('policyScope', { required: true })
 const newTeamId = defineModel<string>('newTeamId', { required: true })
@@ -27,25 +29,25 @@ const canSave = computed(
 <template>
   <section class="grid gap-4 rounded-md border px-4 py-4">
     <p class="text-sm text-muted-foreground">
-      组织规范适用于全员；团队规范由项目配置显式选择。每行填写一个资源引用，禁用规则可填写版本范围和原因。
+      {{ t('team.policyHint') }}
     </p>
     <label class="grid gap-1.5 text-sm font-medium">
-      规范范围
+      {{ t('team.policyScope') }}
       <Select v-model="policyScope" :options="props.policyOptions" />
     </label>
     <div v-if="policyScope === '__new__'" class="grid gap-4 sm:grid-cols-2">
       <label class="grid gap-1.5 text-sm font-medium">
-        团队 ID
+        {{ t('team.policyTeamId') }}
         <Input v-model="newTeamId" placeholder="frontend" />
       </label>
       <label class="grid gap-1.5 text-sm font-medium">
-        团队名称
-        <Input v-model="newTeamName" placeholder="前端团队" />
+        {{ t('team.policyTeamName') }}
+        <Input v-model="newTeamName" :placeholder="t('team.policyTeamNamePh')" />
       </label>
     </div>
     <div class="grid gap-4 sm:grid-cols-2">
       <label class="grid gap-1.5 text-sm font-medium">
-        必装 Skills
+        {{ t('team.policyRequiredSkills') }}
         <textarea
           v-model="policy.requiredSkills"
           rows="5"
@@ -54,7 +56,7 @@ const canSave = computed(
         />
       </label>
       <label class="grid gap-1.5 text-sm font-medium">
-        必装 MCP
+        {{ t('team.policyRequiredMcp') }}
         <textarea
           v-model="policy.requiredMcp"
           rows="5"
@@ -63,7 +65,7 @@ const canSave = computed(
         />
       </label>
       <label class="grid gap-1.5 text-sm font-medium">
-        推荐 Skills
+        {{ t('team.policyRecommendedSkills') }}
         <textarea
           v-model="policy.recommendedSkills"
           rows="5"
@@ -72,7 +74,7 @@ const canSave = computed(
         />
       </label>
       <label class="grid gap-1.5 text-sm font-medium">
-        推荐 MCP
+        {{ t('team.policyRecommendedMcp') }}
         <textarea
           v-model="policy.recommendedMcp"
           rows="5"
@@ -82,11 +84,11 @@ const canSave = computed(
       </label>
     </div>
     <label class="grid gap-1.5 text-sm font-medium">
-      禁用规则
+      {{ t('team.policyBlockedRules') }}
       <textarea
         v-model="policy.blocked"
         rows="5"
-        placeholder="mcp/legacy-search.json | &lt;2.0.0 | 存在已知安全问题"
+        :placeholder="t('team.policyBlockedRulesPh')"
         class="resize-y rounded-md border border-input bg-transparent px-3 py-2 font-mono text-sm"
       />
     </label>
@@ -96,7 +98,7 @@ const canSave = computed(
       :disabled="!canSave"
       @click="emit('save')"
     >
-      保存规范到变更
+      {{ t('team.policySave') }}
     </Button>
   </section>
 </template>

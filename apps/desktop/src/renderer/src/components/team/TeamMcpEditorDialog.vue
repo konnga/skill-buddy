@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, reactive, shallowRef, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import type { McpServerDefinition, McpTransportKind, McpValueRef } from '@skillbuddy/core'
 import { DialogContent, DialogDescription, DialogOverlay, DialogPortal, DialogRoot, DialogTitle } from 'reka-ui'
 import type { TeamLibraryMcpDraft } from '../../../../shared/ipc.js'
@@ -11,6 +12,7 @@ type RemoteMcpTransportKind = Exclude<McpTransportKind, 'stdio'>
 
 const props = defineProps<{ open: boolean; initial?: TeamLibraryMcpDraft | null; busy?: boolean }>()
 const emit = defineEmits<{ close: []; save: [value: TeamLibraryMcpDraft] }>()
+const { t } = useI18n()
 
 const form = reactive({ name: '', description: '', version: '', command: '', cwd: '', url: '' })
 const transport = shallowRef<McpTransportKind>('stdio')
@@ -106,34 +108,34 @@ function submit(): void {
       <DialogOverlay class="fixed inset-0 z-40 bg-black/40" />
       <DialogContent class="fixed left-1/2 top-1/2 z-50 flex max-h-[90vh] w-[min(720px,calc(100vw-32px))] -translate-x-1/2 -translate-y-1/2 flex-col rounded-lg border bg-background shadow-xl outline-none">
         <div class="border-b px-5 py-4">
-          <DialogTitle class="text-base font-semibold">{{ initial ? '编辑团队 MCP Server' : '新增团队 MCP Server' }}</DialogTitle>
-          <DialogDescription class="mt-1 text-sm text-muted-foreground">凭据只能使用环境变量引用，团队库不会保存明文密钥。</DialogDescription>
+          <DialogTitle class="text-base font-semibold">{{ initial ? t('team.mcpEditorEditTitle') : t('team.mcpEditorCreateTitle') }}</DialogTitle>
+          <DialogDescription class="mt-1 text-sm text-muted-foreground">{{ t('team.mcpEditorHint') }}</DialogDescription>
         </div>
         <form class="min-h-0 flex-1 space-y-4 overflow-y-auto px-5 py-4" @submit.prevent="submit">
           <div class="grid gap-4 sm:grid-cols-3">
-            <label class="grid gap-1.5 text-sm font-medium">名称<Input v-model="form.name" placeholder="internal-docs" /></label>
-            <label class="grid gap-1.5 text-sm font-medium">版本<Input v-model="form.version" placeholder="1.0.0" /></label>
-            <label class="grid gap-1.5 text-sm font-medium">传输方式<Select v-model="transport" :options="transportOptions" /></label>
+            <label class="grid gap-1.5 text-sm font-medium">{{ t('team.formName') }}<Input v-model="form.name" placeholder="internal-docs" /></label>
+            <label class="grid gap-1.5 text-sm font-medium">{{ t('team.formVersion') }}<Input v-model="form.version" placeholder="1.0.0" /></label>
+            <label class="grid gap-1.5 text-sm font-medium">{{ t('team.formTransport') }}<Select v-model="transport" :options="transportOptions" /></label>
           </div>
-          <label class="grid gap-1.5 text-sm font-medium">描述<Input v-model="form.description" /></label>
+          <label class="grid gap-1.5 text-sm font-medium">{{ t('team.formDescription') }}<Input v-model="form.description" /></label>
           <template v-if="transport === 'stdio'">
             <div class="grid gap-4 sm:grid-cols-2">
-              <label class="grid gap-1.5 text-sm font-medium">命令<Input v-model="form.command" placeholder="npx" /></label>
-              <label class="grid gap-1.5 text-sm font-medium">工作目录<Input v-model="form.cwd" /></label>
+              <label class="grid gap-1.5 text-sm font-medium">{{ t('team.formCommand') }}<Input v-model="form.command" placeholder="npx" /></label>
+              <label class="grid gap-1.5 text-sm font-medium">{{ t('team.formCwd') }}<Input v-model="form.cwd" /></label>
             </div>
-            <label class="grid gap-1.5 text-sm font-medium">参数（每行一个）<textarea v-model="argsText" rows="4" class="resize-y rounded-md border border-input bg-transparent px-3 py-2 font-mono text-sm outline-none focus-visible:ring-1 focus-visible:ring-ring" /></label>
+            <label class="grid gap-1.5 text-sm font-medium">{{ t('team.formArguments') }}<textarea v-model="argsText" rows="4" class="resize-y rounded-md border border-input bg-transparent px-3 py-2 font-mono text-sm outline-none focus-visible:ring-1 focus-visible:ring-ring" /></label>
           </template>
-          <label v-else class="grid gap-1.5 text-sm font-medium">服务地址<Input v-model="form.url" placeholder="https://example.com/mcp" /></label>
+          <label v-else class="grid gap-1.5 text-sm font-medium">{{ t('team.formEndpoint') }}<Input v-model="form.url" placeholder="https://example.com/mcp" /></label>
           <label class="grid gap-1.5 text-sm font-medium">
-            {{ transport === 'stdio' ? '环境变量映射' : '请求头映射' }}
+            {{ transport === 'stdio' ? t('team.formEnvironmentMap') : t('team.formHeaderMap') }}
             <textarea v-model="referencesText" rows="4" class="resize-y rounded-md border border-input bg-transparent px-3 py-2 font-mono text-sm outline-none focus-visible:ring-1 focus-visible:ring-ring" placeholder="Authorization=INTERNAL_MCP_TOKEN" />
-            <span class="text-xs font-normal text-muted-foreground">每行使用 KEY=ENV_NAME 格式。</span>
+            <span class="text-xs font-normal text-muted-foreground">{{ t('team.formMappingHint') }}</span>
           </label>
-          <label class="grid gap-1.5 text-sm font-medium">必需密钥<Input v-model="secretsText" placeholder="INTERNAL_MCP_TOKEN" /></label>
+          <label class="grid gap-1.5 text-sm font-medium">{{ t('team.formRequiredSecrets') }}<Input v-model="secretsText" placeholder="INTERNAL_MCP_TOKEN" /></label>
         </form>
         <div class="flex justify-end gap-2 border-t px-5 py-4">
-          <Button variant="ghost" size="sm" class="cursor-pointer" @click="emit('close')">取消</Button>
-          <Button size="sm" class="cursor-pointer" :disabled="busy || !valid" @click="submit">{{ busy ? '保存中…' : '保存到变更' }}</Button>
+          <Button variant="ghost" size="sm" class="cursor-pointer" @click="emit('close')">{{ t('common.cancel') }}</Button>
+          <Button size="sm" class="cursor-pointer" :disabled="busy || !valid" @click="submit">{{ busy ? t('team.saving') : t('team.saveToChanges') }}</Button>
         </div>
       </DialogContent>
     </DialogPortal>

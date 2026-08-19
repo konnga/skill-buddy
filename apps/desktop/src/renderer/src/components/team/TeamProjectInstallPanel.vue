@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { shallowRef, type DeepReadonly } from 'vue'
+import { useI18n } from 'vue-i18n'
 import type { TeamLibraryCatalog } from '../../../../shared/ipc.js'
 import TeamProjectCompliance from '@/components/team/TeamProjectCompliance.vue'
 import TeamProjectConfigDialog from '@/components/team/TeamProjectConfigDialog.vue'
@@ -9,6 +10,7 @@ import type { TeamProjectCompliance as TeamProjectComplianceState } from '@/comp
 defineProps<{
   catalogs: readonly DeepReadonly<TeamLibraryCatalog>[]
 }>()
+const { t } = useI18n()
 
 const {
   projects,
@@ -39,7 +41,7 @@ async function projectConfigured(): Promise<void> {
       @configure="configureProject"
     />
     <div v-else class="rounded-md border border-dashed px-5 py-12 text-center text-sm text-muted-foreground">
-      暂无项目目录，请先在设置中添加需要安装团队资源的公司项目。
+      {{ t('team.projectDirectoriesEmpty') }}
     </div>
   </div>
   <TeamProjectConfigDialog

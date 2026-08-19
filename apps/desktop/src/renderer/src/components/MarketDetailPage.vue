@@ -37,6 +37,7 @@ const {
   overviewLoading,
   matched,
   overviewContent,
+  groupSkillName,
   groupOptions,
   setTargets,
   toggleGroup,
@@ -106,6 +107,7 @@ watch(
         <MarketSkillGroupsPanel
           :groups="groupOptions"
           :selected="selectedGroups"
+          :skill-name="groupSkillName"
           @toggle="toggleGroup"
           @add="addToSelectedGroups"
         />

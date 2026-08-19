@@ -181,10 +181,10 @@ function handleAddToTeamLibrary(): void {
         {{
           props.teamLibraryMode
             ? alreadyInTeamLibrary
-              ? '已在团队库'
+              ? t('team.alreadyInLibrary')
               : props.actionBusy
-                ? '正在加入…'
-                : '加入团队库'
+                ? t('team.addingToLibrary')
+                : t('team.addToLibrary')
             : t('mcp.form.review')
         }}
       </Button>

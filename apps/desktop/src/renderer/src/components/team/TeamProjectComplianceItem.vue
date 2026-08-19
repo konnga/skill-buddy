@@ -61,7 +61,7 @@ function reasonLabel(item: TeamProjectRequirementStatus): string | null {
           {{ t('team.projectAttention', { n: issues.length }) }}
         </Badge>
         <Button v-if="!project.error" variant="outline" size="sm" class="cursor-pointer" @click="emit('configure', project)">
-          <Settings2 class="size-3.5" />{{ project.found ? '编辑配置' : '配置' }}
+          <Settings2 class="size-3.5" />{{ project.found ? t('team.projectEditConfig') : t('team.projectConfigure') }}
         </Button>
       </div>
     </div>

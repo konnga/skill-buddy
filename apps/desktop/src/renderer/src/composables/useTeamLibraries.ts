@@ -9,6 +9,7 @@ import type {
 } from '../../../shared/ipc.js'
 import { teamLibraryConfigKey } from '../../../shared/team-library.js'
 import { blockedTeamAssetReason, teamAssetPolicyState } from '../../../shared/team-policy.js'
+import { i18n } from '@/i18n'
 import { useSettings } from './useSettings.js'
 
 const catalogs = ref<TeamLibraryCatalog[]>([])
@@ -30,7 +31,10 @@ async function syncOne(config: TeamLibraryConfig): Promise<void> {
       catalogs.value = catalogs.value.filter(
         (catalog) => teamLibraryConfigKey(catalog.source) !== configKey,
       )
-      throw new Error(`团队库 ID ${result.catalog.source.libraryId} 已被 ${duplicate.source.libraryName} 使用`)
+      throw new Error(i18n.global.t('team.duplicateLibraryId', {
+        id: result.catalog.source.libraryId,
+        name: duplicate.source.libraryName,
+      }))
     }
     catalogs.value = [
       ...catalogs.value.filter((catalog) => teamLibraryConfigKey(catalog.source) !== configKey),

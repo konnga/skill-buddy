@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import TeamBundleEditorDialog from '@/components/team/TeamBundleEditorDialog.vue'
 import TeamChangeReview from '@/components/team/TeamChangeReview.vue'
 import TeamLibraryBundlesTab from '@/components/team/TeamLibraryBundlesTab.vue'
@@ -12,6 +13,8 @@ import TeamMcpMarketDialog from '@/components/team/TeamMcpMarketDialog.vue'
 import TeamSkillEditorDialog from '@/components/team/TeamSkillEditorDialog.vue'
 import TeamSkillMarketDialog from '@/components/team/TeamSkillMarketDialog.vue'
 import { useTeamLibraryWorkspaceEditor } from '@/composables/useTeamLibraryWorkspaceEditor'
+
+const { t } = useI18n()
 
 const {
   manager,
@@ -87,21 +90,21 @@ const {
         :skills="catalog?.skills ?? []"
         @market="openSkillMarket"
         @edit="editSkill"
-        @remove="remove($event, 'Skill')"
+        @remove="remove($event, t('team.assetSkill'))"
       />
       <TeamLibraryMcpTab
         v-else-if="activeTab === 'mcp'"
         :mcp-servers="catalog?.mcpServers ?? []"
         @market="openMcpMarket"
         @edit="editMcp"
-        @remove="remove($event, 'MCP Server')"
+        @remove="remove($event, t('team.assetMcp'))"
       />
       <TeamLibraryBundlesTab
         v-else-if="activeTab === 'bundles'"
         :bundles="catalog?.bundles ?? []"
         @create="createBundle"
         @edit="editBundle"
-        @remove="remove($event, '岗位包')"
+        @remove="remove($event, t('team.assetBundle'))"
       />
       <TeamLibraryPolicyTab
         v-else-if="activeTab === 'policy'"

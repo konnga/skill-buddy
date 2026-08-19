@@ -7,6 +7,7 @@ import type {
   McpServerDefinition,
   McpTarget,
 } from '@skillbuddy/core'
+import { i18n } from '@/i18n'
 import { useSettings } from './useSettings.js'
 
 const scanResult = ref<McpScanResult>({
@@ -149,7 +150,7 @@ async function restore(operationId: string): Promise<boolean> {
     const results = await window.skillsManager.restoreMcpOperation(operationId)
     const success = results.length > 0 && results.every((result) => result.ok)
     if (!success) {
-      error.value = results.find((result) => !result.ok)?.error ?? '没有可撤销的 MCP 操作'
+      error.value = results.find((result) => !result.ok)?.error ?? i18n.global.t('mcp.noUndoableOperation')
     }
     await refresh({ silent: true })
     return success

@@ -4,6 +4,7 @@ import { useI18n } from 'vue-i18n'
 import { FolderOpen, X } from '@lucide/vue'
 import type { AggregatedSkill } from '@skillbuddy/core'
 import GroupEmptyState from '@/components/groups/GroupEmptyState.vue'
+import GroupMissingSkillCard from '@/components/groups/GroupMissingSkillCard.vue'
 import GroupApplyPanel from '@/components/skills/GroupApplyPanel.vue'
 import GroupMemberEditorDialog from '@/components/skills/GroupMemberEditorDialog.vue'
 import GroupRenameDialog from '@/components/skills/GroupRenameDialog.vue'
@@ -113,6 +114,7 @@ const {
   cannotManageGroup,
   memberEditorSkills,
   memberEditorMissingNames,
+  activeGroupMissingNames,
   backToGroups,
   openRenameGroup,
   submitRenameGroup,
@@ -264,7 +266,7 @@ function clearFilters(): void {
         @new-skill="emit('newSkill')"
       />
       <div
-        v-else-if="skills.length === 0"
+        v-else-if="skills.length === 0 && activeGroupMissingNames.length === 0"
         class="flex flex-col items-center gap-3 py-24 text-muted-foreground"
       >
         <FolderOpen class="size-10" />
@@ -274,7 +276,7 @@ function clearFilters(): void {
         </p>
       </div>
       <div
-        v-else-if="filtered.length === 0"
+        v-else-if="filtered.length === 0 && activeGroupMissingNames.length === 0"
         class="flex flex-col items-center gap-3 py-24 text-center text-sm text-muted-foreground"
       >
         <p>
@@ -295,49 +297,65 @@ function clearFilters(): void {
           {{ t('app.clearFilters') }}
         </Button>
       </div>
-      <SkillAgentTree
-        v-else-if="viewMode === 'tree'"
-        :skills="filtered"
-        :batch-mode="batchMode"
-        :group-context="Boolean(groupFilter)"
-        :selected-names="selectedNames"
-        :busy-names="busySkillNames"
-        :current-platform="platformFilter ?? undefined"
-        :project-filter="projectFilter ?? undefined"
-        :ownership-filter="ownershipFilter ?? undefined"
-        @open="emit('openSkill', $event)"
-        @edit="emit('editSkill', $event)"
-        @toggle-selected="toggleSelected"
-        @toggle-enabled="requestToggle"
-        @remove-from-group="removeSkillFromActiveGroup"
-        @uninstall="requestUninstall"
-      />
-      <div v-else class="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
-        <SkillCard
-          v-for="skill in filtered"
-          :key="skill.name"
-          :skill="skill"
-          :busy="removing.has(skill.name) || toggling.has(skill.name)"
+      <template v-else>
+        <section v-if="activeGroupMissingNames.length > 0" class="mb-5 flex flex-col gap-3">
+          <h2 class="text-sm font-medium text-muted-foreground">
+            {{ t('groups.missingMembers', { n: activeGroupMissingNames.length }) }}
+          </h2>
+          <div class="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
+            <GroupMissingSkillCard
+              v-for="name in activeGroupMissingNames"
+              :key="name"
+              :name="name"
+              @remove="removeSkillFromActiveGroup(name)"
+            />
+          </div>
+        </section>
+
+        <SkillAgentTree
+          v-if="filtered.length > 0 && viewMode === 'tree'"
+          :skills="filtered"
           :batch-mode="batchMode"
           :group-context="Boolean(groupFilter)"
-          :selected="selectedNames.has(skill.name)"
+          :selected-names="selectedNames"
+          :busy-names="busySkillNames"
           :current-platform="platformFilter ?? undefined"
-          :scope-filter="
-            projectFilter ? (projectFilter === 'user' ? 'user' : 'project') : undefined
-          "
-          :project-root="
-            projectFilter && projectFilter !== 'user' ? projectFilter : undefined
-          "
+          :project-filter="projectFilter ?? undefined"
           :ownership-filter="ownershipFilter ?? undefined"
-          @open="emit('openSkill', skill)"
-          @edit="emit('editSkill', skill)"
-          @toggle-selected="toggleSelected(skill.name)"
-          @toggle-enabled="requestToggle(skill)"
-          @remove-from-group="removeSkillFromActiveGroup(skill.name)"
-          @uninstall-current="requestUninstall(skill, platformFilter)"
-          @uninstall-all="requestUninstall(skill, null)"
+          @open="emit('openSkill', $event)"
+          @edit="emit('editSkill', $event)"
+          @toggle-selected="toggleSelected"
+          @toggle-enabled="requestToggle"
+          @remove-from-group="removeSkillFromActiveGroup"
+          @uninstall="requestUninstall"
         />
-      </div>
+        <div v-else-if="filtered.length > 0" class="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
+          <SkillCard
+            v-for="skill in filtered"
+            :key="skill.name"
+            :skill="skill"
+            :busy="removing.has(skill.name) || toggling.has(skill.name)"
+            :batch-mode="batchMode"
+            :group-context="Boolean(groupFilter)"
+            :selected="selectedNames.has(skill.name)"
+            :current-platform="platformFilter ?? undefined"
+            :scope-filter="
+              projectFilter ? (projectFilter === 'user' ? 'user' : 'project') : undefined
+            "
+            :project-root="
+              projectFilter && projectFilter !== 'user' ? projectFilter : undefined
+            "
+            :ownership-filter="ownershipFilter ?? undefined"
+            @open="emit('openSkill', skill)"
+            @edit="emit('editSkill', skill)"
+            @toggle-selected="toggleSelected(skill.name)"
+            @toggle-enabled="requestToggle(skill)"
+            @remove-from-group="removeSkillFromActiveGroup(skill.name)"
+            @uninstall-current="requestUninstall(skill, platformFilter)"
+            @uninstall-all="requestUninstall(skill, null)"
+          />
+        </div>
+      </template>
     </ScrollArea>
 
     <SkillActionDialogs

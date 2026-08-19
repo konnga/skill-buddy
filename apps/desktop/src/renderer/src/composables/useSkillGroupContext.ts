@@ -8,7 +8,7 @@ interface UseSkillGroupContextOptions {
 }
 
 export function useSkillGroupContext(options: UseSkillGroupContextOptions) {
-  const { skills } = useSkills()
+  const { skills, search } = useSkills()
   const {
     groupFilter,
     groups,
@@ -64,6 +64,13 @@ export function useSkillGroupContext(options: UseSkillGroupContextOptions) {
   })
   const memberEditorMissingNames = computed(() => {
     const query = memberSearch.value.trim().toLowerCase()
+    const localNames = new Set(skills.value.map((skill) => skill.name))
+    return (activeGroup.value?.skills ?? []).filter(
+      (name) => !localNames.has(name) && (!query || name.toLowerCase().includes(query)),
+    )
+  })
+  const activeGroupMissingNames = computed(() => {
+    const query = search.value.trim().toLowerCase()
     const localNames = new Set(skills.value.map((skill) => skill.name))
     return (activeGroup.value?.skills ?? []).filter(
       (name) => !localNames.has(name) && (!query || name.toLowerCase().includes(query)),
@@ -169,6 +176,7 @@ export function useSkillGroupContext(options: UseSkillGroupContextOptions) {
     cannotManageGroup,
     memberEditorSkills,
     memberEditorMissingNames,
+    activeGroupMissingNames,
     backToGroups,
     openRenameGroup,
     submitRenameGroup,

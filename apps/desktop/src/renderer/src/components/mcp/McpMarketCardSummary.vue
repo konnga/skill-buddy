@@ -103,7 +103,7 @@ function formatMetricCount(value: number): string {
         >
           <LibraryBig v-if="props.actionMode === 'team-library'" />
           <CloudDownload v-else />
-          {{ props.actionMode === 'team-library' ? '加入团队库' : t('mcp.market.install') }}
+          {{ props.actionMode === 'team-library' ? t('team.addToLibrary') : t('mcp.market.install') }}
         </Button>
       </div>
     </div>

@@ -74,7 +74,7 @@ function timeAgo(ms: number): string {
           <Download class="size-4" />
           {{ formatMarketCount(props.item.installs) }}
         </span>
-        <span v-if="props.item.stars !== null" class="flex items-center gap-1.5" title="stars">
+        <span v-if="props.item.stars !== null" class="flex items-center gap-1.5" :title="t('market.stars')">
           <Star class="size-4" />
           {{ formatMarketCount(props.item.stars) }}
         </span>

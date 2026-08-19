@@ -90,11 +90,11 @@ export function useGroups() {
     if (groupFilter.value === name) groupFilter.value = null
   }
 
-  /** 新建空合集；空名或重名时返回 false。 */
-  function createGroup(name: string): boolean {
+  /** 新建合集并写入可选初始成员；空名或重名时返回 false。 */
+  function createGroup(name: string, skillNames: string[] = []): boolean {
     const trimmed = name.trim()
     if (!trimmed || groups.value.some((group) => group.name === trimmed)) return false
-    groups.value = [...groups.value, { name: trimmed, skills: [] }]
+    groups.value = [...groups.value, { name: trimmed, skills: [...new Set(skillNames)] }]
     return true
   }
 

@@ -9,6 +9,7 @@ const props = withDefaults(
     max?: number
     step?: number
     disabled?: boolean
+    ariaLabel: string
     class?: HTMLAttributes['class']
   }>(),
   { min: 0, max: 100, step: 1 },
@@ -42,7 +43,7 @@ const values = computed<number[]>({
     </SliderTrack>
     <SliderThumb
       class="block size-4 rounded-full border border-black/10 bg-white shadow transition-shadow focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 dark:border-white/20"
-      :aria-label="'value'"
+      :aria-label="props.ariaLabel"
     />
   </SliderRoot>
 </template>
