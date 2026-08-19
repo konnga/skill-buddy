@@ -19,7 +19,7 @@ interface UseSkillDetailActionsOptions {
   onClose: () => void
 }
 
-/** 管理技能详情页的安装、同步、启停和可撤销删除流程。 */
+/** 管理技能详情页的安装、同步、启停和单项可撤销删除流程。 */
 export function useSkillDetailActions(options: UseSkillDetailActionsOptions) {
   const { t } = useI18n()
   const { installSkill, refresh, setEnabled } = useSkills()
@@ -27,7 +27,6 @@ export function useSkillDetailActions(options: UseSkillDetailActionsOptions) {
   const targets = ref<InstallTarget[]>([])
   const busy = shallowRef(false)
   const actionError = shallowRef<string | null>(null)
-  const confirmUninstall = shallowRef(false)
   const basePath = shallowRef<string | null>(null)
   let actionRequestId = 0
 
@@ -68,10 +67,6 @@ export function useSkillDetailActions(options: UseSkillDetailActionsOptions) {
 
   function selectBase(path: string): void {
     basePath.value = path
-  }
-
-  function setConfirmUninstall(value: boolean): void {
-    confirmUninstall.value = value
   }
 
   function reveal(path: string): void {
@@ -206,29 +201,6 @@ export function useSkillDetailActions(options: UseSkillDetailActionsOptions) {
     }
   }
 
-  async function runUninstall(): Promise<void> {
-    const requestedSkillName = skill.value.name
-    const requestedPaths = writableInstallations.value.map((installation) => installation.path)
-    if (requestedPaths.length === 0) return
-    const removesAllInstallations = requestedPaths.length === skill.value.installations.length
-    const requestId = startAction()
-    if (requestId === null) return
-    try {
-      if (!(await trashWithUndo(requestedPaths, requestId))) return
-      await refresh()
-      if (
-        requestId === actionRequestId &&
-        requestedSkillName === skill.value.name &&
-        removesAllInstallations
-      ) {
-        options.onClose()
-      }
-    } finally {
-      if (requestId === actionRequestId) confirmUninstall.value = false
-      finishAction(requestId)
-    }
-  }
-
   /** 技能切换会使在途结果失效，防止旧操作覆盖新详情页状态。 */
   watch(
     () => skill.value.name,
@@ -237,7 +209,6 @@ export function useSkillDetailActions(options: UseSkillDetailActionsOptions) {
       targets.value = []
       busy.value = false
       actionError.value = null
-      confirmUninstall.value = false
       basePath.value = null
     },
   )
@@ -246,7 +217,6 @@ export function useSkillDetailActions(options: UseSkillDetailActionsOptions) {
     targets: shallowReadonly(targets),
     busy: shallowReadonly(busy),
     actionError: shallowReadonly(actionError),
-    confirmUninstall: shallowReadonly(confirmUninstall),
     writableInstallations,
     installedTargets,
     baseInstallation,
@@ -254,12 +224,10 @@ export function useSkillDetailActions(options: UseSkillDetailActionsOptions) {
     writableDriftOthers,
     setTargets,
     selectBase,
-    setConfirmUninstall,
     reveal,
     runInstall,
     syncFromBase,
     removeInstallation,
     toggleInstallation,
-    runUninstall,
   }
 }

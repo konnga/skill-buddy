@@ -7,7 +7,6 @@ import CopyButton from '@/components/CopyButton.vue'
 import MarkdownView from '@/components/MarkdownView.vue'
 import SidebarToggle from '@/components/SidebarToggle.vue'
 import SkillEditor from '@/components/SkillEditor.vue'
-import SkillDangerZone from '@/components/skill-detail/SkillDangerZone.vue'
 import SkillDriftSection from '@/components/skill-detail/SkillDriftSection.vue'
 import SkillGroupMembershipSection from '@/components/skill-detail/SkillGroupMembershipSection.vue'
 import SkillInstallPanel from '@/components/skill-detail/SkillInstallPanel.vue'
@@ -34,7 +33,6 @@ const {
   targets,
   busy,
   actionError,
-  confirmUninstall,
   writableInstallations,
   installedTargets,
   baseInstallation,
@@ -42,13 +40,11 @@ const {
   writableDriftOthers,
   setTargets,
   selectBase,
-  setConfirmUninstall,
   reveal,
   runInstall,
   syncFromBase,
   removeInstallation,
   toggleInstallation,
-  runUninstall,
 } = useSkillDetailActions({
   skill: toRef(props, 'skill'),
   onClose: () => emit('close'),
@@ -60,9 +56,7 @@ const primaryInstallation = computed(
 const canEdit = computed(() => writableInstallations.value.length > 0)
 const skillContent = computed(() => primaryInstallation.value.skill.content)
 const resources = computed(() => primaryInstallation.value.skill.resources ?? {})
-const resourceList = computed(() =>
-  Object.entries(resources.value).sort(([left], [right]) => left.localeCompare(right)),
-)
+const resourceList = computed(() => Object.entries(resources.value))
 const containsScripts = computed(() => hasScriptResources(resources.value))
 
 const driftSection = useTemplateRef<HTMLElement>('driftSection')
@@ -188,15 +182,6 @@ watch(() => props.focus, () => void nextTick(focusSection))
           </h3>
           <MarkdownView :content="skillContent" preview-id="skill-detail" class="select-text" />
         </section>
-
-        <SkillDangerZone
-          :manageable-count="writableInstallations.length"
-          :confirming="confirmUninstall"
-          :busy="busy"
-          @request-confirm="setConfirmUninstall(true)"
-          @cancel="setConfirmUninstall(false)"
-          @uninstall="runUninstall"
-        />
       </div>
     </ScrollArea>
   </div>

@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import { shallowRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { Eye, FileText, TriangleAlert } from '@lucide/vue'
+import { TriangleAlert } from '@lucide/vue'
 import ResourcePreviewDialog from '@/components/ResourcePreviewDialog.vue'
+import SkillResourceTree from '@/components/skill-detail/SkillResourceTree.vue'
 import { ScrollArea } from '@/components/ui/scroll-area'
 
 /** 资源区域持有预览弹窗状态，资源内容仍由详情页提供。 */
@@ -38,23 +39,7 @@ watch(() => props.skillName, () => {
       {{ t('detail.scriptWarning') }}
     </div>
     <ScrollArea class="max-h-96" viewport-class="max-h-96 pr-2">
-      <ul class="flex flex-col gap-1.5">
-        <li v-for="[relativePath, absolutePath] in props.resources" :key="relativePath">
-          <button
-            type="button"
-            class="group flex h-10 w-full cursor-pointer items-center gap-2.5 rounded-md border px-3 text-left transition-colors hover:border-foreground/30 hover:bg-muted/35"
-            :aria-label="t('detail.previewResource', { name: relativePath })"
-            :title="t('detail.previewResource', { name: relativePath })"
-            @click="previewResource(relativePath, absolutePath)"
-          >
-            <FileText class="size-4 shrink-0 text-muted-foreground" />
-            <code class="min-w-0 flex-1 select-text truncate text-sm">{{ relativePath }}</code>
-            <Eye
-              class="size-4 shrink-0 text-muted-foreground transition-colors group-hover:text-foreground"
-            />
-          </button>
-        </li>
-      </ul>
+      <SkillResourceTree :resources="props.resources" @preview="previewResource" />
     </ScrollArea>
   </section>
 
