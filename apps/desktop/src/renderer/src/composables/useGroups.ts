@@ -1,11 +1,17 @@
 import { computed, ref, shallowRef } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { planAdditiveInstall } from '@skillbuddy/core/planners'
+import { planAdditiveInstall, targetKey } from '@skillbuddy/core/planners'
 import type { InstallTarget } from '../../../shared/ipc.js'
 import { showToast } from '@/composables/useToast'
 import { useSettings, type SkillGroup } from '@/composables/useSettings'
 import { useSkills } from '@/composables/useSkills'
+import { agentLabel } from '@/lib/agents'
 import { deriveGroupRuntimeState } from '@/lib/group-runtime'
+import {
+  fetchMarketSkillBySource,
+  resolveMarketSkillSource,
+  type MarketSkillSource,
+} from '@/lib/market'
 import { serializePreset } from '@/lib/preset-format'
 import {
   manageableSkillInstallations,
@@ -21,7 +27,7 @@ const groupToggleBusy = shallowRef(false)
 /** 管理分组筛选、批量应用与临时应用的完整生命周期。 */
 export function useGroups() {
   const { t } = useI18n()
-  const { groups, tempApplications } = useSettings()
+  const { groups, marketSkillSources, tempApplications } = useSettings()
   const {
     groupFilter,
     skills,
@@ -86,15 +92,29 @@ export function useGroups() {
     })
     if (!confirmed) return
     groups.value = groups.value.filter((item) => item.name !== name)
+    const sources = { ...marketSkillSources.value }
+    delete sources[name]
+    marketSkillSources.value = sources
     tempApplications.value = tempApplications.value.filter((record) => record.group !== name)
     if (groupFilter.value === name) groupFilter.value = null
   }
 
   /** 新建合集并写入可选初始成员；空名或重名时返回 false。 */
-  function createGroup(name: string, skillNames: string[] = []): boolean {
+  function createGroup(
+    name: string,
+    skillNames: string[] = [],
+    skillSources: Record<string, MarketSkillSource> = {},
+  ): boolean {
     const trimmed = name.trim()
     if (!trimmed || groups.value.some((group) => group.name === trimmed)) return false
-    groups.value = [...groups.value, { name: trimmed, skills: [...new Set(skillNames)] }]
+    const members = [...new Set(skillNames)]
+    groups.value = [...groups.value, { name: trimmed, skills: members }]
+    const sources = Object.fromEntries(
+      Object.entries(skillSources).filter(([skillName]) => members.includes(skillName)),
+    )
+    if (Object.keys(sources).length > 0) {
+      marketSkillSources.value = { ...marketSkillSources.value, [trimmed]: sources }
+    }
     return true
   }
 
@@ -110,6 +130,12 @@ export function useGroups() {
     tempApplications.value = tempApplications.value.map((record) =>
       record.group === oldName ? { ...record, group: name } : record,
     )
+    if (marketSkillSources.value[oldName]) {
+      const sources = { ...marketSkillSources.value }
+      sources[name] = sources[oldName]!
+      delete sources[oldName]
+      marketSkillSources.value = sources
+    }
     if (groupFilter.value === oldName) groupFilter.value = name
     return true
   }
@@ -130,10 +156,148 @@ export function useGroups() {
   /** 更新技能包成员名单；技能包不存在时返回 false。 */
   function setGroupSkills(name: string, skillNames: string[]): boolean {
     if (!groups.value.some((group) => group.name === name)) return false
+    const members = [...new Set(skillNames)]
     groups.value = groups.value.map((group) =>
-      group.name === name ? { ...group, skills: [...new Set(skillNames)] } : group,
+      group.name === name ? { ...group, skills: members } : group,
     )
+    const knownSources = marketSkillSources.value[name]
+    if (knownSources) {
+      const sources = Object.fromEntries(
+        Object.entries(knownSources).filter(([skillName]) => members.includes(skillName)),
+      )
+      marketSkillSources.value = { ...marketSkillSources.value, [name]: sources }
+    }
     return true
+  }
+
+  interface CompletedGroupInstall {
+    name: string
+    target: InstallTarget
+  }
+
+  interface GroupInstallOutcome {
+    completed: CompletedGroupInstall[]
+    failures: string[]
+    unresolved: string[]
+  }
+
+  /** 本地优先；仅在来源唯一或已记录时下载缺失成员，并统一返回实际成功目标。 */
+  async function installGroupMembers(
+    group: SkillGroup,
+    requestedTargets: InstallTarget[],
+  ): Promise<GroupInstallOutcome> {
+    const plan = planAdditiveInstall(group.skills, skills.value, requestedTargets)
+    const completed: CompletedGroupInstall[] = []
+    const failures: string[] = []
+    const unresolved: string[] = []
+    const processedTargets = new Set<string>()
+    let attemptedInstall = false
+
+    async function installOne(
+      name: string,
+      skill: Parameters<typeof installSkill>[0],
+      targets: InstallTarget[],
+    ): Promise<void> {
+      const freshTargets = targets.filter((target) => {
+        const key = `${name}:${targetKey(target)}`
+        if (processedTargets.has(key)) return false
+        processedTargets.add(key)
+        return true
+      })
+      if (freshTargets.length === 0) return
+      attemptedInstall = true
+      try {
+        const results = await installSkill(skill, freshTargets, { refresh: false })
+        completed.push(
+          ...results
+            .filter((result) => result.ok)
+            .map((result) => ({ name, target: result.target })),
+        )
+        failures.push(
+          ...results
+            .filter((result) => !result.ok)
+            .map(
+              (result) =>
+                `${name} → ${agentLabel(result.target.agent)}: ${result.error ?? t('batch.failed')}`,
+            ),
+        )
+      } catch (cause) {
+        failures.push(`${name}: ${cause instanceof Error ? cause.message : String(cause)}`)
+      }
+    }
+
+    for (const { name, targets } of plan.installs) {
+      const local = skills.value.find((skill) => skill.name === name)
+      if (local) await installOne(name, local.installations[0]!.skill, targets)
+    }
+
+    for (const missingName of plan.missing) {
+      const source = marketSkillSources.value[group.name]?.[missingName] ??
+        await resolveMarketSkillSource(missingName)
+      if (!source) {
+        unresolved.push(missingName)
+        continue
+      }
+      let root: string | null = null
+      try {
+        const fetched = await fetchMarketSkillBySource(source, missingName)
+        root = fetched.root
+        if (!fetched.found) {
+          if (marketSkillSources.value[group.name]?.[missingName]) {
+            const groupSources = { ...marketSkillSources.value[group.name] }
+            delete groupSources[missingName]
+            marketSkillSources.value = {
+              ...marketSkillSources.value,
+              [group.name]: groupSources,
+            }
+          }
+          failures.push(`${missingName}: ${t('market.notFound')}`)
+          continue
+        }
+        const actualName = fetched.found.skill.name
+        if (actualName !== missingName) {
+          failures.push(
+            t('groups.sourceNameMismatch', { expected: missingName, actual: actualName }),
+          )
+          continue
+        }
+        const groupSources = { ...marketSkillSources.value[group.name], [missingName]: source }
+        marketSkillSources.value = {
+          ...marketSkillSources.value,
+          [group.name]: groupSources,
+        }
+        const local = skills.value.find((skill) => skill.name === actualName)
+        const targets = local
+          ? requestedTargets.filter(
+              (target) =>
+                !local.installations.some(
+                  (installation) =>
+                    installation.agent === target.agent &&
+                    installation.scope === target.scope &&
+                    (installation.projectRoot ?? '') === (target.projectRoot ?? ''),
+                ),
+            )
+          : requestedTargets
+        await installOne(actualName, fetched.found.skill, targets)
+      } catch (cause) {
+        failures.push(
+          `${missingName}: ${cause instanceof Error ? cause.message : String(cause)}`,
+        )
+      } finally {
+        if (root) await window.skillsManager.cleanupImport(root).catch(() => undefined)
+      }
+    }
+
+    if (attemptedInstall) await refresh({ silent: true })
+    return { completed, failures, unresolved }
+  }
+
+  function applyOutcomeNote(outcome: GroupInstallOutcome): string | null {
+    const messages = [...outcome.failures]
+    if (outcome.unresolved.length > 0) {
+      messages.push(t('groups.sourceMissing', { names: outcome.unresolved.join(', ') }))
+    }
+    return messages.length > 0 ? messages.join('；') : null
   }
 
   async function applyGroup(): Promise<void> {
@@ -143,23 +307,10 @@ export function useGroups() {
     groupApplyBusy.value = true
     groupApplyNote.value = null
     try {
-      const plan = planAdditiveInstall(group.skills, skills.value, groupApplyTargets.value)
-      const failures: string[] = []
-      for (const { name, targets } of plan.installs) {
-        const local = skills.value.find((skill) => skill.name === name)
-        if (!local) continue
-        const results = await installSkill(local.installations[0]!.skill, targets)
-        failures.push(
-          ...results
-            .filter((result) => !result.ok)
-            .map((result) => `${name}: ${result.error ?? t('batch.failed')}`),
-        )
-      }
-      if (failures.length > 0) {
-        groupApplyNote.value = failures.join('；')
-      } else if (plan.missing.length > 0) {
-        groupApplyNote.value = t('groups.skipped', { names: plan.missing.join(', ') })
-      } else {
+      const targets = groupApplyTargets.value.map((target) => ({ ...target }))
+      const outcome = await installGroupMembers(group, targets)
+      groupApplyNote.value = applyOutcomeNote(outcome)
+      if (!groupApplyNote.value) {
         groupApplyOpen.value = false
         showToast({ message: t('groups.installSuccess', { name: group.name }) })
       }
@@ -175,17 +326,33 @@ export function useGroups() {
     groupApplyBusy.value = true
     groupApplyNote.value = null
     try {
-      const plan = planAdditiveInstall(group.skills, skills.value, groupApplyTargets.value)
-      for (const { name, targets } of plan.installs) {
-        const local = skills.value.find((skill) => skill.name === name)
-        if (local) await installSkill(local.installations[0]!.skill, targets)
-      }
-      await refresh()
-
+      const targets = groupApplyTargets.value.map((target) => ({ ...target }))
+      const outcome = await installGroupMembers(group, targets)
       const installed: { name: string; agent: string; scope: string; path: string }[] = []
-      for (const { name, targets } of plan.installs) {
+      const pendingRecords: CompletedGroupInstall[] = []
+      for (const { name, target } of outcome.completed) {
         const local = skills.value.find((skill) => skill.name === name)
-        for (const target of targets) {
+        const installation = local?.installations.find(
+          (item) =>
+            item.agent === target.agent &&
+            item.scope === target.scope &&
+            (item.projectRoot ?? '') === (target.projectRoot ?? ''),
+        )
+        if (installation) {
+          installed.push({
+            name,
+            agent: target.agent,
+            scope: target.scope,
+            path: installation.path,
+          })
+        } else {
+          pendingRecords.push({ name, target })
+        }
+      }
+      if (pendingRecords.length > 0) {
+        await refresh({ silent: true })
+        for (const { name, target } of pendingRecords) {
+          const local = skills.value.find((skill) => skill.name === name)
           const installation = local?.installations.find(
             (item) =>
               item.agent === target.agent &&
@@ -199,19 +366,33 @@ export function useGroups() {
               scope: target.scope,
               path: installation.path,
             })
+          } else {
+            outcome.failures.push(
+              t('groups.tempTrackingFailed', {
+                name,
+                target: agentLabel(target.agent),
+              }),
+            )
           }
         }
       }
 
-      tempApplications.value = [
-        ...tempApplications.value.filter((record) => record.group !== group.name),
-        { group: group.name, appliedAt: Date.now(), installed },
-      ]
-      if (plan.missing.length > 0) {
-        groupApplyNote.value = t('groups.skipped', { names: plan.missing.join(', ') })
-      } else {
-        groupApplyOpen.value = false
+      if (installed.length > 0) {
+        const current = tempApplications.value.find((record) => record.group === group.name)
+        const merged = new Map(
+          [...(current?.installed ?? []), ...installed].map((item) => [item.path, item]),
+        )
+        tempApplications.value = [
+          ...tempApplications.value.filter((record) => record.group !== group.name),
+          {
+            group: group.name,
+            appliedAt: current?.appliedAt ?? Date.now(),
+            installed: [...merged.values()],
+          },
+        ]
       }
+      groupApplyNote.value = applyOutcomeNote(outcome)
+      if (!groupApplyNote.value) groupApplyOpen.value = false
     } finally {
       groupApplyBusy.value = false
     }

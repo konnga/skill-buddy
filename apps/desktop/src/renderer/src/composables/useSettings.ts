@@ -1,6 +1,7 @@
 import { ref, shallowRef, watch } from 'vue'
 import type { CustomPlatformInput, LinkOpenMode, TeamLibraryConfig } from '../../../shared/ipc.js'
 import { detectLocale, i18n, type Locale } from '../i18n.js'
+import type { MarketSkillSource } from '../lib/market.js'
 import { applyAppearance } from './useAppearance.js'
 
 export type ThemeMode = 'system' | 'light' | 'dark'
@@ -127,6 +128,16 @@ export interface SkillGroup {
 const groups = ref<SkillGroup[]>(load('skm.groups', []))
 watch(groups, (v) => localStorage.setItem('skm.groups', JSON.stringify(v)), { deep: true })
 
+/** 市场 Skill 的稳定来源索引；技能包仍只保存名称，保持 Preset 格式兼容。 */
+const marketSkillSources = ref<Record<string, Record<string, MarketSkillSource>>>(
+  load('skm.marketSkillSources', {}),
+)
+watch(
+  marketSkillSources,
+  (value) => localStorage.setItem('skm.marketSkillSources', JSON.stringify(value)),
+  { deep: true },
+)
+
 /** One temporary group application: exactly what we installed, for exact rollback. */
 export interface TempApplication {
   group: string
@@ -212,6 +223,7 @@ export function useSettings() {
     githubToken,
     sidebarCollapsed,
     groups,
+    marketSkillSources,
     tempApplications,
     importSyncPairs,
     systemDark,

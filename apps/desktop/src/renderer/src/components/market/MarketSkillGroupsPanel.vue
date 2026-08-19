@@ -1,15 +1,17 @@
 <script setup lang="ts">
-import { shallowRef } from 'vue'
+import { computed, shallowRef } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { Plus } from '@lucide/vue'
 import GroupCreateDialog from '@/components/groups/GroupCreateDialog.vue'
 import { Button } from '@/components/ui/button'
 import type { MarketGroupOption } from '@/composables/useMarketSkillDetail'
+import type { MarketSkillSource } from '@/lib/market'
 
 const props = defineProps<{
   groups: MarketGroupOption[]
   selected: Set<string>
-  skillName: string
+  skillName: string | null
+  skillSource: MarketSkillSource | null
 }>()
 const emit = defineEmits<{
   toggle: [name: string]
@@ -18,6 +20,11 @@ const emit = defineEmits<{
 
 const { t } = useI18n()
 const createOpen = shallowRef(false)
+const sourceReady = computed(() => Boolean(props.skillName && props.skillSource))
+const initialSkillNames = computed(() => props.skillName ? [props.skillName] : [])
+const initialSkillSources = computed<Record<string, MarketSkillSource>>(() =>
+  props.skillName && props.skillSource ? { [props.skillName]: props.skillSource } : {},
+)
 </script>
 
 <template>
@@ -26,7 +33,8 @@ const createOpen = shallowRef(false)
       <h3 class="text-sm font-medium">{{ t('market.addToGroups') }}</h3>
       <button
         type="button"
-        class="flex shrink-0 cursor-pointer items-center gap-1 rounded-md border border-dashed px-2.5 py-1 text-sm text-muted-foreground transition-colors hover:border-foreground/40 hover:text-foreground"
+        class="flex shrink-0 cursor-pointer items-center gap-1 rounded-md border border-dashed px-2.5 py-1 text-sm text-muted-foreground transition-colors hover:border-foreground/40 hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50"
+        :disabled="!sourceReady"
         @click="createOpen = true"
       >
         <Plus class="size-3.5" />
@@ -38,9 +46,9 @@ const createOpen = shallowRef(false)
         v-for="group in props.groups"
         :key="group.name"
         type="button"
-        :disabled="group.member"
+        :disabled="group.member || !sourceReady"
         :class="[
-          'flex cursor-pointer items-center rounded-md border px-3 py-1.5 text-sm transition-colors',
+          'flex cursor-pointer items-center rounded-md border px-3 py-1.5 text-sm transition-colors disabled:cursor-not-allowed disabled:opacity-50',
           group.member
             ? 'cursor-default border-foreground/20 bg-muted text-muted-foreground'
             : props.selected.has(group.name)
@@ -57,7 +65,7 @@ const createOpen = shallowRef(false)
       v-if="props.groups.length > 0"
       variant="outline"
       class="w-fit cursor-pointer"
-      :disabled="props.selected.size === 0"
+      :disabled="props.selected.size === 0 || !sourceReady"
       @click="emit('add')"
     >
       {{ t('market.addToGroupsAction', { n: props.selected.size }) }}
@@ -66,6 +74,7 @@ const createOpen = shallowRef(false)
 
   <GroupCreateDialog
     v-model:open="createOpen"
-    :skill-names="[props.skillName]"
+    :skill-names="initialSkillNames"
+    :skill-sources="initialSkillSources"
   />
 </template>

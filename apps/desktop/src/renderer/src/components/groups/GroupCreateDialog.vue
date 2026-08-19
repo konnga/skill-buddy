@@ -11,10 +11,12 @@ import {
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { useGroups } from '@/composables/useGroups'
+import type { MarketSkillSource } from '@/lib/market'
 
 const props = defineProps<{
   open: boolean
   skillNames?: string[]
+  skillSources?: Record<string, MarketSkillSource>
 }>()
 const emit = defineEmits<{
   'update:open': [open: boolean]
@@ -34,7 +36,7 @@ watch(
 
 function submit(): void {
   const trimmed = name.value.trim()
-  if (!createGroup(trimmed, props.skillNames)) return
+  if (!createGroup(trimmed, props.skillNames, props.skillSources)) return
   emit('created', trimmed)
   emit('update:open', false)
 }

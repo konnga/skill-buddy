@@ -2,6 +2,11 @@ import type { FoundSkill } from '@skillbuddy/core'
 
 export type MarketSourceId = 'skills-sh' | 'skillhub' | 'github'
 
+export type MarketSkillSource =
+  | { kind: 'skills-sh'; repo: string; skillId: string }
+  | { kind: 'skillhub'; slug: string; namespace: string }
+  | { kind: 'github'; repo: string }
+
 export interface MarketItem {
   key: string
   kind: MarketSourceId
@@ -28,6 +33,26 @@ export interface MarketItem {
   /** skillhub: slug + namespace */
   slug?: string
   namespace?: string
+}
+
+export interface FetchedMarketSkill {
+  root: string
+  found: FoundSkill | null
+}
+
+/** 提取可持久化的最小市场来源，供技能包稍后补装本地缺失成员。 */
+export function marketSkillSource(item: MarketItem): MarketSkillSource | null {
+  if (item.kind === 'skills-sh') {
+    return item.repo && item.skillId
+      ? { kind: item.kind, repo: item.repo, skillId: item.skillId }
+      : null
+  }
+  if (item.kind === 'skillhub') {
+    return item.slug
+      ? { kind: item.kind, slug: item.slug, namespace: item.namespace ?? '' }
+      : null
+  }
+  return item.repo ? { kind: item.kind, repo: item.repo } : null
 }
 
 /** deterministic icon color per skill name */
@@ -79,4 +104,57 @@ export function matchMarketSkill(item: MarketItem, items: FoundSkill[]): FoundSk
   return items.find((found) => found.skill.name === wanted) ??
     items.find((found) => found.dir.endsWith(`/${wanted}`)) ??
     (item.kind !== 'skills-sh' ? items[0] : undefined)
+}
+
+/** 按已记录来源下载并精确定位 Skill；临时目录由调用方负责清理。 */
+export async function fetchMarketSkillBySource(
+  source: MarketSkillSource,
+  expectedName: string,
+): Promise<FetchedMarketSkill> {
+  const result = source.kind === 'skillhub'
+    ? await window.skillsManager.skillhubFetch(source.slug, source.namespace)
+    : await window.skillsManager.importFromGit(`https://github.com/${source.repo}`)
+  const wanted = source.kind === 'skills-sh'
+    ? source.skillId
+    : source.kind === 'skillhub'
+      ? source.slug
+      : expectedName
+  const found = result.items.find((item) => item.skill.name === wanted) ??
+    result.items.find((item) => item.dir.endsWith(`/${wanted}`)) ??
+    (source.kind === 'skillhub' ? result.items[0] : undefined)
+  return { root: result.root, found: found ?? null }
+}
+
+/**
+ * 为旧版只保存名称的技能包恢复唯一市场来源。只接受精确名称或
+ * slug/skillId 匹配，仓库名称不作为 Skill 名称使用。
+ */
+export async function resolveMarketSkillSource(name: string): Promise<MarketSkillSource | null> {
+  const [skillsShResult, skillhubResult] = await Promise.allSettled([
+    window.skillsManager.marketSearch(name),
+    window.skillsManager.skillhubSearch(name, 1),
+  ])
+  const sources: MarketSkillSource[] = []
+  if (skillsShResult.status === 'fulfilled') {
+    for (const item of skillsShResult.value) {
+      if (item.skillId === name || item.name === name) {
+        sources.push({ kind: 'skills-sh', repo: item.source, skillId: item.skillId })
+      }
+    }
+  }
+  if (skillhubResult.status === 'fulfilled') {
+    for (const item of skillhubResult.value.items) {
+      if (item.slug === name || item.name === name || item.canonicalName === name) {
+        sources.push({
+          kind: 'skillhub',
+          slug: item.slug,
+          namespace: item.namespace,
+        })
+      }
+    }
+  }
+
+  const unique = new Map(sources.map((source) => [JSON.stringify(source), source]))
+  if (unique.size === 1) return [...unique.values()][0]!
+  return null
 }

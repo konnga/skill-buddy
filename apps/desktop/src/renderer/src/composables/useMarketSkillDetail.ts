@@ -18,6 +18,7 @@ import { agentLabel } from '@/lib/agents'
 import {
   fetchMarketSkillSource,
   matchMarketSkill,
+  marketSkillSource,
   type MarketItem,
 } from '@/lib/market'
 
@@ -33,7 +34,7 @@ interface UseMarketSkillDetailOptions {
 
 export function useMarketSkillDetail(options: UseMarketSkillDetailOptions) {
   const { installSkill, detectedPlatforms } = useSkills()
-  const { groups } = useSettings()
+  const { groups, marketSkillSources } = useSettings()
   const { t } = useI18n()
   const item = computed(() => toValue(options.item))
   const targets = ref<InstallTarget[]>([])
@@ -53,15 +54,16 @@ export function useMarketSkillDetail(options: UseMarketSkillDetailOptions) {
   const overviewContent = computed(() =>
     matchedItemKey.value === item.value.key ? (matched.value?.skill.content ?? null) : null,
   )
-  const groupSkillName = computed(() =>
+  const groupSkillName = computed<string | null>(() =>
     matchedItemKey.value === item.value.key
-      ? (matched.value?.skill.name ?? item.value.name)
-      : item.value.name,
+      ? (matched.value?.skill.name ?? null)
+      : null,
   )
+  const groupSkillSource = computed(() => marketSkillSource(item.value))
   const groupOptions = computed<MarketGroupOption[]>(() =>
     groups.value.map((group) => ({
       name: group.name,
-      member: group.skills.includes(groupSkillName.value),
+      member: groupSkillName.value !== null && group.skills.includes(groupSkillName.value),
     })),
   )
 
@@ -120,6 +122,7 @@ export function useMarketSkillDetail(options: UseMarketSkillDetailOptions) {
   }
 
   function toggleGroup(name: string): void {
+    if (!groupSkillName.value || !groupSkillSource.value) return
     if (groupOptions.value.find((group) => group.name === name)?.member) return
     const next = new Set(selectedGroups.value)
     if (next.has(name)) next.delete(name)
@@ -131,12 +134,19 @@ export function useMarketSkillDetail(options: UseMarketSkillDetailOptions) {
   function addToSelectedGroups(): void {
     if (selectedGroups.value.size === 0) return
     const skillName = groupSkillName.value
+    const source = groupSkillSource.value
+    if (!skillName || !source) return
     let added = 0
     groups.value = groups.value.map((group) => {
       if (!selectedGroups.value.has(group.name) || group.skills.includes(skillName)) return group
       added += 1
       return { ...group, skills: [...group.skills, skillName] }
     })
+    const sources = { ...marketSkillSources.value }
+    for (const groupName of selectedGroups.value) {
+      sources[groupName] = { ...sources[groupName], [skillName]: source }
+    }
+    marketSkillSources.value = sources
     selectedGroups.value = new Set()
     if (added > 0) showToast({ message: t('market.addedToGroups', { n: added }) })
   }
@@ -237,6 +247,7 @@ export function useMarketSkillDetail(options: UseMarketSkillDetailOptions) {
     matched,
     overviewContent,
     groupSkillName,
+    groupSkillSource,
     groupOptions,
     setTargets,
     toggleGroup,

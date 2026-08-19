@@ -38,6 +38,7 @@ const {
   matched,
   overviewContent,
   groupSkillName,
+  groupSkillSource,
   groupOptions,
   setTargets,
   toggleGroup,
@@ -108,6 +109,7 @@ watch(
           :groups="groupOptions"
           :selected="selectedGroups"
           :skill-name="groupSkillName"
+          :skill-source="groupSkillSource"
           @toggle="toggleGroup"
           @add="addToSelectedGroups"
         />
