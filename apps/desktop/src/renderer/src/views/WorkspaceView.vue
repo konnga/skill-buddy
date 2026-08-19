@@ -1,12 +1,6 @@
 <script setup lang="ts">
-import { shallowRef, watch } from 'vue'
+import { defineAsyncComponent, shallowRef, watch } from 'vue'
 import type { AggregatedSkill } from '@skillbuddy/core'
-import AttentionPage from '@/components/AttentionPage.vue'
-import BundleDetailPage from '@/components/BundleDetailPage.vue'
-import BundlesPage from '@/components/BundlesPage.vue'
-import MarketDetailPage from '@/components/MarketDetailPage.vue'
-import NewSkillPage from '@/components/NewSkillPage.vue'
-import SkillDetailPage from '@/components/SkillDetailPage.vue'
 import { useSkills } from '@/composables/useSkills'
 import type { SkillBundle } from '@/lib/bundles'
 import type { MarketItem } from '@/lib/market'
@@ -15,11 +9,18 @@ import type {
   SkillFocus,
   WorkspaceView as WorkspaceViewName,
 } from '@/lib/navigation'
-import DashboardView from '@/views/DashboardView.vue'
-import GroupsView from '@/views/GroupsView.vue'
-import SkillsView from '@/views/SkillsView.vue'
-import McpServersView from '@/views/McpServersView.vue'
-import TeamView from '@/views/TeamView.vue'
+
+const AttentionPage = defineAsyncComponent(() => import('@/components/AttentionPage.vue'))
+const BundleDetailPage = defineAsyncComponent(() => import('@/components/BundleDetailPage.vue'))
+const BundlesPage = defineAsyncComponent(() => import('@/components/BundlesPage.vue'))
+const MarketDetailPage = defineAsyncComponent(() => import('@/components/MarketDetailPage.vue'))
+const NewSkillPage = defineAsyncComponent(() => import('@/components/NewSkillPage.vue'))
+const SkillDetailPage = defineAsyncComponent(() => import('@/components/SkillDetailPage.vue'))
+const DashboardView = defineAsyncComponent(() => import('@/views/DashboardView.vue'))
+const GroupsView = defineAsyncComponent(() => import('@/views/GroupsView.vue'))
+const SkillsView = defineAsyncComponent(() => import('@/views/SkillsView.vue'))
+const McpServersView = defineAsyncComponent(() => import('@/views/McpServersView.vue'))
+const TeamView = defineAsyncComponent(() => import('@/views/TeamView.vue'))
 
 const props = defineProps<{
   view: WorkspaceViewName

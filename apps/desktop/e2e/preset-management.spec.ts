@@ -58,7 +58,7 @@ test('管理 Preset 状态、整组启停和可移植 JSON', async () => {
       dialog.showMessageBox = async () => ({ response: 0, checkboxChecked: false })
     })
 
-    await page.getByRole('button', { name: /^技能合集/ }).click()
+    await page.getByRole('button', { name: /^技能包/ }).click()
     await expect(page.getByText('已启用', { exact: true })).toBeVisible()
     await expect(page.getByText(/已安装 2\/2 个 Skill/)).toBeVisible()
 
@@ -73,9 +73,9 @@ test('管理 Preset 状态、整组启停和可移植 JSON', async () => {
       () => false,
     )).toBe(true)
 
-    await page.getByRole('button', { name: '合集操作' }).click()
+    await page.getByRole('button', { name: '技能包操作' }).click()
     await page.getByRole('menuitem', { name: '复制 Preset JSON' }).click()
-    await expect(page.getByText('已复制合集「E2E Preset」的 Preset JSON')).toBeVisible()
+    await expect(page.getByText('已复制技能包「E2E Preset」的 Preset JSON')).toBeVisible()
     const exported = await application.evaluate(({ clipboard }) => clipboard.readText())
     expect(JSON.parse(exported)).toEqual({
       kind: 'skillbuddy-preset',
@@ -89,13 +89,13 @@ test('管理 Preset 状态、整组启停和可移植 JSON', async () => {
       preset: { name: 'E2E Preset', skills: ['beta', 'gamma'] },
     })
     for (const expectedToast of [
-      '已向合集「E2E Preset」追加 1 个 Skill',
-      '合集「E2E Preset」没有新增 Skill',
+      '已向技能包「E2E Preset」追加 1 个 Skill',
+      '技能包「E2E Preset」没有新增 Skill',
     ]) {
-      await page.getByRole('button', { name: '导入合集' }).first().click()
-      const dialog = page.getByRole('dialog', { name: '导入技能合集' })
+      await page.getByRole('button', { name: '导入技能包' }).first().click()
+      const dialog = page.getByRole('dialog', { name: '导入技能包' })
       await dialog.getByPlaceholder('粘贴 skillbuddy-preset JSON…').fill(imported)
-      await dialog.getByRole('button', { name: '导入合集' }).click()
+      await dialog.getByRole('button', { name: '导入技能包' }).click()
       await expect(page.getByText(expectedToast)).toBeVisible()
     }
 
@@ -104,12 +104,13 @@ test('管理 Preset 状态、整组启停和可移植 JSON', async () => {
     await expect(page.getByText('未安装：gamma')).toBeVisible()
 
     await page.getByText('E2E Preset', { exact: true }).click()
-    const toolbar = page.locator('section').filter({
+    const toolbar = page.locator('header').filter({
       has: page.getByRole('heading', { name: 'E2E Preset' }),
     })
     await expect(toolbar).toBeVisible()
     await expect(toolbar.getByText('部分启用', { exact: true })).toBeVisible()
-    await expect(toolbar.getByText('当前筛选下缺失：gamma')).toBeVisible()
+    await expect(page.getByText('未安装技能（1）', { exact: true })).toBeVisible()
+    await expect(page.getByText('gamma', { exact: true })).toBeVisible()
   } finally {
     await application?.close()
     await fs.rm(home, { recursive: true, force: true })

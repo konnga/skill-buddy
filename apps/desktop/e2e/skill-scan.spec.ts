@@ -42,7 +42,10 @@ version: 1.0.0
     const page = await application.firstWindow()
     await expect(page.getByText('SkillBuddy', { exact: true })).toBeVisible()
     await page.getByRole('button', { name: /Skills/ }).click()
-    await expect(page.getByText('e2e-skill', { exact: true })).toBeVisible()
+    await page.getByText('e2e-skill', { exact: true }).click()
+    await expect(page.getByRole('heading', { name: 'E2E Skill' })).toBeVisible()
+    await page.getByRole('button', { name: '编辑' }).click()
+    await expect(page.locator('.cm-editor')).toBeVisible()
   } finally {
     await application?.close()
     await fs.rm(home, { recursive: true, force: true })

@@ -2,7 +2,7 @@
 import { useI18n } from 'vue-i18n'
 import { LoaderCircle, Sparkles, Terminal } from '@lucide/vue'
 import type { AggregatedSkill } from '@skillbuddy/core'
-import MarkdownView from '@/components/MarkdownView.vue'
+import MarkdownView from '@/components/AsyncMarkdownView.vue'
 import type { ChatMessage } from '@/composables/useSkillCreationConversation'
 
 const props = defineProps<{

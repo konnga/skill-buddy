@@ -109,6 +109,7 @@ test('从设置页备份并恢复 Git 快照', async () => {
     await page.getByRole('button', { name: '预览恢复' }).click()
     await expect(page.getByText(/1 个 Skill · 1 个 Preset/)).toBeVisible()
     await page.getByRole('button', { name: 'Codex' }).click()
+    await page.getByRole('checkbox').first().check()
     await page.getByRole('button', { name: '恢复快照' }).click()
     await expect(page.getByText('已完成 1 处 Skill 安装')).toBeVisible()
     await expect.poll(() => fs.readFile(join(skillDirectory, 'SKILL.md'), 'utf8')).toContain(

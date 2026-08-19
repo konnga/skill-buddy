@@ -11,7 +11,7 @@ import type { PathAccessPolicy } from '../path-policy.js'
 interface MarketFetchInit {
   method?: string
   body?: string
-  credentials?: RequestCredentials
+  credentials?: 'omit' | 'same-origin' | 'include'
   headers?: Record<string, string>
   redirect?: RequestInit['redirect']
   timeoutMs?: number

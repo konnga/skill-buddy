@@ -40,7 +40,9 @@ export function parseModelScopeWebStats(html: string): {
   const match = /window\.__detail_data__\s*=\s*("(?:\\.|[^"\\])*");/.exec(html)
   if (!match) return {}
   try {
-    const payload = JSON.parse(match[1]) as unknown
+    const encodedPayload = match[1]
+    if (!encodedPayload) return {}
+    const payload = JSON.parse(encodedPayload) as unknown
     if (typeof payload !== 'string') return {}
     const data = recordValue(JSON.parse(payload))
     if (!data) return {}

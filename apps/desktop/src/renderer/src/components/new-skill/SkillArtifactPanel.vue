@@ -4,7 +4,7 @@ import { useI18n } from 'vue-i18n'
 import { Check, FileText, LoaderCircle } from '@lucide/vue'
 import type { FoundSkill } from '@skillbuddy/core'
 import type { InstallTarget } from '#shared/ipc'
-import MarkdownView from '@/components/MarkdownView.vue'
+import MarkdownView from '@/components/AsyncMarkdownView.vue'
 import PlatformTargetPicker from '@/components/PlatformTargetPicker.vue'
 import { Button } from '@/components/ui/button'
 

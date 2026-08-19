@@ -1,12 +1,20 @@
 <script setup lang="ts">
-import { computed, nextTick, onMounted, shallowRef, toRef, useTemplateRef, watch } from 'vue'
+import {
+  computed,
+  defineAsyncComponent,
+  nextTick,
+  onMounted,
+  shallowRef,
+  toRef,
+  useTemplateRef,
+  watch,
+} from 'vue'
 import { useI18n } from 'vue-i18n'
 import { ArrowLeft, Pencil } from '@lucide/vue'
 import type { AggregatedSkill } from '@skillbuddy/core'
 import CopyButton from '@/components/CopyButton.vue'
-import MarkdownView from '@/components/MarkdownView.vue'
+import MarkdownView from '@/components/AsyncMarkdownView.vue'
 import SidebarToggle from '@/components/SidebarToggle.vue'
-import SkillEditor from '@/components/SkillEditor.vue'
 import SkillDriftSection from '@/components/skill-detail/SkillDriftSection.vue'
 import SkillGroupMembershipSection from '@/components/skill-detail/SkillGroupMembershipSection.vue'
 import SkillInstallPanel from '@/components/skill-detail/SkillInstallPanel.vue'
@@ -18,6 +26,8 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import { useSkillDetailActions } from '@/composables/useSkillDetailActions'
 import type { SkillFocus } from '@/lib/navigation'
 import { hasScriptResources } from '@/lib/resources'
+
+const SkillEditor = defineAsyncComponent(() => import('@/components/SkillEditor.vue'))
 
 const props = defineProps<{
   skill: AggregatedSkill

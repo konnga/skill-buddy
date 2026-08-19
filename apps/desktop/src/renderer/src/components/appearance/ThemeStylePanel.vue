@@ -141,7 +141,7 @@ function confirmImport(): void {
             :min="0"
             :max="100"
             :step="1"
-            :aria-label="t('settings.appearanceContrast')"
+            :ariaLabel="t('settings.appearanceContrast')"
             class="flex-1"
           />
           <span class="w-7 text-right text-sm tabular-nums text-muted-foreground">

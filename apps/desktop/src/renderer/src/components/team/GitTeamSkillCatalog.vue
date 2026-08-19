@@ -4,7 +4,7 @@ import { ChevronDown, CloudDownload, GitCommitHorizontal, Search } from '@lucide
 import { useI18n } from 'vue-i18n'
 import type { InstallTarget, TeamLibrarySkillSummary } from '#shared/ipc'
 import { teamLibraryConfigKey } from '#shared/team-library'
-import MarkdownView from '@/components/MarkdownView.vue'
+import MarkdownView from '@/components/AsyncMarkdownView.vue'
 import PlatformTargetPicker from '@/components/PlatformTargetPicker.vue'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'

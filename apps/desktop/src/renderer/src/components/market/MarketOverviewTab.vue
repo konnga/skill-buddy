@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n'
-import MarkdownView from '@/components/MarkdownView.vue'
+import MarkdownView from '@/components/AsyncMarkdownView.vue'
 import { Skeleton } from '@/components/ui/skeleton'
 
 const props = defineProps<{

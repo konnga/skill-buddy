@@ -14,6 +14,16 @@ importers:
 
   apps/desktop:
     dependencies:
+      '@skillbuddy/core':
+        specifier: workspace:*
+        version: link:../../packages/core
+      fflate:
+        specifier: ^0.8.3
+        version: 0.8.3
+      yaml:
+        specifier: ^2.9.0
+        version: 2.9.0
+    devDependencies:
       '@codemirror/lang-markdown':
         specifier: ^6.5.2
         version: 6.5.2
@@ -23,49 +33,12 @@ importers:
       '@codemirror/view':
         specifier: ^6.43.8
         version: 6.43.8
-      '@lucide/vue':
-        specifier: ^1.28.0
-        version: 1.28.0(vue@3.5.41(typescript@5.9.3))
-      '@skillbuddy/core':
-        specifier: workspace:*
-        version: link:../../packages/core
-      class-variance-authority:
-        specifier: ^0.7.1
-        version: 0.7.1
-      clsx:
-        specifier: ^2.1.1
-        version: 2.1.1
-      codemirror:
-        specifier: ^6.0.2
-        version: 6.0.2
-      diff:
-        specifier: ^9.0.0
-        version: 9.0.0
-      fflate:
-        specifier: ^0.8.3
-        version: 0.8.3
-      highlight.js:
-        specifier: ^11.11.1
-        version: 11.11.1
-      md-editor-v3:
-        specifier: ^6.5.6
-        version: 6.5.6(vue@3.5.41(typescript@5.9.3))
-      reka-ui:
-        specifier: ^2.10.1
-        version: 2.10.1(vue@3.5.41(typescript@5.9.3))
-      tailwind-merge:
-        specifier: ^3.6.0
-        version: 3.6.0
-      vue-i18n:
-        specifier: ^11.4.8
-        version: 11.4.8(vue@3.5.41(typescript@5.9.3))
-      yaml:
-        specifier: ^2.9.0
-        version: 2.9.0
-    devDependencies:
       '@lobehub/icons-static-svg':
         specifier: ^1.94.0
         version: 1.94.0
+      '@lucide/vue':
+        specifier: ^1.28.0
+        version: 1.28.0(vue@3.5.41(typescript@5.9.3))
       '@playwright/test':
         specifier: ^1.54.0
         version: 1.62.1
@@ -81,6 +54,18 @@ importers:
       '@vitejs/plugin-vue':
         specifier: ^5.2.0
         version: 5.2.4(vite@5.4.21(@types/node@22.20.1)(lightningcss@1.32.0)(sass-embedded@1.100.0)(sass@1.100.0))(vue@3.5.41(typescript@5.9.3))
+      class-variance-authority:
+        specifier: ^0.7.1
+        version: 0.7.1
+      clsx:
+        specifier: ^2.1.1
+        version: 2.1.1
+      codemirror:
+        specifier: ^6.0.2
+        version: 6.0.2
+      diff:
+        specifier: ^9.0.0
+        version: 9.0.0
       electron:
         specifier: ^33.2.0
         version: 33.4.11
@@ -90,12 +75,24 @@ importers:
       electron-vite:
         specifier: ^2.3.0
         version: 2.3.0(vite@5.4.21(@types/node@22.20.1)(lightningcss@1.32.0)(sass-embedded@1.100.0)(sass@1.100.0))
+      highlight.js:
+        specifier: ^11.11.1
+        version: 11.11.1
+      md-editor-v3:
+        specifier: ^6.5.6
+        version: 6.5.6(vue@3.5.41(typescript@5.9.3))
       playwright:
         specifier: ^1.54.0
         version: 1.62.1
+      reka-ui:
+        specifier: ^2.10.1
+        version: 2.10.1(vue@3.5.41(typescript@5.9.3))
       sass-embedded:
         specifier: ^1.100.0
         version: 1.100.0
+      tailwind-merge:
+        specifier: ^3.6.0
+        version: 3.6.0
       tailwindcss:
         specifier: ^4.3.3
         version: 4.3.3
@@ -114,6 +111,9 @@ importers:
       vue:
         specifier: ^3.5.13
         version: 3.5.41(typescript@5.9.3)
+      vue-i18n:
+        specifier: ^11.4.8
+        version: 11.4.8(vue@3.5.41(typescript@5.9.3))
       vue-tsc:
         specifier: ^2.1.10
         version: 2.2.12(typescript@5.9.3)

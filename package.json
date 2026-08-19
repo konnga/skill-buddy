@@ -12,7 +12,8 @@
     "build": "pnpm -r build",
     "test": "pnpm -r test",
     "test:e2e": "pnpm --filter @skillbuddy/desktop test:e2e",
-    "typecheck": "pnpm -r typecheck"
+    "typecheck": "pnpm -r typecheck",
+    "dist:mac:arm64": "pnpm --filter @skillbuddy/desktop dist:mac:arm64"
   },
   "devDependencies": {
     "typescript": "^5.7.0"
