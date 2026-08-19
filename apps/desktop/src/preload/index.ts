@@ -59,8 +59,8 @@ import type {
   TrayStatus,
   TargetResult,
   UpdateCheckResult,
-} from '../shared/ipc.js'
-import { plainTeamLibraryConfig } from '../shared/team-library.js'
+} from '#shared/ipc'
+import { plainTeamLibraryConfig } from '#shared/team-library'
 
 const api = {
   teamLibraryProbe: (input: TeamLibraryProbeInput): Promise<TeamLibraryProbeResult> =>

@@ -1,6 +1,6 @@
 import { computed, onMounted, ref, shallowRef, toValue, type MaybeRefOrGetter } from 'vue'
 import { useI18n } from 'vue-i18n'
-import type { InstallTarget } from '../../../shared/ipc.js'
+import type { InstallTarget } from '#shared/ipc'
 import { useSettings } from '@/composables/useSettings'
 import { useSkills } from '@/composables/useSkills'
 import { showToast } from '@/composables/useToast'

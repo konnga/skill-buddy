@@ -2,7 +2,7 @@
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { Boxes, FilePlus2, FolderOpen, PackagePlus, ServerCog, Sparkles } from '@lucide/vue'
-import type { TeamContributionWorkspace } from '../../../../shared/ipc.js'
+import type { TeamContributionWorkspace } from '#shared/ipc'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import type { TeamLibraryTab } from '@/composables/useTeamLibraryWorkspaceEditor'

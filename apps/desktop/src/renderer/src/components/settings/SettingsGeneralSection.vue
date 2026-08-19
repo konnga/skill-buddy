@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n'
-import type { LinkOpenMode } from '../../../../shared/ipc.js'
-import type { Locale } from '../../i18n.js'
+import type { LinkOpenMode } from '#shared/ipc'
+import type { Locale } from '../../i18n'
 import { Select } from '@/components/ui/select'
 
 const props = defineProps<{

@@ -6,11 +6,11 @@ import type {
   TeamLibraryInstallRecord,
   TeamLibraryMcpSummary,
   TeamLibrarySkillSummary,
-} from '../../../shared/ipc.js'
-import { teamLibraryConfigKey } from '../../../shared/team-library.js'
-import { blockedTeamAssetReason, teamAssetPolicyState } from '../../../shared/team-policy.js'
+} from '#shared/ipc'
+import { teamLibraryConfigKey } from '#shared/team-library'
+import { blockedTeamAssetReason, teamAssetPolicyState } from '#shared/team-policy'
 import { i18n } from '@/i18n'
-import { useSettings } from './useSettings.js'
+import { useSettings } from './useSettings'
 
 const catalogs = ref<TeamLibraryCatalog[]>([])
 const installations = ref<TeamLibraryInstallRecord[]>([])

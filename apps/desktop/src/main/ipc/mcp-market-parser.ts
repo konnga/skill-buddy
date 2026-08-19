@@ -3,7 +3,7 @@ import type {
   ModelScopeMcpCategory,
   ModelScopeMcpDetail,
   ModelScopeMcpSummary,
-} from '../../shared/ipc.js'
+} from '#shared/ipc'
 
 function recordValue(value: unknown): Record<string, unknown> | null {
   return typeof value === 'object' && value !== null && !Array.isArray(value)

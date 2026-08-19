@@ -4,8 +4,8 @@ import type {
   McpRemovePlanRequest,
   McpTogglePlanRequest,
   McpUpsertPlanRequest,
-} from '../../shared/ipc.js'
-import { McpService } from '../mcp/service.js'
+} from '#shared/ipc'
+import { McpService } from '../mcp/service'
 
 /** 注册 MCP 扫描、计划、执行、撤销和监听 IPC。 */
 export function registerMcpIpc(): McpService {

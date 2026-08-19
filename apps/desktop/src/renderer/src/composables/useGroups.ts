@@ -1,7 +1,7 @@
 import { computed, ref, shallowRef } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { planAdditiveInstall, targetKey } from '@skillbuddy/core/planners'
-import type { InstallTarget } from '../../../shared/ipc.js'
+import type { InstallTarget } from '#shared/ipc'
 import { showToast } from '@/composables/useToast'
 import { useSettings, type SkillGroup } from '@/composables/useSettings'
 import { useSkills } from '@/composables/useSkills'

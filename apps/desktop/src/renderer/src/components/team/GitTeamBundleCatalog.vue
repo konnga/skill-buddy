@@ -2,7 +2,7 @@
 import { computed, shallowRef } from 'vue'
 import { ChevronDown, PackageCheck, Search } from '@lucide/vue'
 import { useI18n } from 'vue-i18n'
-import type { TeamLibraryBundleSummary } from '../../../../shared/ipc.js'
+import type { TeamLibraryBundleSummary } from '#shared/ipc'
 import TeamBundleInstallPanel from '@/components/team/TeamBundleInstallPanel.vue'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'

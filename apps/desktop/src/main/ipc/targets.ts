@@ -1,6 +1,6 @@
 import { getAdapter, type Skill } from '@skillbuddy/core'
-import type { InstallTarget, TargetResult } from '../../shared/ipc.js'
-import type { PathAccessPolicy } from '../path-policy.js'
+import type { InstallTarget, TargetResult } from '#shared/ipc'
+import type { PathAccessPolicy } from '../path-policy'
 
 /** 在多个安装目标上并行执行操作，并保留逐目标错误。 */
 export async function runTargets(

@@ -3,6 +3,9 @@
   "version": "0.1.0",
   "productName": "SkillBuddy",
   "type": "module",
+  "imports": {
+    "#*": "./src/*.ts"
+  },
   "description": "SkillBuddy desktop app (Electron + Vue 3)",
   "main": "./out/main/index.js",
   "build": {

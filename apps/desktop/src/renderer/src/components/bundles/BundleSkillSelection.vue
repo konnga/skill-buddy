@@ -2,7 +2,7 @@
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { ChevronRight, Sparkles } from '@lucide/vue'
-import type { InstallTarget } from '../../../../shared/ipc.js'
+import type { InstallTarget } from '#shared/ipc'
 import PlatformTargetPicker from '@/components/PlatformTargetPicker.vue'
 import { Badge } from '@/components/ui/badge'
 import {

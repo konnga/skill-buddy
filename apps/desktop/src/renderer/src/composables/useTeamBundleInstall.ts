@@ -6,8 +6,8 @@ import type {
   TeamLibraryBundleSummary,
   TeamLibraryMcp,
   TeamLibraryMcpSummary,
-} from '../../../shared/ipc.js'
-import { teamLibraryConfigKey } from '../../../shared/team-library.js'
+} from '#shared/ipc'
+import { teamLibraryConfigKey } from '#shared/team-library'
 import { useMcpServers } from '@/composables/useMcpServers'
 import { useSettings } from '@/composables/useSettings'
 import { useSkills } from '@/composables/useSkills'

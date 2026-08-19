@@ -4,7 +4,7 @@ import type {
   McpSoDetail,
   ModelScopeMcpDetail,
   ModelScopeMcpSummary,
-} from '../../../shared/ipc.js'
+} from '#shared/ipc'
 
 export type McpMarketSourceId = 'modelscope' | 'mcp-so'
 

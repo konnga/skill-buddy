@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n'
 import { AlertTriangle, KeyRound } from '@lucide/vue'
-import type { TeamLibraryBundleSummary } from '../../../../shared/ipc.js'
+import type { TeamLibraryBundleSummary } from '#shared/ipc'
 import McpTargetPicker from '@/components/mcp/McpTargetPicker.vue'
 import PlatformTargetPicker from '@/components/PlatformTargetPicker.vue'
 import TeamBundleMemberList from '@/components/team/TeamBundleMemberList.vue'

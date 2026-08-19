@@ -8,8 +8,8 @@ import type {
   ModelScopeMcpDetail,
   ModelScopeMcpStats,
   ModelScopeMcpSummary,
-} from '../../shared/ipc.js'
-import { marketFetch } from './market.js'
+} from '#shared/ipc'
+import { marketFetch } from './market'
 import {
   decodeHtmlEntities,
   firstExternalLink,
@@ -20,7 +20,7 @@ import {
   parseMcpSoCards,
   parseMcpSoConfigs,
   parseMcpSoLdJson,
-} from './mcp-market-parser.js'
+} from './mcp-market-parser'
 
 /** 魔搭 OpenAPI 根地址；搜索与详情为公开接口，无需令牌。 */
 const MODELSCOPE_API = 'https://modelscope.cn/openapi/v1'

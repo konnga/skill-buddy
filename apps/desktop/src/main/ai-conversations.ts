@@ -7,8 +7,8 @@ import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { promisify } from 'node:util'
 import { findSkills } from '@skillbuddy/core'
-import type { AiConversationContext, AiConversationEventPayload } from '../shared/ipc.js'
-import type { PathAccessPolicy } from './path-policy.js'
+import type { AiConversationContext, AiConversationEventPayload } from '#shared/ipc'
+import type { PathAccessPolicy } from './path-policy'
 
 const execFileAsync = promisify(execFile)
 

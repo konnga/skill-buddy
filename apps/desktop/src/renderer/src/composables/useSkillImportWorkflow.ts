@@ -8,7 +8,7 @@ import {
 } from 'vue'
 import { useI18n } from 'vue-i18n'
 import type { FoundSkill } from '@skillbuddy/core'
-import type { InstallTarget } from '../../../shared/ipc.js'
+import type { InstallTarget } from '#shared/ipc'
 import { useSkills } from '@/composables/useSkills'
 import { agentLabel } from '@/lib/agents'
 

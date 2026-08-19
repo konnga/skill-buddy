@@ -1,5 +1,5 @@
 import { shallowRef } from 'vue'
-import type { InAppBrowserState } from '../../../shared/ipc.js'
+import type { InAppBrowserState } from '#shared/ipc'
 
 const closedState: InAppBrowserState = {
   open: false,

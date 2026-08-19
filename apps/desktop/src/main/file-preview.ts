@@ -1,6 +1,6 @@
 import { promises as fs } from 'node:fs'
 import { extname } from 'node:path'
-import type { FilePreviewResult } from '../shared/ipc.js'
+import type { FilePreviewResult } from '#shared/ipc'
 
 const maxTextPreviewBytes = 256 * 1024
 const maxImagePreviewBytes = 8 * 1024 * 1024

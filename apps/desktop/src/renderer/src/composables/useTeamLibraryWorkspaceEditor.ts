@@ -5,8 +5,8 @@ import type {
   TeamLibraryMcpDraft,
   TeamLibraryPolicy,
   TeamLibrarySkillDraft,
-} from '../../../shared/ipc.js'
-import { teamLibraryConfigKey } from '../../../shared/team-library.js'
+} from '#shared/ipc'
+import { teamLibraryConfigKey } from '#shared/team-library'
 import { useSettings } from '@/composables/useSettings'
 import { useTeamLibraryManagement } from '@/composables/useTeamLibraryManagement'
 import { fetchMarketSkillSource, matchMarketSkill, type MarketItem } from '@/lib/market'

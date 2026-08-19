@@ -17,11 +17,11 @@ import {
   type InstalledSkill,
   type Skill,
 } from '@skillbuddy/core'
-import type { CustomPlatformInput, InstallTarget } from '../../shared/ipc.js'
-import { readFilePreview } from '../file-preview.js'
-import { readSecret, writeSecret } from '../secrets.js'
-import { PathAccessPolicy, validateCustomPlatform } from '../path-policy.js'
-import { installTarget, runTargets } from './targets.js'
+import type { CustomPlatformInput, InstallTarget } from '#shared/ipc'
+import { readFilePreview } from '../file-preview'
+import { readSecret, writeSecret } from '../secrets'
+import { PathAccessPolicy, validateCustomPlatform } from '../path-policy'
+import { installTarget, runTargets } from './targets'
 
 const execFileAsync = promisify(execFile)
 let skillStateMutationQueue = Promise.resolve()

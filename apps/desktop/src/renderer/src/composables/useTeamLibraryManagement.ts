@@ -11,7 +11,7 @@ import type {
   TeamLibraryPolicyDraft,
   TeamLibrarySkillDraft,
   TeamLibrarySkillImportInput,
-} from '../../../shared/ipc.js'
+} from '#shared/ipc'
 
 const workspace = shallowRef<TeamContributionWorkspace | null>(null)
 const catalog = ref<TeamLibraryCatalog | null>(null)

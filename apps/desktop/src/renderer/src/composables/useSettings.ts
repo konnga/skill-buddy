@@ -1,8 +1,8 @@
 import { ref, shallowRef, watch } from 'vue'
-import type { CustomPlatformInput, LinkOpenMode, TeamLibraryConfig } from '../../../shared/ipc.js'
-import { detectLocale, i18n, type Locale } from '../i18n.js'
-import type { MarketSkillSource } from '../lib/market.js'
-import { applyAppearance } from './useAppearance.js'
+import type { CustomPlatformInput, LinkOpenMode, TeamLibraryConfig } from '#shared/ipc'
+import { detectLocale, i18n, type Locale } from '../i18n'
+import type { MarketSkillSource } from '../lib/market'
+import { applyAppearance } from './useAppearance'
 
 export type ThemeMode = 'system' | 'light' | 'dark'
 

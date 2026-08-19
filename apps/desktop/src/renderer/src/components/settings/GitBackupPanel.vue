@@ -2,7 +2,7 @@
 import { computed, onBeforeUnmount, ref, shallowRef } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { CloudDownload, CloudUpload, GitBranch } from '@lucide/vue'
-import type { GitRestorePreview, InstallTarget } from '../../../../shared/ipc.js'
+import type { GitRestorePreview, InstallTarget } from '#shared/ipc'
 import PlatformTargetPicker from '@/components/PlatformTargetPicker.vue'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'

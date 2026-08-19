@@ -2,7 +2,7 @@ import { promises as fs } from 'node:fs'
 import { homedir } from 'node:os'
 import { basename, dirname, isAbsolute, relative, resolve, sep } from 'node:path'
 import type { Skill, SkillRoot } from '@skillbuddy/core'
-import type { CustomPlatformInput } from '../shared/ipc.js'
+import type { CustomPlatformInput } from '#shared/ipc'
 
 interface ManagedRoot {
   path: string

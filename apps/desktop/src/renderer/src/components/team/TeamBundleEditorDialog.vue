@@ -2,7 +2,7 @@
 import { reactive, watch, type DeepReadonly } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { DialogContent, DialogDescription, DialogOverlay, DialogPortal, DialogRoot, DialogTitle } from 'reka-ui'
-import type { TeamLibraryBundleDraft, TeamLibraryMcpSummary, TeamLibrarySkillSummary } from '../../../../shared/ipc.js'
+import type { TeamLibraryBundleDraft, TeamLibraryMcpSummary, TeamLibrarySkillSummary } from '#shared/ipc'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 

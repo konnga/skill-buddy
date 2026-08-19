@@ -8,14 +8,14 @@ import {
   shell,
 } from 'electron'
 import { promises as fs } from 'node:fs'
-import type { AppInfo, ConfirmOptions, UpdateCheckResult } from '../../shared/ipc.js'
-import type { DesktopPreferences } from '../../shared/ipc.js'
+import type { AppInfo, ConfirmOptions, UpdateCheckResult } from '#shared/ipc'
+import type { DesktopPreferences } from '#shared/ipc'
 import {
   getDesktopPreferences,
   onDesktopPreferencesChanged,
   setDesktopPreferences,
-} from '../preferences.js'
-import { toggleMainWindow } from '../window.js'
+} from '../preferences'
+import { toggleMainWindow } from '../window'
 
 /** 检查更新所用的 GitHub 仓库（Releases 页）。 */
 const UPDATE_REPO = 'konnga/skill-buddy'

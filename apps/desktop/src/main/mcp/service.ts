@@ -23,10 +23,10 @@ import type {
   McpRemovePlanRequest,
   McpTogglePlanRequest,
   McpUpsertPlanRequest,
-} from '../../shared/ipc.js'
-import { McpBackupStore } from './backups.js'
-import { McpPathAccessPolicy } from './path-policy.js'
-import { McpConfigWatcher } from './watcher.js'
+} from '#shared/ipc'
+import { McpBackupStore } from './backups'
+import { McpPathAccessPolicy } from './path-policy'
+import { McpConfigWatcher } from './watcher'
 
 interface StoredPlan {
   view: McpOperationPlanView

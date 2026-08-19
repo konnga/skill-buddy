@@ -1,6 +1,6 @@
 import { computed, onMounted, ref, shallowRef, watch, type Ref } from 'vue'
 import type { FoundSkill, PlatformStatus, Skill } from '@skillbuddy/core'
-import type { InstallTarget, TargetResult } from '../../../shared/ipc.js'
+import type { InstallTarget, TargetResult } from '#shared/ipc'
 import { agentLabel } from '@/lib/agents'
 
 interface UseSkillArtifactInstallationOptions {

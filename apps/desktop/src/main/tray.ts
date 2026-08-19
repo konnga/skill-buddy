@@ -8,7 +8,7 @@ import {
   type NativeImage,
 } from 'electron'
 import { join } from 'node:path'
-import type { TrayCommand, TrayStatus } from '../shared/ipc.js'
+import type { TrayCommand, TrayStatus } from '#shared/ipc'
 
 type TrayLocale = TrayStatus['locale']
 type TrayIconState = 'normal' | 'attention' | 'error'

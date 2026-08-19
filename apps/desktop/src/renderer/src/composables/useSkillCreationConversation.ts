@@ -1,7 +1,7 @@
 import { computed, onBeforeUnmount, onMounted, ref, shallowRef, type Ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import type { AggregatedSkill, FoundSkill, PlatformStatus } from '@skillbuddy/core'
-import type { AiConversationEvent } from '../../../shared/ipc.js'
+import type { AiConversationEvent } from '#shared/ipc'
 
 export interface ChatMessage {
   id: string

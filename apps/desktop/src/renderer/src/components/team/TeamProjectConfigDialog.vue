@@ -2,7 +2,7 @@
 import { computed, ref, watch, type DeepReadonly } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { DialogContent, DialogDescription, DialogOverlay, DialogPortal, DialogRoot, DialogTitle } from 'reka-ui'
-import type { TeamLibraryCatalog, TeamProjectConfig } from '../../../../shared/ipc.js'
+import type { TeamLibraryCatalog, TeamProjectConfig } from '#shared/ipc'
 import { Button } from '@/components/ui/button'
 import { Select } from '@/components/ui/select'
 import type { TeamProjectCompliance } from '@/composables/useTeamProjects'

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n'
 import { ArrowLeft, CloudDownload, ExternalLink, LibraryBig } from '@lucide/vue'
-import type { TeamLibraryMcpDraft } from '../../../../shared/ipc.js'
+import type { TeamLibraryMcpDraft } from '#shared/ipc'
 import McpMarketConfigurationPanel from '@/components/mcp/McpMarketConfigurationPanel.vue'
 import McpMarketOverviewSection from '@/components/mcp/McpMarketOverviewSection.vue'
 import SidebarToggle from '@/components/SidebarToggle.vue'

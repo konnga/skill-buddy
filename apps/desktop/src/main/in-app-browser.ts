@@ -1,5 +1,5 @@
 import { BrowserWindow, WebContentsView, ipcMain, shell } from 'electron'
-import type { InAppBrowserState, LinkOpenMode } from '../shared/ipc.js'
+import type { InAppBrowserState, LinkOpenMode } from '#shared/ipc'
 
 /** 与渲染进程 InAppBrowser.vue 工具栏（h-12）保持一致的高度。 */
 const TOOLBAR_HEIGHT = 48

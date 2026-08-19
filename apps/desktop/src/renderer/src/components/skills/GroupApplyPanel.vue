@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
-import type { InstallTarget } from '../../../../shared/ipc.js'
+import type { InstallTarget } from '#shared/ipc'
 import PlatformTargetPicker from '@/components/PlatformTargetPicker.vue'
 import { Button } from '@/components/ui/button'
 

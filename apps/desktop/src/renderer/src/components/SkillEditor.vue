@@ -11,7 +11,7 @@ import {
 import { useI18n } from 'vue-i18n'
 import { Maximize2, Minimize2 } from '@lucide/vue'
 import type { AggregatedSkill, Skill } from '@skillbuddy/core'
-import type { InstallTarget } from '../../../shared/ipc.js'
+import type { InstallTarget } from '#shared/ipc'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'

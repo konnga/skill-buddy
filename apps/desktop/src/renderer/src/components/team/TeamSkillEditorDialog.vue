@@ -4,7 +4,7 @@ import { useI18n } from 'vue-i18n'
 import { DialogContent, DialogDescription, DialogOverlay, DialogPortal, DialogRoot, DialogTitle } from 'reka-ui'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import type { TeamLibrarySkillDraft } from '../../../../shared/ipc.js'
+import type { TeamLibrarySkillDraft } from '#shared/ipc'
 
 const props = defineProps<{
   open: boolean

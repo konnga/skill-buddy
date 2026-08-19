@@ -1,8 +1,8 @@
 import { app, BrowserWindow } from 'electron'
 import { join } from 'node:path'
-import type { TrayCommand } from '../shared/ipc.js'
-import { getDesktopPreferences } from './preferences.js'
-import { openLink } from './in-app-browser.js'
+import type { TrayCommand } from '#shared/ipc'
+import { getDesktopPreferences } from './preferences'
+import { openLink } from './in-app-browser'
 
 let mainWindow: BrowserWindow | null = null
 let quitting = false

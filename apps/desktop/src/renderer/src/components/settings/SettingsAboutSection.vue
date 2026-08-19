@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, shallowRef } from 'vue'
 import { useI18n } from 'vue-i18n'
-import type { AppInfo, UpdateCheckResult } from '../../../../shared/ipc.js'
+import type { AppInfo, UpdateCheckResult } from '#shared/ipc'
 import skillbuddyMarkUrl from '@/assets/logo.svg'
 import { Button } from '@/components/ui/button'
 import { useSettings } from '@/composables/useSettings'

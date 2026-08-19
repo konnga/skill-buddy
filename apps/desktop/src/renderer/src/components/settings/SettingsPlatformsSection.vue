@@ -2,7 +2,7 @@
 import { useI18n } from 'vue-i18n'
 import { Plus, Trash2 } from '@lucide/vue'
 import type { PlatformStatus } from '@skillbuddy/core'
-import type { CustomPlatformInput } from '../../../../shared/ipc.js'
+import type { CustomPlatformInput } from '#shared/ipc'
 import PlatformIcon from '@/components/PlatformIcon.vue'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'

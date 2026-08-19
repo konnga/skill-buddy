@@ -1,11 +1,11 @@
 import { computed, onMounted, onUnmounted, watch } from 'vue'
-import type { TrayCommand, TrayStatus } from '../../../shared/ipc.js'
-import { useAttentionSummary } from './useAttentionSummary.js'
-import { useMcpServers } from './useMcpServers.js'
-import { useSettings } from './useSettings.js'
-import { useSkills } from './useSkills.js'
-import { useTeamLibraries } from './useTeamLibraries.js'
-import { useTeamProjects } from './useTeamProjects.js'
+import type { TrayCommand, TrayStatus } from '#shared/ipc'
+import { useAttentionSummary } from './useAttentionSummary'
+import { useMcpServers } from './useMcpServers'
+import { useSettings } from './useSettings'
+import { useSkills } from './useSkills'
+import { useTeamLibraries } from './useTeamLibraries'
+import { useTeamProjects } from './useTeamProjects'
 
 export interface TrayIntegrationOptions {
   openAttention?: () => void

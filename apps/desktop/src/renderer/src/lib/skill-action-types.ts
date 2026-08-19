@@ -1,5 +1,5 @@
 import type { AggregatedSkill } from '@skillbuddy/core'
-import type { InstallTarget } from '../../../shared/ipc.js'
+import type { InstallTarget } from '#shared/ipc'
 import type { SkillInstallation } from '@/lib/skill-installations'
 
 export type BatchAction = 'enable' | 'disable' | 'uninstall'

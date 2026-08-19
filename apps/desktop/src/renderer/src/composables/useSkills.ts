@@ -1,9 +1,9 @@
 import { computed, ref, shallowRef } from 'vue'
 import type { AggregatedSkill, PlatformStatus, Skill } from '@skillbuddy/core'
-import type { InstallTarget, TargetResult } from '../../../shared/ipc.js'
-import { i18n } from '../i18n.js'
-import { matchesSkillInstallation } from '../lib/skill-installations.js'
-import { useSettings } from './useSettings.js'
+import type { InstallTarget, TargetResult } from '#shared/ipc'
+import { i18n } from '../i18n'
+import { matchesSkillInstallation } from '../lib/skill-installations'
+import { useSettings } from './useSettings'
 
 const skills = ref<AggregatedSkill[]>([])
 const platforms = ref<PlatformStatus[]>([])

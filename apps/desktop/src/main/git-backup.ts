@@ -17,8 +17,8 @@ import type {
   GitBackupRequest,
   GitBackupResult,
   GitRestorePreview,
-} from '../shared/ipc.js'
-import type { PathAccessPolicy } from './path-policy.js'
+} from '#shared/ipc'
+import type { PathAccessPolicy } from './path-policy'
 
 const execFileAsync = promisify(execFile)
 const MANIFEST_NAME = 'skillbuddy-backup.json'

@@ -1,7 +1,7 @@
 import { computed, onMounted, ref, shallowRef, toValue, watch, type MaybeRefOrGetter } from 'vue'
 import { useI18n } from 'vue-i18n'
 import type { McpTarget } from '@skillbuddy/core'
-import type { TeamLibraryMcpDraft } from '../../../shared/ipc.js'
+import type { TeamLibraryMcpDraft } from '#shared/ipc'
 import { useMcpServers } from '@/composables/useMcpServers'
 import { useSettings } from '@/composables/useSettings'
 import {

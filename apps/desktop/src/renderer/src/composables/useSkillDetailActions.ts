@@ -9,7 +9,7 @@ import {
 } from 'vue'
 import { useI18n } from 'vue-i18n'
 import type { AggregatedSkill, Installation } from '@skillbuddy/core'
-import type { InstallTarget } from '../../../shared/ipc.js'
+import type { InstallTarget } from '#shared/ipc'
 import { useSkills } from '@/composables/useSkills'
 import { showToast } from '@/composables/useToast'
 import { agentLabel } from '@/lib/agents'

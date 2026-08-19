@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n'
 import { GitBranch, Trash2 } from '@lucide/vue'
-import type { TeamLibraryConfig } from '../../../../shared/ipc.js'
+import type { TeamLibraryConfig } from '#shared/ipc'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import TeamLibrarySetupPanel from './TeamLibrarySetupPanel.vue'

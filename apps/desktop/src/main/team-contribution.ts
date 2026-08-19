@@ -10,8 +10,8 @@ import type {
   TeamContributionPublishResult,
   TeamContributionWorkspace,
   TeamLibraryConfig,
-} from '../shared/ipc.js'
-import { readTeamLibraryManifest, validateTeamLibraryConfig } from './team-library.js'
+} from '#shared/ipc'
+import { readTeamLibraryManifest, validateTeamLibraryConfig } from './team-library'
 
 const execFileAsync = promisify(execFile)
 const BRANCH_SLUG_RE = /^[a-z0-9]+(?:[._-][a-z0-9]+)*$/

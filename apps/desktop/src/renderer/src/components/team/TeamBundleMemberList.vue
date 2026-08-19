@@ -4,7 +4,7 @@ import { useI18n } from 'vue-i18n'
 import type {
   TeamLibraryMcpSummary,
   TeamLibrarySkillSummary,
-} from '../../../../shared/ipc.js'
+} from '#shared/ipc'
 import { Badge } from '@/components/ui/badge'
 
 defineProps<{

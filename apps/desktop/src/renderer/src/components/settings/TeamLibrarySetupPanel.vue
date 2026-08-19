@@ -12,7 +12,7 @@ import {
 import type {
   TeamLibraryConfig,
   TeamLibraryProbeResult,
-} from '../../../../shared/ipc.js'
+} from '#shared/ipc'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { showToast } from '@/composables/useToast'

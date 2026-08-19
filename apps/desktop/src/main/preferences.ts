@@ -4,7 +4,7 @@ import { dirname, join } from 'node:path'
 import {
   DEFAULT_DESKTOP_PREFERENCES,
   type DesktopPreferences,
-} from '../shared/ipc.js'
+} from '#shared/ipc'
 
 let preferences: DesktopPreferences = { ...DEFAULT_DESKTOP_PREFERENCES }
 let saveQueue = Promise.resolve()

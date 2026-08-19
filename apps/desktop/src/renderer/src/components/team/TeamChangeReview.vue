@@ -2,7 +2,7 @@
 import { computed, shallowRef, type DeepReadonly } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { ExternalLink, FileDiff, FolderOpen, GitPullRequest, RotateCcw } from '@lucide/vue'
-import type { TeamContributionDiff, TeamContributionPublishResult } from '../../../../shared/ipc.js'
+import type { TeamContributionDiff, TeamContributionPublishResult } from '#shared/ipc'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'

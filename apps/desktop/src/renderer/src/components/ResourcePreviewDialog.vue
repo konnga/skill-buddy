@@ -9,7 +9,7 @@ import {
   DialogTitle,
 } from 'reka-ui'
 import { AlertCircle, Code2, Eye, FileText, Image as ImageIcon, X } from '@lucide/vue'
-import type { FilePreviewResult } from '../../../shared/ipc.js'
+import type { FilePreviewResult } from '#shared/ipc'
 import MarkdownView from '@/components/MarkdownView.vue'
 import ResourceCodePreview from '@/components/ResourceCodePreview.vue'
 import { Button } from '@/components/ui/button'

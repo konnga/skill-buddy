@@ -31,16 +31,16 @@ import type {
   TeamLibrarySkill,
   TeamLibrarySourceInfo,
   TeamLibrarySyncResult,
-} from '../shared/ipc.js'
-import { normalizeTeamLibraryBranch, teamLibraryConfigKey } from '../shared/team-library.js'
-import { blockedTeamAssetReason, emptyTeamPolicy, mergeTeamPolicies } from '../shared/team-policy.js'
-import { readTeamProjectConfig } from './team-project.js'
+} from '#shared/ipc'
+import { normalizeTeamLibraryBranch, teamLibraryConfigKey } from '#shared/team-library'
+import { blockedTeamAssetReason, emptyTeamPolicy, mergeTeamPolicies } from '#shared/team-policy'
+import { readTeamProjectConfig } from './team-project'
 
 const execFileAsync = promisify(execFile)
 const ID_RE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/
 const MAX_FILES = 5_000
 const MAX_BYTES = 100 * 1024 * 1024
-const SCRIPT_EXTENSIONS = new Set(['.sh', '.bash', '.zsh', '.fish', '.ps1', '.bat', '.cmd', '.js', '.mjs', '.cjs', '.py', '.rb'])
+const SCRIPT_EXTENSIONS = new Set(['.sh', '.bash', '.zsh', '.fish', '.ps1', '.bat', '.cmd', '', '.mjs', '.cjs', '.py', '.rb'])
 
 interface CachedState {
   syncedAt: number

@@ -8,10 +8,10 @@ import type {
   TeamLibraryPolicy,
   TeamProjectConfig,
   TeamProjectConfigResult,
-} from '../../../shared/ipc.js'
-import { blockedTeamAssetReason, emptyTeamPolicy, mergeTeamPolicies } from '../../../shared/team-policy.js'
-import { useSettings } from './useSettings.js'
-import { useTeamLibraries } from './useTeamLibraries.js'
+} from '#shared/ipc'
+import { blockedTeamAssetReason, emptyTeamPolicy, mergeTeamPolicies } from '#shared/team-policy'
+import { useSettings } from './useSettings'
+import { useTeamLibraries } from './useTeamLibraries'
 
 export type TeamProjectRequirementType = 'bundle' | 'skill' | 'mcp'
 export type TeamProjectRequirementState = 'satisfied' | 'missing' | 'outdated' | 'unresolved' | 'blocked'

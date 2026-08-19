@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { DEFAULT_DESKTOP_PREFERENCES } from '../../../../shared/ipc.js'
+import { DEFAULT_DESKTOP_PREFERENCES } from '#shared/ipc'
 import GitBackupPanel from '@/components/settings/GitBackupPanel.vue'
 import { Button } from '@/components/ui/button'
 import { showToast } from '@/composables/useToast'

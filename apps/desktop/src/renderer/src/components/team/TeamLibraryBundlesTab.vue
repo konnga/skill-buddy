@@ -2,7 +2,7 @@
 import type { DeepReadonly } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { PackagePlus, Pencil, Trash2 } from '@lucide/vue'
-import type { TeamLibraryCatalog } from '../../../../shared/ipc.js'
+import type { TeamLibraryCatalog } from '#shared/ipc'
 import { Button } from '@/components/ui/button'
 
 type BundleEntry = DeepReadonly<TeamLibraryCatalog['bundles'][number]>

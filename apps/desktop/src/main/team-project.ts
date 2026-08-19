@@ -7,7 +7,7 @@ import type {
   TeamProjectConfig,
   TeamProjectConfigResult,
   TeamProjectRequirements,
-} from '../shared/ipc.js'
+} from '#shared/ipc'
 
 const MAX_CONFIG_BYTES = 64 * 1024
 const MAX_REQUIREMENTS = 256

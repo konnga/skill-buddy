@@ -16,16 +16,16 @@ import type {
   TeamLibrarySkillDraft,
   TeamLibrarySkillImportInput,
   TeamLibraryValidationIssue,
-} from '../shared/ipc.js'
+} from '#shared/ipc'
 import {
   catalogFromTeamLibraryRoot,
   readTeamLibraryManifest,
-} from './team-library.js'
+} from './team-library'
 import {
   runTeamContributionCommand,
   teamContributionRoot,
   teamContributionWorkspace,
-} from './team-contribution.js'
+} from './team-contribution'
 
 const ID_RE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/
 const MAX_CONTENT = 1_000_000
@@ -510,7 +510,7 @@ export async function validateTeamLibraryWorkspace(workspaceId: string): Promise
 }
 
 export async function teamContributionDiffWithValidation(workspaceId: string): Promise<TeamContributionDiff> {
-  const { teamContributionDiff } = await import('./team-contribution.js')
+  const { teamContributionDiff } = await import('./team-contribution')
   const diff = await teamContributionDiff(workspaceId)
   return { ...diff, issues: await validateTeamLibraryWorkspace(workspaceId) }
 }

@@ -11,7 +11,7 @@ import {
   SwitchThumb,
 } from 'reka-ui'
 import { ArrowLeft, X } from '@lucide/vue'
-import type { InstallTarget } from '../../../shared/ipc.js'
+import type { InstallTarget } from '#shared/ipc'
 import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import PlatformIcon from '@/components/PlatformIcon.vue'

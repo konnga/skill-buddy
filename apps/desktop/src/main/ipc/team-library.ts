@@ -10,8 +10,8 @@ import type {
   TeamLibrarySkillDraft,
   TeamLibrarySkillImportInput,
   TeamProjectConfig,
-} from '../../shared/ipc.js'
-import type { PathAccessPolicy } from '../path-policy.js'
+} from '#shared/ipc'
+import type { PathAccessPolicy } from '../path-policy'
 import {
   getTeamLibraryMcp,
   getTeamLibrarySkill,
@@ -24,16 +24,16 @@ import {
   recordTeamSkillInstall,
   syncTeamLibrary,
   teamLibraryRepositoryRoot,
-} from '../team-library.js'
-import { installTarget, runTargets } from './targets.js'
-import { readTeamProjectConfig, writeTeamProjectConfig } from '../team-project.js'
+} from '../team-library'
+import { installTarget, runTargets } from './targets'
+import { readTeamProjectConfig, writeTeamProjectConfig } from '../team-project'
 import {
   discardTeamContribution,
   listTeamContributions,
   openTeamContribution,
   prepareTeamContribution,
   publishTeamContribution,
-} from '../team-contribution.js'
+} from '../team-contribution'
 import {
   deleteTeamResource,
   getTeamContributionMcp,
@@ -46,7 +46,7 @@ import {
   upsertTeamMcp,
   upsertTeamSkill,
   validateTeamLibraryWorkspace,
-} from '../team-library-management.js'
+} from '../team-library-management'
 
 /** 注册 Git 团队库同步、读取和安装 IPC。 */
 export function registerTeamLibraryIpc(pathPolicy: PathAccessPolicy): void {

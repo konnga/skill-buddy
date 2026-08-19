@@ -2,7 +2,7 @@
 import type { DeepReadonly } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { LibraryBig, Pencil, Sparkles, Trash2 } from '@lucide/vue'
-import type { TeamLibraryCatalog } from '../../../../shared/ipc.js'
+import type { TeamLibraryCatalog } from '#shared/ipc'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 

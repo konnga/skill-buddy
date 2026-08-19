@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { shallowRef, type DeepReadonly } from 'vue'
 import { useI18n } from 'vue-i18n'
-import type { TeamLibraryCatalog } from '../../../../shared/ipc.js'
+import type { TeamLibraryCatalog } from '#shared/ipc'
 import TeamProjectCompliance from '@/components/team/TeamProjectCompliance.vue'
 import TeamProjectConfigDialog from '@/components/team/TeamProjectConfigDialog.vue'
 import { useTeamProjects } from '@/composables/useTeamProjects'
