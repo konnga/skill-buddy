@@ -50,6 +50,12 @@ const installationStates = computed(() => {
   }
   return states
 })
+const policyStates = computed(() => new Map(
+  skills.value.map((item) => [
+    `${item.libraryId}:${item.path}`,
+    policyState(item),
+  ]),
+))
 
 function configFor(item: TeamLibrarySkillSummary) {
   const itemKey = teamLibraryConfigKey(item)
@@ -126,9 +132,9 @@ async function install(item: TeamLibrarySkillSummary): Promise<void> {
                 variant="outline"
                 class="border-amber-500/50 text-amber-700 dark:text-amber-400"
               >{{ t('team.required') }}</Badge>
-              <Badge v-if="policyState(item).recommended" variant="secondary">{{ t('team.recommended') }}</Badge>
+              <Badge v-if="policyStates.get(`${item.libraryId}:${item.path}`)?.recommended" variant="secondary">{{ t('team.recommended') }}</Badge>
               <Badge
-                v-if="policyState(item).blockedReason"
+                v-if="policyStates.get(`${item.libraryId}:${item.path}`)?.blockedReason"
                 variant="outline"
                 class="border-destructive/50 text-destructive"
               >{{ t('team.blocked') }}</Badge>
@@ -163,13 +169,13 @@ async function install(item: TeamLibrarySkillSummary): Promise<void> {
             </div>
           </template>
           <PlatformTargetPicker v-model="targets" :label="t('team.installTo')" />
-          <p v-if="policyState(item).blockedReason" class="text-sm text-destructive">
-            {{ t('team.blockedReason', { reason: policyState(item).blockedReason }) }}
+          <p v-if="policyStates.get(`${item.libraryId}:${item.path}`)?.blockedReason" class="text-sm text-destructive">
+            {{ t('team.blockedReason', { reason: policyStates.get(`${item.libraryId}:${item.path}`)?.blockedReason }) }}
           </p>
           <Button
             size="sm"
             class="w-fit cursor-pointer"
-            :disabled="busy || targets.length === 0 || Boolean(policyState(item).blockedReason)"
+            :disabled="busy || targets.length === 0 || Boolean(policyStates.get(`${item.libraryId}:${item.path}`)?.blockedReason)"
             @click="install(item)"
           >
             {{ busy ? t('team.installing') : t('team.installTargets', { n: targets.length }) }}

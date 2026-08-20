@@ -280,6 +280,7 @@ export function registerSkillsIpc(pathPolicy: PathAccessPolicy): void {
 
   let watchers: FSWatcher[] = []
   let notifyTimer: ReturnType<typeof setTimeout> | undefined
+  let lastChangedAt = 0
   let watcherKey: string | undefined
 
   const closeWatchers = (): void => {
@@ -290,30 +291,52 @@ export function registerSkillsIpc(pathPolicy: PathAccessPolicy): void {
 
   ipcMain.handle('watch:start', async (_event, projectRoots: string[]) => {
     const roots = await resolveSkillRoots(projectRoots, true)
-    const nextKey = roots.map((root) => `${root.agent}:${root.path}`).sort().join('\n')
+    const nextKey = roots
+      .map((root) => `${root.agent}:${root.path}:${existsSync(root.path) ? 'present' : 'missing'}`)
+      .sort()
+      .join('\n')
     if (nextKey === watcherKey) return watchers.length
     closeWatchers()
     pathPolicy.setSkillRoots(roots)
     const directories = new Set(roots.map((root) => root.path))
     const notify = (): void => {
+      lastChangedAt = Date.now()
       clearTimeout(notifyTimer)
       notifyTimer = setTimeout(() => {
         for (const window of BrowserWindow.getAllWindows()) {
-          window.webContents.send('skills:changed')
+          window.webContents.send('skills:changed', lastChangedAt)
         }
       }, 500)
     }
-    const addWatch = (target: string, recursive: boolean): void => {
+    const addWatch = (
+      target: string,
+      recursive: boolean,
+      listener: (eventType: string, filename: string | null) => void = notify,
+    ): void => {
       if (!existsSync(target)) return
       try {
-        watchers.push(watch(target, { recursive }, notify))
+        watchers.push(watch(target, { recursive }, listener))
       } catch {
         return
       }
     }
+    const watchedNamesByParent = new Map<string, Set<string>>()
     for (const directory of directories) {
       addWatch(directory, true)
-      addWatch(dirname(directory), false)
+      const parent = dirname(directory)
+      const names = watchedNamesByParent.get(parent) ?? new Set<string>()
+      names.add(basename(directory))
+      watchedNamesByParent.set(parent, names)
+    }
+    for (const [parent, names] of watchedNamesByParent) {
+      addWatch(parent, false, (_eventType, filename) => {
+        if (!filename) {
+          notify()
+          return
+        }
+        const changedName = filename.split(/[\\/]/)[0]
+        if (changedName && names.has(changedName)) notify()
+      })
     }
     watcherKey = nextKey
     return watchers.length

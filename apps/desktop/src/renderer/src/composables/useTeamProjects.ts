@@ -1,4 +1,4 @@
-import { computed, readonly, ref, shallowRef, watch, type DeepReadonly } from 'vue'
+import { computed, readonly, shallowRef, watch, type DeepReadonly } from 'vue'
 import type {
   TeamLibraryBundleSummary,
   TeamLibraryCatalog,
@@ -41,7 +41,7 @@ export interface TeamProjectCompliance {
   blocked: number
 }
 
-const projectConfigs = ref<TeamProjectConfigResult[]>([])
+const projectConfigs = shallowRef<TeamProjectConfigResult[]>([])
 const loading = shallowRef(false)
 let initialized = false
 let attentionCountWired = false
@@ -108,62 +108,99 @@ function uniqueMatch<T>(items: T[]): T | null {
   return items.length === 1 ? items[0]! : null
 }
 
-function resolveSkill(
-  ref: string,
-  library: string | undefined,
-  skills: readonly TeamLibrarySkillSummary[],
-): TeamLibrarySkillSummary | null {
-  const parsed = splitRef(ref, library)
-  return uniqueMatch(skills.filter((item) =>
-    (!parsed.libraryId || item.libraryId === parsed.libraryId) &&
-    (item.path === parsed.value || item.name === parsed.value),
-  ))
+interface ResourceIndex<T extends { libraryId: string }> {
+  byQualifiedKey: Map<string, T[]>
+  byValue: Map<string, T[]>
 }
 
-function resolveMcp(
-  ref: string,
-  library: string | undefined,
-  mcpServers: readonly TeamLibraryMcpSummary[],
-): TeamLibraryMcpSummary | null {
-  const parsed = splitRef(ref, library)
-  return uniqueMatch(mcpServers.filter((item) =>
-    (!parsed.libraryId || item.libraryId === parsed.libraryId) &&
-    (item.path === parsed.value || item.name === parsed.value),
-  ))
+interface ComplianceIndexes {
+  skills: ResourceIndex<TeamLibrarySkillSummary>
+  mcpServers: ResourceIndex<TeamLibraryMcpSummary>
+  bundles: ResourceIndex<TeamLibraryBundleSummary>
+  installations: Map<string, TeamLibraryInstallRecord[]>
 }
 
-function resolveBundle(
-  ref: string,
-  library: string | undefined,
-  bundles: readonly TeamLibraryBundleSummary[],
-): TeamLibraryBundleSummary | null {
-  const parsed = splitRef(ref, library)
-  return uniqueMatch(bundles.filter((item) =>
-    (!parsed.libraryId || item.libraryId === parsed.libraryId) &&
-    (item.id === parsed.value || item.path === parsed.value || item.name === parsed.value),
-  ))
+function createResourceIndex<T extends { libraryId: string }>(): ResourceIndex<T> {
+  return { byQualifiedKey: new Map(), byValue: new Map() }
 }
 
-function installationTargetsProject(record: TeamLibraryInstallRecord, projectRoot: string): boolean {
-  if (record.type === 'skill') {
-    return record.target.scope === 'project' &&
-      normalizedPath(record.target.projectRoot) === normalizedPath(projectRoot)
+function addResourceIndex<T extends { libraryId: string }>(
+  index: ResourceIndex<T>,
+  item: T,
+  values: readonly string[],
+): void {
+  for (const value of new Set(values)) {
+    const qualifiedKey = `${item.libraryId}:${value}`
+    const qualifiedItems = index.byQualifiedKey.get(qualifiedKey) ?? []
+    qualifiedItems.push(item)
+    index.byQualifiedKey.set(qualifiedKey, qualifiedItems)
+
+    const items = index.byValue.get(value) ?? []
+    items.push(item)
+    index.byValue.set(value, items)
   }
-  return record.target.scope !== 'user' &&
-    normalizedPath(record.target.projectRoot) === normalizedPath(projectRoot)
+}
+
+function resolveIndexed<T extends { libraryId: string }>(
+  ref: string,
+  library: string | undefined,
+  index: ResourceIndex<T>,
+): T | null {
+  const parsed = splitRef(ref, library)
+  const items = parsed.libraryId
+    ? index.byQualifiedKey.get(`${parsed.libraryId}:${parsed.value}`) ?? []
+    : index.byValue.get(parsed.value) ?? []
+  return uniqueMatch(items)
+}
+
+function installationKey(
+  type: TeamLibraryInstallRecord['type'],
+  libraryId: string,
+  path: string,
+  projectRoot: string,
+): string {
+  return `${type}:${libraryId}:${path}:${normalizedPath(projectRoot)}`
+}
+
+function buildComplianceIndexes(
+  skills: readonly TeamLibrarySkillSummary[],
+  mcpServers: readonly TeamLibraryMcpSummary[],
+  bundles: readonly TeamLibraryBundleSummary[],
+  installations: readonly TeamLibraryInstallRecord[],
+): ComplianceIndexes {
+  const indexes: ComplianceIndexes = {
+    skills: createResourceIndex(),
+    mcpServers: createResourceIndex(),
+    bundles: createResourceIndex(),
+    installations: new Map(),
+  }
+  for (const item of skills) addResourceIndex(indexes.skills, item, [item.path, item.name])
+  for (const item of mcpServers) addResourceIndex(indexes.mcpServers, item, [item.path, item.name])
+  for (const item of bundles) {
+    addResourceIndex(indexes.bundles, item, [item.id, item.path, item.name])
+  }
+  for (const record of installations) {
+    const projectRoot = record.target.projectRoot
+    const isProjectTarget = record.type === 'skill'
+      ? record.target.scope === 'project'
+      : record.target.scope !== 'user'
+    if (!isProjectTarget || !projectRoot) continue
+    const key = installationKey(record.type, record.libraryId, record.path, projectRoot)
+    const records = indexes.installations.get(key) ?? []
+    records.push(record)
+    indexes.installations.set(key, records)
+  }
+  return indexes
 }
 
 function resourceState(
   resource: TeamLibrarySkillSummary | TeamLibraryMcpSummary,
   projectRoot: string,
-  installations: readonly TeamLibraryInstallRecord[],
+  indexes: ComplianceIndexes,
 ): TeamProjectRequirementState {
-  const records = installations.filter((record) =>
-    record.type === resource.type &&
-    record.libraryId === resource.libraryId &&
-    record.path === resource.path &&
-    installationTargetsProject(record, projectRoot),
-  )
+  const records = indexes.installations.get(
+    installationKey(resource.type, resource.libraryId, resource.path, projectRoot),
+  ) ?? []
   if (records.length === 0) return 'missing'
   if (records.some((record) => record.status === 'current')) return 'satisfied'
   if (records.some((record) => record.status === 'outdated')) return 'outdated'
@@ -183,14 +220,12 @@ function directStatus(
   ref: string,
   config: TeamProjectConfig,
   projectRoot: string,
-  skills: readonly TeamLibrarySkillSummary[],
-  mcpServers: readonly TeamLibraryMcpSummary[],
-  installations: readonly TeamLibraryInstallRecord[],
+  indexes: ComplianceIndexes,
   policy: TeamLibraryPolicy,
 ): TeamProjectRequirementStatus {
   const resource = type === 'skill'
-    ? resolveSkill(ref, config.library, skills)
-    : resolveMcp(ref, config.library, mcpServers)
+    ? resolveIndexed(ref, config.library, indexes.skills)
+    : resolveIndexed(ref, config.library, indexes.mcpServers)
   if (!resource) {
     return { type, ref, label: ref, state: 'unresolved', reason: 'unresolved-ref' }
   }
@@ -213,7 +248,7 @@ function directStatus(
     type,
     ref,
     label: resource.name,
-    state: resourceState(resource, projectRoot, installations),
+    state: resourceState(resource, projectRoot, indexes),
   }
 }
 
@@ -221,13 +256,10 @@ function bundleStatus(
   ref: string,
   config: TeamProjectConfig,
   projectRoot: string,
-  bundles: readonly TeamLibraryBundleSummary[],
-  skills: readonly TeamLibrarySkillSummary[],
-  mcpServers: readonly TeamLibraryMcpSummary[],
-  installations: readonly TeamLibraryInstallRecord[],
+  indexes: ComplianceIndexes,
   policy: TeamLibraryPolicy,
 ): TeamProjectRequirementStatus {
-  const bundle = resolveBundle(ref, config.library, bundles)
+  const bundle = resolveIndexed(ref, config.library, indexes.bundles)
   if (!bundle) {
     return { type: 'bundle', ref, label: ref, state: 'unresolved', reason: 'unresolved-ref' }
   }
@@ -236,16 +268,16 @@ function bundleStatus(
   }
   const memberStates = [
     ...bundle.skills.map((path) => {
-      const resource = resolveSkill(`${bundle.libraryId}:${path}`, undefined, skills)
+      const resource = resolveIndexed(`${bundle.libraryId}:${path}`, undefined, indexes.skills)
       if (!resource) return 'unresolved'
       if (blockedTeamAssetReason(policy, `${resource.libraryId}:${resource.path}`, resource.version)) return 'blocked'
-      return resourceState(resource, projectRoot, installations)
+      return resourceState(resource, projectRoot, indexes)
     }),
     ...bundle.mcpServers.map((path) => {
-      const resource = resolveMcp(`${bundle.libraryId}:${path}`, undefined, mcpServers)
+      const resource = resolveIndexed(`${bundle.libraryId}:${path}`, undefined, indexes.mcpServers)
       if (!resource) return 'unresolved'
       if (blockedTeamAssetReason(policy, `${resource.libraryId}:${resource.path}`, resource.version)) return 'blocked'
-      return resourceState(resource, projectRoot, installations)
+      return resourceState(resource, projectRoot, indexes)
     }),
   ]
   const state = memberStates.includes('blocked')
@@ -294,6 +326,12 @@ export function useTeamProjects() {
       () => void refresh(),
     )
   }
+  const indexes = computed(() => buildComplianceIndexes(
+    skills.value,
+    mcpServers.value,
+    bundles.value,
+    installations.value,
+  ))
   const projects = computed<TeamProjectCompliance[]>(() => projectConfigs.value.map((result) => {
     const policy = result.config ? effectivePolicy(result.config, catalogs.value) : emptyTeamPolicy()
     const requirements = result.config
@@ -302,10 +340,7 @@ export function useTeamProjects() {
             ref,
             result.config!,
             result.projectRoot,
-            bundles.value,
-            skills.value,
-            mcpServers.value,
-            installations.value,
+            indexes.value,
             policy,
           )),
           ...[...new Set([...result.config.requires.skills, ...policy.required.skills])].map((ref) => directStatus(
@@ -313,9 +348,7 @@ export function useTeamProjects() {
             ref,
             result.config!,
             result.projectRoot,
-            skills.value,
-            mcpServers.value,
-            installations.value,
+            indexes.value,
             policy,
           )),
           ...[...new Set([...result.config.requires.mcp, ...policy.required.mcp])].map((ref) => directStatus(
@@ -323,9 +356,7 @@ export function useTeamProjects() {
             ref,
             result.config!,
             result.projectRoot,
-            skills.value,
-            mcpServers.value,
-            installations.value,
+            indexes.value,
             policy,
           )),
         ]

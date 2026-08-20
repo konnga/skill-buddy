@@ -126,7 +126,12 @@ watch(skills, (value) => {
 </script>
 
 <template>
-  <main class="content-surface flex min-w-0 flex-1 flex-col">
+  <main
+    :class="[
+      'content-surface flex min-w-0 flex-1 flex-col',
+      props.inset && 'border-l-0',
+    ]"
+  >
     <SkillDetailPage
       v-if="selected"
       :key="selected.name"

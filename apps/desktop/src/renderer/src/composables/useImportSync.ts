@@ -12,9 +12,11 @@ let running = false
 export async function runImportSync(): Promise<void> {
   if (running) return
   const { importSyncPairs } = useSettings()
-  const { skills, installSkill } = useSkills()
+  const { skills, installSkill, refresh } = useSkills()
   if (importSyncPairs.value.length === 0) return
   running = true
+  let refreshNeeded = false
+  const completedByPair = new Map<number, string[]>()
   try {
     const actions = planImportSync(importSyncPairs.value, skills.value)
     for (const action of actions) {
@@ -23,17 +25,38 @@ export async function runImportSync(): Promise<void> {
         const source = skills.value
           .find((s) => s.name === action.name)!
           .installations.find((i) => i.agent === pair.source && i.scope === 'user')!
-        await installSkill(source.skill, [
-          {
-            agent: pair.target,
-            scope: pair.scope as 'user' | 'project',
-            projectRoot: pair.projectRoot,
-          },
-        ])
+        await installSkill(
+          source.skill,
+          [
+            {
+              agent: pair.target,
+              scope: pair.scope as 'user' | 'project',
+              projectRoot: pair.projectRoot,
+            },
+          ],
+          { refresh: false },
+        )
+        refreshNeeded = true
       }
-      pair.synced.push(action.name)
+      const completed = completedByPair.get(action.pairIndex) ?? []
+      if (!completed.includes(action.name)) completed.push(action.name)
+      completedByPair.set(action.pairIndex, completed)
     }
   } finally {
-    running = false
+    try {
+      if (completedByPair.size > 0) {
+        importSyncPairs.value = importSyncPairs.value.map((pair, index) => {
+          const completed = completedByPair.get(index)
+          if (!completed || completed.length === 0) return pair
+          return {
+            ...pair,
+            synced: [...new Set([...pair.synced, ...completed])],
+          }
+        })
+      }
+      if (refreshNeeded) await refresh({ silent: true })
+    } finally {
+      running = false
+    }
   }
 }

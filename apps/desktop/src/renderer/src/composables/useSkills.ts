@@ -1,17 +1,18 @@
-import { computed, ref, shallowRef } from 'vue'
+import { computed, ref, shallowRef, watch } from 'vue'
 import type { AggregatedSkill, PlatformStatus, Skill } from '@skillbuddy/core'
 import type { InstallTarget, TargetResult } from '#shared/ipc'
 import { i18n } from '../i18n'
 import { matchesSkillInstallation } from '../lib/skill-installations'
 import { useSettings } from './useSettings'
 
-const skills = ref<AggregatedSkill[]>([])
-const platforms = ref<PlatformStatus[]>([])
+const skills = shallowRef<AggregatedSkill[]>([])
+const platforms = shallowRef<PlatformStatus[]>([])
 const loading = ref(false)
 const error = ref<string | null>(null)
 const lastCheckedAt = shallowRef<number | null>(null)
 
 const search = ref('')
+const appliedSearch = shallowRef('')
 /** null = all platforms */
 const platformFilter = ref<string | null>(null)
 /** null = all; 'user' = user scope only; other = a project root path */
@@ -22,6 +23,14 @@ const groupFilter = ref<string | null>(null)
 /** null = all; managed = editable installs; agent = read-only installs */
 const ownershipFilter = ref<'managed' | 'agent' | null>(null)
 const sortBy = ref<'name' | 'recent'>('name')
+const { groups } = useSettings()
+
+watch(search, (value, _previous, onCleanup) => {
+  const timer = setTimeout(() => {
+    appliedSearch.value = value
+  }, 120)
+  onCleanup(() => clearTimeout(timer))
+})
 
 const lastModified = (s: AggregatedSkill): number =>
   Math.max(0, ...s.installations.map((i) => i.modifiedAt ?? 0))
@@ -31,11 +40,34 @@ function cloneForIpc<T>(value: T): T {
   return JSON.parse(JSON.stringify(value)) as T
 }
 
+interface SkillSearchIndex {
+  skill: AggregatedSkill
+  name: string
+  description: string
+  tags: string[]
+  lastModified: number
+}
+
+const searchIndex = computed<SkillSearchIndex[]>(() => {
+  const includeLastModified = sortBy.value === 'recent'
+  return skills.value.map((skill) => ({
+    skill,
+    name: skill.name.toLowerCase(),
+    description: skill.description.toLowerCase(),
+    tags: skill.tags.map((tag) => tag.toLowerCase()),
+    lastModified: includeLastModified ? lastModified(skill) : 0,
+  }))
+})
+
+const activeGroupSkillNames = computed<Set<string> | null>(() => {
+  if (!groupFilter.value) return null
+  const group = groups.value.find((item) => item.name === groupFilter.value)
+  return new Set(group?.skills ?? [])
+})
+
 /** Return a relevance score when every search token matches at least one field. */
-function searchScore(skill: AggregatedSkill, query: string, tokens: string[]): number | null {
-  const name = skill.name.toLowerCase()
-  const description = skill.description.toLowerCase()
-  const tags = skill.tags.map((tag) => tag.toLowerCase())
+function searchScore(indexed: SkillSearchIndex, query: string, tokens: string[]): number | null {
+  const { name, description, tags } = indexed
   const fields = [name, description, ...tags]
 
   if (!tokens.every((token) => fields.some((field) => field.includes(token)))) return null
@@ -58,14 +90,15 @@ function searchScore(skill: AggregatedSkill, query: string, tokens: string[]): n
 }
 
 const filtered = computed(() => {
-  const q = search.value.trim().toLowerCase()
+  const q = appliedSearch.value.trim().toLowerCase()
   const tokens = q ? q.split(/\s+/) : []
   const installationFilter = {
     platformId: platformFilter.value,
     projectFilter: projectFilter.value,
     ownershipFilter: ownershipFilter.value,
   }
-  const matches = skills.value.flatMap((s) => {
+  const matches = searchIndex.value.flatMap((indexed) => {
+    const s = indexed.skill
     if (
       (platformFilter.value || projectFilter.value || ownershipFilter.value) &&
       !s.installations.some((installation) =>
@@ -73,21 +106,17 @@ const filtered = computed(() => {
       )
     )
       return []
-    if (groupFilter.value) {
-      const { groups } = useSettings()
-      const group = groups.value.find((g) => g.name === groupFilter.value)
-      if (!group || !group.skills.includes(s.name)) return []
-    }
+    if (activeGroupSkillNames.value && !activeGroupSkillNames.value.has(s.name)) return []
     if (driftOnly.value && !s.hasDrift) return []
-    const score = q ? searchScore(s, q, tokens) : 0
-    return score === null ? [] : [{ skill: s, score }]
+    const score = q ? searchScore(indexed, q, tokens) : 0
+    return score === null ? [] : [{ skill: s, score, lastModified: indexed.lastModified }]
   })
 
   return matches
     .sort((a, b) => {
       if (q && b.score !== a.score) return b.score - a.score
       if (sortBy.value === 'recent') {
-        const recentDiff = lastModified(b.skill) - lastModified(a.skill)
+        const recentDiff = b.lastModified - a.lastModified
         if (recentDiff !== 0) return recentDiff
       }
       return a.skill.name.localeCompare(b.skill.name)
@@ -164,9 +193,14 @@ const projectPlatformCounts = computed<Map<string, ProjectPlatformCount[]>>(() =
   )
 })
 
-async function refresh(options: { silent?: boolean } = {}): Promise<void> {
+let refreshPromise: Promise<void> | null = null
+let refreshQueued = false
+let lastScanStartedAt = 0
+
+/** 执行一次完整扫描；并发刷新由 refresh 统一合并，不直接调用此函数。 */
+async function performRefresh(): Promise<void> {
+  const scanStartedAt = Date.now()
   const { projectRoots } = useSettings()
-  if (!options.silent) loading.value = true
   error.value = null
   try {
     const [scanned, platformList] = await Promise.all([
@@ -175,14 +209,33 @@ async function refresh(options: { silent?: boolean } = {}): Promise<void> {
     ])
     skills.value = scanned
     platforms.value = platformList
+    lastScanStartedAt = scanStartedAt
     lastCheckedAt.value = Date.now()
     notifyDriftIfNeeded(scanned)
     void window.skillsManager.watchStart([...projectRoots.value])
   } catch (e) {
     error.value = e instanceof Error ? e.message : String(e)
-  } finally {
-    if (!options.silent) loading.value = false
   }
+}
+
+/** 串行合并刷新请求；扫描期间的新请求最多追加一轮尾随扫描。 */
+function refresh(options: { silent?: boolean } = {}): Promise<void> {
+  if (!options.silent) loading.value = true
+  if (refreshPromise) {
+    refreshQueued = true
+    return refreshPromise
+  }
+
+  refreshPromise = (async () => {
+    do {
+      refreshQueued = false
+      await performRefresh()
+    } while (refreshQueued)
+  })().finally(() => {
+    loading.value = false
+    refreshPromise = null
+  })
+  return refreshPromise
 }
 
 /* auto-refresh (silently) when skills dirs change on disk */
@@ -190,8 +243,9 @@ let watcherWired = false
 if (!watcherWired) {
   watcherWired = true
   let timer: ReturnType<typeof setTimeout> | undefined
-  window.skillsManager.onSkillsChanged(() => {
+  window.skillsManager.onSkillsChanged((changedAt) => {
     if (!useSettings().autoRefresh.value) return
+    if (changedAt <= lastScanStartedAt) return
     clearTimeout(timer)
     timer = setTimeout(() => void refresh({ silent: true }), 300)
   })

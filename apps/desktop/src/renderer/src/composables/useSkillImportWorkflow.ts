@@ -25,7 +25,7 @@ export function useSkillImportWorkflow(options: UseSkillImportWorkflowOptions) {
   const tab = shallowRef<SkillImportSource>('local')
   const gitUrl = shallowRef('')
   const fetching = shallowRef(false)
-  const items = ref<FoundSkill[]>([])
+  const items = shallowRef<FoundSkill[]>([])
   const searched = shallowRef(false)
   const cloneRoot = shallowRef<string | null>(null)
   const selected = shallowRef(new Set<string>())
@@ -172,24 +172,29 @@ export function useSkillImportWorkflow(options: UseSkillImportWorkflowOptions) {
       return
     }
     busy.value = true
+    let refreshNeeded = false
     try {
       const failures: string[] = []
-      for (const item of chosen) {
-        const results = await installSkill(item.skill, requestedTargets)
-        failures.push(
-          ...results
-            .filter((result) => !result.ok)
-            .map(
-              (result) =>
-                `${item.skill.name} → ${agentLabel(result.target.agent)}: ${result.error}`,
+      try {
+        for (const item of chosen) {
+          const results = await installSkill(item.skill, requestedTargets, { refresh: false })
+          refreshNeeded = true
+          failures.push(
+            ...results
+              .filter((result) => !result.ok)
+              .map(
+                (result) =>
+                  `${item.skill.name} → ${agentLabel(result.target.agent)}: ${result.error}`,
             ),
-        )
+          )
+        }
+      } finally {
+        if (refreshNeeded) await refresh()
       }
       if (failures.length > 0) {
         if (sessionId === workflowSessionId) error.value = failures.join('；')
         return
       }
-      await refresh()
       if (sessionId === workflowSessionId && toValue(options.open)) options.onComplete()
     } catch (cause) {
       if (sessionId === workflowSessionId) {

@@ -1,4 +1,4 @@
-import { computed, onMounted, ref, shallowRef, watch } from 'vue'
+import { computed, onMounted, shallowRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useMcpServers } from '@/composables/useMcpServers'
 import {
@@ -40,8 +40,8 @@ export function useMcpMarketCatalog() {
       else mcpSoCategory.value = value
     },
   })
-  const categories = ref<McpMarketCategory[]>(initialCatalog?.categories ?? [])
-  const items = ref<McpMarketItem[]>(initialCatalog?.items ?? [])
+  const categories = shallowRef<McpMarketCategory[]>(initialCatalog?.categories ?? [])
+  const items = shallowRef<McpMarketItem[]>(initialCatalog?.items ?? [])
   const total = shallowRef(initialCatalog?.total ?? 0)
   const page = shallowRef(initialCatalog?.page ?? 1)
   const loading = shallowRef(false)

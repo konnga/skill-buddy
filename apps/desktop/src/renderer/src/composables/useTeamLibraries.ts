@@ -13,8 +13,8 @@ import { i18n } from '@/i18n'
 import { setTeamLibraryAttentionCount } from './useAttentionCounters'
 import { useSettings } from './useSettings'
 
-const catalogs = ref<TeamLibraryCatalog[]>([])
-const installations = ref<TeamLibraryInstallRecord[]>([])
+const catalogs = shallowRef<TeamLibraryCatalog[]>([])
+const installations = shallowRef<TeamLibraryInstallRecord[]>([])
 const loading = shallowRef(false)
 const errors = ref<Record<string, string>>({})
 const warnings = ref<Record<string, string>>({})
@@ -91,6 +91,9 @@ export function useTeamLibraries() {
   }
   const order = computed(() => new Map(
     teamLibraries.value.map((library, index) => [teamLibraryConfigKey(library), index]),
+  ))
+  const catalogById = computed(() => new Map(
+    catalogs.value.map((catalog) => [catalog.source.libraryId, catalog]),
   ))
   const skills = computed<TeamLibrarySkillSummary[]>(() =>
     catalogs.value
@@ -170,11 +173,8 @@ export function useTeamLibraries() {
         })
         .map((item) => `${item.type}:${item.libraryId}:${item.path}`),
     )
-    const catalogById = new Map(
-      catalogs.value.map((catalog) => [catalog.source.libraryId, catalog]),
-    )
     const blockedInstalled = installations.value.flatMap((item) => {
-      const catalog = catalogById.get(item.libraryId)
+      const catalog = catalogById.value.get(item.libraryId)
       if (!catalog) return []
       const reason = blockedTeamAssetReason(catalog.policy, item.path, item.version)
       return reason ? [{ ...item, reason }] : []
@@ -209,9 +209,7 @@ export function useTeamLibraries() {
   function policyState(
     item: TeamLibrarySkillSummary | TeamLibraryMcpSummary,
   ) {
-    const catalog = catalogs.value.find(
-      (candidate) => candidate.source.libraryId === item.libraryId,
-    )
+    const catalog = catalogById.value.get(item.libraryId)
     return catalog
       ? teamAssetPolicyState(catalog.policy, item.type, item.path, item.version)
       : { required: false, recommended: false, blockedReason: null }

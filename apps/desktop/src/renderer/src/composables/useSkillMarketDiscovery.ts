@@ -1,4 +1,4 @@
-import { onMounted, ref, shallowRef, watch } from 'vue'
+import { onMounted, shallowRef, watch } from 'vue'
 import type { MarketItem, MarketSourceId } from '@/lib/market'
 import {
   cachedSkillMarketRequest,
@@ -74,7 +74,7 @@ export function useSkillMarketDiscovery() {
   const cachedCatalog = readSkillMarketCatalogCache()
   const source = shallowRef<MarketSourceId>(cachedCatalog?.source ?? 'skills-sh')
   const query = shallowRef(cachedCatalog?.query ?? '')
-  const items = ref<MarketItem[]>(cachedCatalog?.items ?? [])
+  const items = shallowRef<MarketItem[]>(cachedCatalog?.items ?? [])
   const loading = shallowRef(false)
   const loadingMore = shallowRef(false)
   const error = shallowRef<string | null>(null)

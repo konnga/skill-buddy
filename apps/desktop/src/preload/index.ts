@@ -378,8 +378,10 @@ const api = {
     ipcRenderer.invoke('file:preview', path),
   listTree: (root: string): Promise<{ path: string; size: number; isDir: boolean }[]> =>
     ipcRenderer.invoke('file:list-tree', root),
-  onSkillsChanged: (callback: () => void): void => {
-    ipcRenderer.on('skills:changed', () => callback())
+  onSkillsChanged: (callback: (changedAt: number) => void): void => {
+    ipcRenderer.on('skills:changed', (_event, changedAt: unknown) => {
+      callback(typeof changedAt === 'number' ? changedAt : Date.now())
+    })
   },
   updateTrayStatus: (status: TrayStatus): Promise<void> =>
     ipcRenderer.invoke('tray:update-status', status),

@@ -1,4 +1,4 @@
-import { computed, readonly, ref, shallowRef } from 'vue'
+import { computed, readonly, shallowRef } from 'vue'
 import type {
   AggregatedMcpServer,
   McpOperationPlanView,
@@ -10,7 +10,7 @@ import type {
 import { i18n } from '@/i18n'
 import { useSettings } from './useSettings.js'
 
-const scanResult = ref<McpScanResult>({
+const scanResult = shallowRef<McpScanResult>({
   servers: [],
   installations: [],
   platforms: [],
@@ -23,6 +23,8 @@ const error = shallowRef<string | null>(null)
 const lastCheckedAt = shallowRef<number | null>(null)
 const search = shallowRef('')
 const currentPlan = shallowRef<McpOperationPlanView | null>(null)
+let refreshPromise: Promise<void> | null = null
+let refreshQueued = false
 
 function cloneForIpc<T>(value: T): T {
   return JSON.parse(JSON.stringify(value)) as T
@@ -45,8 +47,27 @@ const filteredServers = computed(() => {
 })
 
 async function refresh(options: { silent?: boolean } = {}): Promise<void> {
-  const { projectRoots } = useSettings()
+  if (refreshPromise) {
+    refreshQueued = true
+    if (!options.silent) loading.value = true
+    return refreshPromise
+  }
+
   if (!options.silent) loading.value = true
+  refreshPromise = (async () => {
+    do {
+      refreshQueued = false
+      await performRefresh()
+    } while (refreshQueued)
+  })().finally(() => {
+    loading.value = false
+    refreshPromise = null
+  })
+  return refreshPromise
+}
+
+async function performRefresh(): Promise<void> {
+  const { projectRoots } = useSettings()
   error.value = null
   try {
     scanResult.value = await window.skillsManager.scanMcpServers([...projectRoots.value])
@@ -54,8 +75,6 @@ async function refresh(options: { silent?: boolean } = {}): Promise<void> {
     void window.skillsManager.watchMcpStart()
   } catch (cause) {
     error.value = cause instanceof Error ? cause.message : String(cause)
-  } finally {
-    if (!options.silent) loading.value = false
   }
 }
 
