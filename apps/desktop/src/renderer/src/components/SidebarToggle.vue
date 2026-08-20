@@ -10,7 +10,7 @@ const { t } = useI18n()
 <template>
   <button
     v-if="sidebarCollapsed"
-    class="app-no-drag absolute left-[78px] top-1.5 z-20 cursor-pointer rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-accent/60 hover:text-foreground"
+    class="app-no-drag absolute left-[78px] mt-[2px] top-1.5 z-20 cursor-pointer rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-accent/60 hover:text-foreground"
     :title="`${t('app.toggleSidebar')} (⌘B)`"
     :aria-label="t('app.toggleSidebar')"
     @click="sidebarCollapsed = false"
