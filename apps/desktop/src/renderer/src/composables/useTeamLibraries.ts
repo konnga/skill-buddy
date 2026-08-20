@@ -10,6 +10,7 @@ import type {
 import { teamLibraryConfigKey } from '#shared/team-library'
 import { blockedTeamAssetReason, teamAssetPolicyState } from '#shared/team-policy'
 import { i18n } from '@/i18n'
+import { setTeamLibraryAttentionCount } from './useAttentionCounters'
 import { useSettings } from './useSettings'
 
 const catalogs = ref<TeamLibraryCatalog[]>([])
@@ -18,6 +19,7 @@ const loading = shallowRef(false)
 const errors = ref<Record<string, string>>({})
 const warnings = ref<Record<string, string>>({})
 let initialized = false
+let attentionCountWired = false
 
 async function syncOne(config: TeamLibraryConfig): Promise<void> {
   const configKey = teamLibraryConfigKey(config)
@@ -192,6 +194,17 @@ export function useTeamLibraries() {
       recommendedMissing,
     }
   })
+  if (!attentionCountWired) {
+    attentionCountWired = true
+    watch(
+      compliance,
+      (value) =>
+        setTeamLibraryAttentionCount(
+          value.missingRequired.length + value.blockedInstalled.length + value.updateAvailable,
+        ),
+      { immediate: true },
+    )
+  }
 
   function policyState(
     item: TeamLibrarySkillSummary | TeamLibraryMcpSummary,

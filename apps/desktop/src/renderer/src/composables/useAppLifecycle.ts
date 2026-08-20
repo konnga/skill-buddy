@@ -28,10 +28,28 @@ export function useAppLifecycle(options: AppLifecycleOptions): void {
     }
   }
 
+  /** 首屏完成后再加载团队合规数据，避免 Git 与项目扫描阻塞应用启动。 */
+  function warmTeamAttention(): void {
+    const load = async (): Promise<void> => {
+      const [{ useTeamLibraries }, { useTeamProjects }] = await Promise.all([
+        import('@/composables/useTeamLibraries'),
+        import('@/composables/useTeamProjects'),
+      ])
+      useTeamLibraries()
+      useTeamProjects()
+    }
+    if ('requestIdleCallback' in window) {
+      window.requestIdleCallback(() => void load(), { timeout: 2_000 })
+      return
+    }
+    globalThis.setTimeout(() => void load(), 500)
+  }
+
   onMounted(async () => {
     window.addEventListener('keydown', onSidebarShortcut)
     await syncCustomPlatforms()
     await options.refreshLocal()
+    warmTeamAttention()
   })
 
   onUnmounted(() => window.removeEventListener('keydown', onSidebarShortcut))

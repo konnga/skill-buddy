@@ -148,9 +148,21 @@ async function setAdapterEnabled(
 
 /** 注册本地 Skill、文件系统、设置和导入相关 IPC。 */
 export function registerSkillsIpc(pathPolicy: PathAccessPolicy): void {
+  let rootsKey: string | undefined
+  let cachedRoots: Awaited<ReturnType<typeof listSkillRoots>> | undefined
+  const resolveSkillRoots = async (projectRoots: string[], reuseCached = false) => {
+    const nextKey = JSON.stringify(projectRoots)
+    if (!reuseCached || nextKey !== rootsKey || !cachedRoots) {
+      rootsKey = nextKey
+      cachedRoots = await listSkillRoots(projectRoots)
+    }
+    return cachedRoots
+  }
+
   ipcMain.handle('skills:scan', async (_event, projectRoots: string[] = []) => {
-    pathPolicy.setSkillRoots(await listSkillRoots(projectRoots))
-    return await aggregateSkills(await scanInstalledSkills(projectRoots))
+    const roots = await resolveSkillRoots(projectRoots)
+    pathPolicy.setSkillRoots(roots)
+    return await aggregateSkills(await scanInstalledSkills(projectRoots, roots))
   })
 
   ipcMain.handle('platforms:list', () => listPlatformStatus())
@@ -268,10 +280,19 @@ export function registerSkillsIpc(pathPolicy: PathAccessPolicy): void {
 
   let watchers: FSWatcher[] = []
   let notifyTimer: ReturnType<typeof setTimeout> | undefined
-  ipcMain.handle('watch:start', async (_event, projectRoots: string[]) => {
+  let watcherKey: string | undefined
+
+  const closeWatchers = (): void => {
     for (const watcher of watchers) watcher.close()
     watchers = []
-    const roots = await listSkillRoots(projectRoots)
+    watcherKey = undefined
+  }
+
+  ipcMain.handle('watch:start', async (_event, projectRoots: string[]) => {
+    const roots = await resolveSkillRoots(projectRoots, true)
+    const nextKey = roots.map((root) => `${root.agent}:${root.path}`).sort().join('\n')
+    if (nextKey === watcherKey) return watchers.length
+    closeWatchers()
     pathPolicy.setSkillRoots(roots)
     const directories = new Set(roots.map((root) => root.path))
     const notify = (): void => {
@@ -294,6 +315,7 @@ export function registerSkillsIpc(pathPolicy: PathAccessPolicy): void {
       addWatch(directory, true)
       addWatch(dirname(directory), false)
     }
+    watcherKey = nextKey
     return watchers.length
   })
 

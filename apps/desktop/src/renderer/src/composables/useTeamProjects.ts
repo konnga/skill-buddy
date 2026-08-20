@@ -12,6 +12,7 @@ import type {
 import { blockedTeamAssetReason, emptyTeamPolicy, mergeTeamPolicies } from '#shared/team-policy'
 import { useSettings } from './useSettings'
 import { useTeamLibraries } from './useTeamLibraries'
+import { setTeamProjectAttentionCount } from './useAttentionCounters'
 
 export type TeamProjectRequirementType = 'bundle' | 'skill' | 'mcp'
 export type TeamProjectRequirementState = 'satisfied' | 'missing' | 'outdated' | 'unresolved' | 'blocked'
@@ -43,6 +44,7 @@ export interface TeamProjectCompliance {
 const projectConfigs = ref<TeamProjectConfigResult[]>([])
 const loading = shallowRef(false)
 let initialized = false
+let attentionCountWired = false
 
 function normalizedPath(value: string | undefined): string {
   if (!value) return ''
@@ -342,6 +344,10 @@ export function useTeamProjects() {
     (total, project) => total + project.missing + project.outdated + project.unresolved + project.blocked,
     0,
   ))
+  if (!attentionCountWired) {
+    attentionCountWired = true
+    watch(attentionCount, setTeamProjectAttentionCount, { immediate: true })
+  }
   return {
     projects,
     loading: readonly(loading),

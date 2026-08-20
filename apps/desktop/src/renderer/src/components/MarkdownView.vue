@@ -1,17 +1,22 @@
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref } from 'vue'
-import hljs from 'highlight.js/lib/common'
-import { config as configureMarkdown, MdPreview } from 'md-editor-v3'
-import 'md-editor-v3/lib/preview.css'
+import { computed, defineAsyncComponent, onMounted, onUnmounted, ref } from 'vue'
 
 const props = defineProps<{ content: string; previewId?: string }>()
 
-configureMarkdown({
-  editorExtensions: {
-    highlight: {
-      instance: hljs,
+const MdPreview = defineAsyncComponent(async () => {
+  const [{ config: configureMarkdown, MdPreview: Preview }, { default: hljs }] = await Promise.all([
+    import('md-editor-v3'),
+    import('@/lib/highlight'),
+    import('md-editor-v3/lib/preview.css'),
+  ])
+  configureMarkdown({
+    editorExtensions: {
+      highlight: {
+        instance: hljs,
+      },
     },
-  },
+  })
+  return Preview
 })
 
 /* follow the app's class-based dark mode (toggled on <html> by applyTheme) */

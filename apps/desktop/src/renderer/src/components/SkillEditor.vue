@@ -4,6 +4,7 @@ import {
   nextTick,
   onBeforeUnmount,
   onMounted,
+  defineAsyncComponent,
   ref,
   shallowRef,
   useTemplateRef,
@@ -15,7 +16,6 @@ import type { InstallTarget } from '#shared/ipc'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import MarkdownEditor from '@/components/MarkdownEditor.vue'
 import PlatformIcon from '@/components/PlatformIcon.vue'
 import { agentLabel } from '@/lib/agents'
 import { useSkills } from '@/composables/useSkills'
@@ -25,6 +25,7 @@ const emit = defineEmits<{ done: [] ; cancel: [] }>()
 
 const { installSkill } = useSkills()
 const { t } = useI18n()
+const MarkdownEditor = defineAsyncComponent(() => import('@/components/MarkdownEditor.vue'))
 
 const writableInstallations = props.skill.installations.filter((installation) => !installation.readOnly)
 const source = writableInstallations[0]!

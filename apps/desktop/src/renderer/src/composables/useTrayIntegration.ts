@@ -4,8 +4,6 @@ import { useAttentionSummary } from './useAttentionSummary'
 import { useMcpServers } from './useMcpServers'
 import { useSettings } from './useSettings'
 import { useSkills } from './useSkills'
-import { useTeamLibraries } from './useTeamLibraries'
-import { useTeamProjects } from './useTeamProjects'
 
 export interface TrayIntegrationOptions {
   openAttention?: () => void
@@ -17,8 +15,6 @@ export function useTrayIntegration(options: TrayIntegrationOptions = {}) {
   const { autoRefresh, language } = useSettings()
   const skillsState = useSkills()
   const mcpState = useMcpServers()
-  const { refreshInstallations } = useTeamLibraries()
-  const teamProjectsState = useTeamProjects()
   const { count: attentionCount } = useAttentionSummary()
 
   const lastCheckedAt = computed(() => {
@@ -33,8 +29,7 @@ export function useTrayIntegration(options: TrayIntegrationOptions = {}) {
     }
     if (
       skillsState.loading.value ||
-      mcpState.loading.value ||
-      teamProjectsState.loading.value
+      mcpState.loading.value
     ) {
       return 'scanning'
     }
@@ -62,8 +57,6 @@ export function useTrayIntegration(options: TrayIntegrationOptions = {}) {
     await Promise.all([
       skillsState.refresh(),
       mcpState.refresh(),
-      refreshInstallations(),
-      teamProjectsState.refresh(),
     ])
   }
 

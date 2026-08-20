@@ -265,7 +265,8 @@ async function scanSkillRoot(root: SkillRoot): Promise<InstalledSkill[]> {
 /** Scan every resolved root and return all locally available skills. */
 export async function scanInstalledSkills(
   projectRoots: string[] = [],
+  resolvedRoots?: readonly SkillRoot[],
 ): Promise<InstalledSkill[]> {
-  const roots = await listSkillRoots(projectRoots)
+  const roots = resolvedRoots ?? (await listSkillRoots(projectRoots))
   return (await Promise.all(roots.map(scanSkillRoot))).flat()
 }

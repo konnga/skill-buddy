@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, useTemplateRef, watch } from 'vue'
-import hljs from 'highlight.js/lib/common'
+import hljs from '@/lib/highlight'
 
 const props = withDefaults(
   defineProps<{
