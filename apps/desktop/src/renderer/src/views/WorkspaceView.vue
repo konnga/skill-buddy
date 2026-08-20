@@ -174,8 +174,6 @@ watch(skills, (value) => {
       v-else-if="props.view === 'dashboard'"
       :inset="props.inset"
       @open-market="marketSelected = $event"
-      @open-bundles="bundlesOpen = true"
-      @open-bundle="bundleSelected = $event"
       @open-attention="attentionOpen = true"
       @open-drift="openDriftSkills"
       @new-skill="openConversation()"

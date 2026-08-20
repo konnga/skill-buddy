@@ -6,14 +6,10 @@ import { Card } from '@/components/ui/card'
 import { useSettings } from '@/composables/useSettings'
 import { useSkills } from '@/composables/useSkills'
 import MarketDiscovery from '@/components/MarketDiscovery.vue'
-import OfficialBundles from '@/components/OfficialBundles.vue'
-import type { SkillBundle } from '@/lib/bundles'
 import type { MarketItem } from '@/lib/market'
 
 const emit = defineEmits<{
   openMarket: [item: MarketItem]
-  openBundles: []
-  openBundle: [bundle: SkillBundle]
   openDrift: []
 }>()
 
@@ -107,9 +103,6 @@ const driftCardListeners = { click: () => emit('openDrift') }
         </component>
       </Card>
     </div>
-
-    <!-- skill packages -->
-    <OfficialBundles @use="emit('openBundle', $event)" @more="emit('openBundles')" />
 
     <!-- marketplace discovery -->
     <MarketDiscovery @open="emit('openMarket', $event)" />

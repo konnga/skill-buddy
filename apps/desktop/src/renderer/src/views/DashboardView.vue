@@ -7,14 +7,11 @@ import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { useSkills } from '@/composables/useSkills'
 import { useAttentionSummary } from '@/composables/useAttentionSummary'
-import type { SkillBundle } from '@/lib/bundles'
 import type { MarketItem } from '@/lib/market'
 
 const props = defineProps<{ inset?: boolean }>()
 const emit = defineEmits<{
   openMarket: [item: MarketItem]
-  openBundles: []
-  openBundle: [bundle: SkillBundle]
   openAttention: []
   openDrift: []
   newSkill: []
@@ -80,8 +77,6 @@ const { count: todoCount } = useAttentionSummary()
     <ScrollArea class="flex-1">
       <DashboardPage
         @open-market="emit('openMarket', $event)"
-        @open-bundles="emit('openBundles')"
-        @open-bundle="emit('openBundle', $event)"
         @open-drift="emit('openDrift')"
       />
     </ScrollArea>
