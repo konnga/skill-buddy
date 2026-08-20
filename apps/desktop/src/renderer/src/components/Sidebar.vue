@@ -2,7 +2,7 @@
 import { computed, onBeforeUnmount, shallowRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { PanelLeft, Settings } from '@lucide/vue'
-import skillbuddyMarkUrl from '@/assets/logo.svg'
+import skillbuddyMarkUrl from '@/assets/logo.png'
 import SidebarAgentsSection from '@/components/sidebar/SidebarAgentsSection.vue'
 import SidebarPrimaryNav from '@/components/sidebar/SidebarPrimaryNav.vue'
 import SidebarScopesSection from '@/components/sidebar/SidebarScopesSection.vue'

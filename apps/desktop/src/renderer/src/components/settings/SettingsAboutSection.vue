@@ -2,7 +2,7 @@
 import { computed, onMounted, ref, shallowRef } from 'vue'
 import { useI18n } from 'vue-i18n'
 import type { AppInfo, UpdateCheckResult } from '#shared/ipc'
-import skillbuddyMarkUrl from '@/assets/logo.svg'
+import skillbuddyMarkUrl from '@/assets/logo.png'
 import { Button } from '@/components/ui/button'
 import { useSettings } from '@/composables/useSettings'
 import { useSkills } from '@/composables/useSkills'
