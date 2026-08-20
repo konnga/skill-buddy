@@ -938,6 +938,8 @@ export default {
     groupApp: '应用',
     catAbout: '关于',
     aboutVersionTitle: '版本',
+    aboutGithub: 'GitHub',
+    aboutChangelog: '更新日志',
     aboutCheckUpdate: '检查更新',
     aboutChecking: '检查中…',
     aboutUpToDate: '已是最新版本（v{v}）',

@@ -940,6 +940,8 @@ export default {
     groupApp: 'Application',
     catAbout: 'About',
     aboutVersionTitle: 'Version',
+    aboutGithub: 'GitHub',
+    aboutChangelog: 'Changelog',
     aboutCheckUpdate: 'Check for updates',
     aboutChecking: 'Checking…',
     aboutUpToDate: 'Up to date (v{v})',

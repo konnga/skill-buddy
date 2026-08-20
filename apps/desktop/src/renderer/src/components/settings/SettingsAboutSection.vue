@@ -17,6 +17,8 @@ const searching = computed(() => props.query.trim().length > 0)
 const appInfo = ref<AppInfo | null>(null)
 const updateChecking = shallowRef(false)
 const updateResult = ref<UpdateCheckResult | null>(null)
+const GITHUB_URL = 'https://github.com/konnga/skill-buddy'
+const CHANGELOG_URL = 'https://github.com/konnga/skill-buddy/releases'
 
 function visible(...texts: string[]): boolean {
   if (!searching.value) return true
@@ -48,6 +50,14 @@ function openUserData(): void {
   void window.skillsManager.openUserData()
 }
 
+function openGithub(): void {
+  void window.skillsManager.openLink(GITHUB_URL)
+}
+
+function openChangelog(): void {
+  void window.skillsManager.openLink(CHANGELOG_URL)
+}
+
 /** 诊断文本只包含运行时与扫描摘要，不复制 Token、代理等敏感设置。 */
 async function copyDiagnostics(): Promise<void> {
   const info = appInfo.value
@@ -67,7 +77,7 @@ async function copyDiagnostics(): Promise<void> {
     <h2 class="mb-3 text-sm font-medium">{{ t('settings.catAbout') }}</h2>
     <div class="divide-y rounded-xl border">
       <div
-        v-if="visible(t('settings.aboutVersionTitle'), t('settings.aboutCheckUpdate'))"
+        v-if="visible(t('settings.aboutVersionTitle'), t('settings.aboutCheckUpdate'), t('settings.aboutGithub'), t('settings.aboutChangelog'))"
         class="flex flex-col gap-2 px-5 py-4"
       >
         <div class="flex items-center justify-between gap-6">
@@ -85,6 +95,22 @@ async function copyDiagnostics(): Promise<void> {
             </div>
           </div>
           <span class="flex shrink-0 items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              class="cursor-pointer"
+              @click="openGithub"
+            >
+              {{ t('settings.aboutGithub') }}
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              class="cursor-pointer"
+              @click="openChangelog"
+            >
+              {{ t('settings.aboutChangelog') }}
+            </Button>
             <Button
               v-if="updateResult?.status === 'update'"
               size="sm"
