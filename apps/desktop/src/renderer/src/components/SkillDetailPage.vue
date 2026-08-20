@@ -165,10 +165,7 @@ watch(() => props.focus, () => void nextTick(focusSection))
         <div
           ref="installSection"
           tabindex="-1"
-          :class="[
-            'mb-8 scroll-mt-6 outline-none transition-colors',
-            props.focus === 'install' && 'border-l-2 border-foreground/30 pl-4',
-          ]"
+          class="mb-8 scroll-mt-6 outline-none"
         >
           <SkillInstallPanel
             :targets="targets"
