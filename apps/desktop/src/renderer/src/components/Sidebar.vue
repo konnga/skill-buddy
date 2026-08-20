@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, onBeforeUnmount, shallowRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { PanelLeft, Settings } from '@lucide/vue'
 import skillbuddyMarkUrl from '@/assets/logo.svg'
@@ -21,6 +21,26 @@ const emit = defineEmits<{
 
 const { t } = useI18n()
 const { projectRoots, sidebarCollapsed } = useSettings()
+const collapsing = shallowRef(false)
+let collapseTimer: ReturnType<typeof setTimeout> | undefined
+
+watch(sidebarCollapsed, (collapsed, previous) => {
+  if (!collapsed || previous !== false) {
+    collapsing.value = false
+    return
+  }
+
+  collapsing.value = true
+  if (collapseTimer) clearTimeout(collapseTimer)
+  collapseTimer = setTimeout(() => {
+    collapsing.value = false
+    collapseTimer = undefined
+  }, 200)
+})
+
+onBeforeUnmount(() => {
+  if (collapseTimer) clearTimeout(collapseTimer)
+})
 const {
   detectedPlatforms,
   countByPlatform,
@@ -107,11 +127,16 @@ async function addProjectRoot(): Promise<void> {
 <template>
   <aside
     :class="[
-      'sidebar-surface flex shrink-0 flex-col overflow-hidden transition-[width] duration-200',
+      'sidebar-surface relative flex shrink-0 flex-col overflow-hidden transition-[width] duration-200',
       sidebarCollapsed ? 'w-0' : 'w-[276px]',
     ]"
   >
-    <div class="flex h-full w-[276px] shrink-0 flex-col">
+    <div class="relative flex h-full w-[276px] shrink-0 flex-col">
+      <div
+        class="pointer-events-none absolute inset-0 z-20 bg-background/45 opacity-0 transition-opacity duration-200"
+        :class="collapsing && 'pointer-events-auto opacity-100'"
+        aria-hidden="true"
+      />
       <div class="app-drag flex h-10 shrink-0 items-center">
         <button
           type="button"
