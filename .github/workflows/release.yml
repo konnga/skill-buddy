@@ -1,0 +1,90 @@
+name: 发布桌面应用
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: 构建 ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: macOS arm64
+            os: macos-14
+            command: dist:mac:arm64
+            artifact: skillbuddy-macos-arm64
+            path: apps/desktop/dist/*.dmg
+          - name: Windows x64
+            os: windows-latest
+            command: dist:win:x64
+            artifact: skillbuddy-windows-x64
+            path: apps/desktop/dist/*.exe
+          - name: Linux x64
+            os: ubuntu-latest
+            command: dist:linux:x64
+            artifact: skillbuddy-linux-x64
+            path: apps/desktop/dist/*.AppImage
+
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 安装 pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.32.1
+
+      - name: 安装 Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: 安装依赖
+        run: pnpm install --frozen-lockfile
+
+      - name: 构建安装包
+        run: pnpm ${{ matrix.command }}
+
+      - name: 上传安装包
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+          path: ${{ matrix.path }}
+          if-no-files-found: error
+
+  release:
+    name: 创建 GitHub Release
+    needs: build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 下载安装包
+        uses: actions/download-artifact@v4
+        with:
+          path: release
+          merge-multiple: true
+
+      - name: 生成校验文件
+        working-directory: release
+        run: sha256sum * > SHA256SUMS.txt
+
+      - name: 发布 GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          gh release create "$GITHUB_REF_NAME" release/* \
+            --title "SkillBuddy $VERSION" \
+            --notes-file CHANGELOG.md \
+            --latest
