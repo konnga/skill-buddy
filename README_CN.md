@@ -22,7 +22,7 @@ SkillBuddy 将不同 AI 编程工具分散在各自目录中的 Skills 和 MCP �
 
 ## 界面预览
 
-以下均为完整窗口截图，用于展示 SkillBuddy 的主要工作流和界面结构。
+以下均为完整窗口截图，用于展示 SkillBuddy 的主要工作流和界面结构。Skills 页面支持列表视图和平铺网格视图两种浏览方式。
 
 <div align="center">
   <img src="docs/images/dashboard.png" alt="完整 SkillBuddy 应用窗口：工作台与市场发现" />
@@ -40,6 +40,12 @@ SkillBuddy 将不同 AI 编程工具分散在各自目录中的 Skills 和 MCP �
   <img src="docs/images/skills-overview.png" alt="完整 SkillBuddy 应用窗口：按 Agent 和作用域查看 Skills" />
   <br />
   <sub>Skills 清单：按 Agent、全局目录、项目目录、插件和系统资源浏览技能。</sub>
+</div>
+
+<div align="center">
+  <img src="docs/images/skills-grid.png" alt="完整 SkillBuddy 应用窗口：Skills 平铺网格视图" />
+  <br />
+  <sub>Skills 平铺视图：以网格卡片快速浏览技能名称、来源和摘要。</sub>
 </div>
 
 <div align="center">

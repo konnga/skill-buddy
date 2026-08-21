@@ -22,7 +22,7 @@ SkillBuddy brings Skills and MCP configurations scattered across different AI co
 
 ## Screenshots
 
-The screenshots below show complete application windows and the main SkillBuddy workflows.
+The screenshots below show complete application windows and the main SkillBuddy workflows. The Skills page supports both list and tiled grid views.
 
 <div align="center">
   <img src="docs/images/dashboard.png" alt="Complete SkillBuddy window — dashboard and marketplace discovery" />
@@ -40,6 +40,12 @@ The screenshots below show complete application windows and the main SkillBuddy 
   <img src="docs/images/skills-overview.png" alt="Complete SkillBuddy window — Skills by agent and scope" />
   <br />
   <sub>Skills inventory: browse Skills by Agent, global scope, project scope, plugins, and system resources.</sub>
+</div>
+
+<div align="center">
+  <img src="docs/images/skills-grid.png" alt="Complete SkillBuddy window — tiled grid view for Skills" />
+  <br />
+  <sub>Skills grid view: scan skill names, sources, and summaries in tiled cards.</sub>
 </div>
 
 <div align="center">
