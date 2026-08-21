@@ -50,6 +50,9 @@ jobs:
       - name: 安装依赖
         run: pnpm install --frozen-lockfile
 
+      - name: 构建共享核心包
+        run: pnpm --filter @skillbuddy/core build
+
       - name: 构建安装包
         run: pnpm ${{ matrix.command }}
 
