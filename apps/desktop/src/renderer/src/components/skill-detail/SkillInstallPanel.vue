@@ -25,7 +25,8 @@ const { t } = useI18n()
     <Button
       class="mt-3 cursor-pointer"
       size="sm"
-      :disabled="targetsModel.length === 0 || props.busy"
+      :disabled="targetsModel.length === 0"
+      :loading="props.busy"
       @click="emit('install')"
     >
       {{

@@ -175,7 +175,8 @@ async function install(item: TeamLibrarySkillSummary): Promise<void> {
           <Button
             size="sm"
             class="w-fit cursor-pointer"
-            :disabled="busy || targets.length === 0 || Boolean(policyStates.get(`${item.libraryId}:${item.path}`)?.blockedReason)"
+            :disabled="targets.length === 0 || Boolean(policyStates.get(`${item.libraryId}:${item.path}`)?.blockedReason)"
+            :loading="busy"
             @click="install(item)"
           >
             {{ busy ? t('team.installing') : t('team.installTargets', { n: targets.length }) }}

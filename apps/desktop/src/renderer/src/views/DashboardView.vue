@@ -67,10 +67,10 @@ const { count: todoCount } = useAttentionSummary()
         variant="outline"
         size="sm"
         class="app-no-drag"
-        :disabled="loading"
+        :loading="loading"
         @click="refresh"
       >
-        <RefreshCw :class="loading ? 'animate-spin' : ''" />
+        <RefreshCw v-if="!loading" />
       </Button>
     </header>
 

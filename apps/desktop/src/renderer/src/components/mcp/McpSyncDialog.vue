@@ -87,7 +87,8 @@ watch(
           <Button
             size="sm"
             class="cursor-pointer"
-            :disabled="targets.length === 0 || props.planning"
+            :disabled="targets.length === 0"
+            :loading="props.planning"
             @click="review"
           >
             {{ t('mcp.form.review') }}

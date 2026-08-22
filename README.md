@@ -128,6 +128,17 @@ Download the installer for your system from:
 - [Open GitHub Releases](https://github.com/konnga/skill-buddy/releases)
 - [Read the changelog](CHANGELOG.md)
 
+### macOS First Launch
+
+The macOS installer is ad hoc-signed and not notarized with an Apple Developer ID. Gatekeeper may report that the app is damaged or cannot be opened. After moving the app to `Applications`, run the following command for an installer downloaded from the official GitHub Release:
+
+```bash
+xattr -dr com.apple.quarantine /Applications/SkillBuddy.app
+open /Applications/SkillBuddy.app
+```
+
+You can also control-click the app and choose **Open**. The command is only needed when macOS continues to show the damaged-app warning.
+
 The self-hosted Registry service and CLI are separate optional components and are not included in the desktop installer.
 
 SkillBuddy reads the local directories already used by your agents. Installation, synchronization, toggling, and removal only affect targets explicitly selected in the interface.

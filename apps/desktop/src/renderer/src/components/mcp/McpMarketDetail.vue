@@ -171,13 +171,14 @@ function handleAddToTeamLibrary(): void {
         class="cursor-pointer"
         :disabled="
           props.teamLibraryMode
-            ? props.actionBusy || alreadyInTeamLibrary || !currentCandidate
-            : planning || targets.length === 0 || !currentCandidate
+            ? alreadyInTeamLibrary || !currentCandidate
+            : targets.length === 0 || !currentCandidate
         "
+        :loading="props.teamLibraryMode ? props.actionBusy : planning"
         @click="props.teamLibraryMode ? handleAddToTeamLibrary() : handleReview()"
       >
-        <LibraryBig v-if="props.teamLibraryMode" />
-        <CloudDownload v-else />
+        <LibraryBig v-if="props.teamLibraryMode && !props.actionBusy" />
+        <CloudDownload v-else-if="!props.teamLibraryMode && !planning" />
         {{
           props.teamLibraryMode
             ? alreadyInTeamLibrary

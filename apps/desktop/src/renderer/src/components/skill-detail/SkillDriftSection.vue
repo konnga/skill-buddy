@@ -123,7 +123,8 @@ function installationLocationLabel(installation: Installation): string {
     <Button
       size="sm"
       class="cursor-pointer"
-      :disabled="props.busy || props.writableDriftOthers.length === 0"
+      :disabled="props.writableDriftOthers.length === 0"
+      :loading="props.busy"
       @click="emit('sync')"
     >
       {{

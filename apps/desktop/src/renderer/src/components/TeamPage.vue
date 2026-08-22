@@ -56,8 +56,8 @@ async function refreshTeam(): Promise<void> {
             {{ t('team.gitSource') }} · {{ catalogs.length }}/{{ teamLibraries.length }}
           </span>
         </span>
-        <Button variant="outline" size="sm" class="cursor-pointer" :disabled="refreshing" @click="refreshTeam">
-          <RefreshCw :class="['size-3.5', refreshing && 'animate-spin']" />
+        <Button variant="outline" size="sm" class="cursor-pointer" :loading="refreshing" @click="refreshTeam">
+          <RefreshCw v-if="!refreshing" class="size-3.5" />
           {{ refreshing ? t('team.syncing') : t('team.sync') }}
         </Button>
       </div>

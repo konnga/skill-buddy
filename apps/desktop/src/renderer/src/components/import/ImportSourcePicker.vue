@@ -78,7 +78,8 @@ const gitUrlModel = computed({
     <Button
       size="sm"
       class="cursor-pointer"
-      :disabled="props.fetching || !props.gitUrl.trim()"
+      :disabled="!props.gitUrl.trim()"
+      :loading="props.fetching"
       @click="emit('fetchGit')"
     >
       {{ props.fetching ? t('import.fetching') : t('import.fetch') }}

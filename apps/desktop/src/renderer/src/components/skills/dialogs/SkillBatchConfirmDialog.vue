@@ -63,7 +63,7 @@ const action = computed(() => (props.request ? t(`batch.${props.request.action}A
             :variant="props.request?.action === 'uninstall' ? 'destructive' : 'default'"
             size="sm"
             class="cursor-pointer"
-            :disabled="props.busy"
+            :loading="props.busy"
             @click="emit('confirm')"
           >
             {{ action }}

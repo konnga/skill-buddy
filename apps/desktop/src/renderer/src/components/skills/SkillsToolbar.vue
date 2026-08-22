@@ -253,10 +253,10 @@ const batchModel = computed({
           class="cursor-pointer"
           :title="t('app.rescan')"
           :aria-label="t('app.rescan')"
-          :disabled="props.loading"
+          :loading="props.loading"
           @click="emit('refresh')"
         >
-          <RefreshCw :class="['size-4', props.loading && 'animate-spin']" />
+          <RefreshCw v-if="!props.loading" class="size-4" />
         </Button>
       </div>
     </template>

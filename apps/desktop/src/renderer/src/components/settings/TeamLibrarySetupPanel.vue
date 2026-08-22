@@ -5,7 +5,6 @@ import {
   AlertTriangle,
   FolderGit2,
   KeyRound,
-  LoaderCircle,
   PackagePlus,
   Search,
 } from '@lucide/vue'
@@ -177,9 +176,8 @@ async function initialize(): Promise<void> {
         <span>{{ error }}</span>
       </p>
       <div class="flex justify-end sm:col-span-2">
-        <Button class="w-full sm:w-auto" :disabled="!canProbe" @click="inspectRemote">
-          <LoaderCircle v-if="operation === 'probe'" class="size-4 animate-spin" />
-          <Search v-else class="size-4" />
+        <Button class="w-full sm:w-auto" :disabled="!canProbe" :loading="operation === 'probe'" @click="inspectRemote">
+          <Search v-if="operation !== 'probe'" class="size-4" />
           {{ operation === 'probe' ? t('settings.teamLibraryChecking') : t('settings.teamLibraryCheck') }}
         </Button>
       </div>
@@ -205,9 +203,8 @@ async function initialize(): Promise<void> {
           />
         </label>
         <div class="flex justify-end">
-          <Button class="w-full sm:w-auto" :disabled="!canInitialize" @click="initialize">
-            <LoaderCircle v-if="operation === 'initialize'" class="size-4 animate-spin" />
-            <PackagePlus v-else class="size-4" />
+          <Button class="w-full sm:w-auto" :disabled="!canInitialize" :loading="operation === 'initialize'" @click="initialize">
+            <PackagePlus v-if="operation !== 'initialize'" class="size-4" />
             {{ operation === 'initialize' ? t('settings.teamLibraryInitializing') : t('settings.teamLibraryInitialize') }}
           </Button>
         </div>

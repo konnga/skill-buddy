@@ -60,6 +60,7 @@ const {
         size="sm"
         class="app-no-drag cursor-pointer"
         :disabled="installDisabled"
+        :loading="busy"
         @click="beginInstall"
       >
         <template v-if="busy && progress">

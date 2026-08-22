@@ -180,7 +180,8 @@ async function apply(): Promise<void> {
             <Button
               size="sm"
               class="w-fit cursor-pointer"
-              :disabled="planning || applying || targets.length === 0 || Boolean(policyStates.get(`${item.libraryId}:${item.path}`)?.blockedReason)"
+              :disabled="applying || targets.length === 0 || Boolean(policyStates.get(`${item.libraryId}:${item.path}`)?.blockedReason)"
+              :loading="planning"
               @click="review"
             >
               {{ planning ? t('team.preparingPlan') : t('team.reviewMcpInstall') }}

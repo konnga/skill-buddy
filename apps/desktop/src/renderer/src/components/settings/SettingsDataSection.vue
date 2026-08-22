@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, shallowRef } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { DEFAULT_DESKTOP_PREFERENCES } from '#shared/ipc'
 import GitBackupPanel from '@/components/settings/GitBackupPanel.vue'
@@ -8,6 +8,9 @@ import { showToast } from '@/composables/useToast'
 
 const props = defineProps<{ query: string }>()
 const { t } = useI18n()
+const exporting = shallowRef(false)
+const importing = shallowRef(false)
+const resetting = shallowRef(false)
 
 const searching = computed(() => props.query.trim().length > 0)
 
@@ -35,35 +38,45 @@ function collectLocalConfig(): Record<string, unknown> {
 }
 
 async function exportConfig(): Promise<void> {
-  const saved = await window.skillsManager.exportConfig(
-    JSON.stringify(collectLocalConfig(), null, 2),
-  )
-  if (saved) showToast({ message: t('settings.dataExported') })
+  exporting.value = true
+  try {
+    const saved = await window.skillsManager.exportConfig(
+      JSON.stringify(collectLocalConfig(), null, 2),
+    )
+    if (saved) showToast({ message: t('settings.dataExported') })
+  } finally {
+    exporting.value = false
+  }
 }
 
 /** 导入时先同步主进程偏好，再写入渲染端配置，避免重载前出现两个真值源。 */
 async function importConfig(): Promise<void> {
-  const content = await window.skillsManager.importConfig()
-  if (content === null) return
+  importing.value = true
   try {
-    const parsed = JSON.parse(content) as Record<string, unknown>
-    const keys = Object.keys(parsed).filter((key) => key.startsWith('skm.'))
-    if (keys.length === 0) throw new Error('empty')
-    const currentDesktopPreferences = await window.skillsManager.getDesktopPreferences()
-    await window.skillsManager.setDesktopPreferences({
-      backgroundMode:
-        typeof parsed['skm.backgroundMode'] === 'boolean'
-          ? parsed['skm.backgroundMode']
-          : currentDesktopPreferences.backgroundMode,
-      launchHidden:
-        typeof parsed['skm.launchHidden'] === 'boolean'
-          ? parsed['skm.launchHidden']
-          : currentDesktopPreferences.launchHidden,
-    })
-    for (const key of keys) localStorage.setItem(key, JSON.stringify(parsed[key]))
-    location.reload()
-  } catch {
-    showToast({ message: t('settings.dataImportInvalid') })
+    const content = await window.skillsManager.importConfig()
+    if (content === null) return
+    try {
+      const parsed = JSON.parse(content) as Record<string, unknown>
+      const keys = Object.keys(parsed).filter((key) => key.startsWith('skm.'))
+      if (keys.length === 0) throw new Error('empty')
+      const currentDesktopPreferences = await window.skillsManager.getDesktopPreferences()
+      await window.skillsManager.setDesktopPreferences({
+        backgroundMode:
+          typeof parsed['skm.backgroundMode'] === 'boolean'
+            ? parsed['skm.backgroundMode']
+            : currentDesktopPreferences.backgroundMode,
+        launchHidden:
+          typeof parsed['skm.launchHidden'] === 'boolean'
+            ? parsed['skm.launchHidden']
+            : currentDesktopPreferences.launchHidden,
+      })
+      for (const key of keys) localStorage.setItem(key, JSON.stringify(parsed[key]))
+      location.reload()
+    } catch {
+      showToast({ message: t('settings.dataImportInvalid') })
+    }
+  } finally {
+    importing.value = false
   }
 }
 
@@ -76,9 +89,14 @@ async function resetConfig(): Promise<void> {
     danger: true,
   })
   if (!confirmed) return
-  await window.skillsManager.setDesktopPreferences(DEFAULT_DESKTOP_PREFERENCES)
-  for (const key of Object.keys(collectLocalConfig())) localStorage.removeItem(key)
-  location.reload()
+  resetting.value = true
+  try {
+    await window.skillsManager.setDesktopPreferences(DEFAULT_DESKTOP_PREFERENCES)
+    for (const key of Object.keys(collectLocalConfig())) localStorage.removeItem(key)
+    location.reload()
+  } finally {
+    resetting.value = false
+  }
 }
 </script>
 
@@ -104,6 +122,8 @@ async function resetConfig(): Promise<void> {
           variant="outline"
           size="sm"
           class="shrink-0 cursor-pointer"
+          :loading="exporting"
+          :disabled="importing || resetting"
           @click="exportConfig"
         >
           {{ t('settings.dataExportAction') }}
@@ -123,6 +143,8 @@ async function resetConfig(): Promise<void> {
           variant="outline"
           size="sm"
           class="shrink-0 cursor-pointer"
+          :loading="importing"
+          :disabled="exporting || resetting"
           @click="importConfig"
         >
           {{ t('settings.dataImportAction') }}
@@ -142,6 +164,8 @@ async function resetConfig(): Promise<void> {
           variant="outline"
           size="sm"
           class="shrink-0 cursor-pointer text-destructive"
+          :loading="resetting"
+          :disabled="exporting || importing"
           @click="resetConfig"
         >
           {{ t('settings.dataResetAction') }}

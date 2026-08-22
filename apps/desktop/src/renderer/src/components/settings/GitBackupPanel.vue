@@ -155,8 +155,8 @@ async function restore(): Promise<void> {
     <p class="text-xs text-muted-foreground">{{ t('settings.backupSecurity') }}</p>
     <p v-if="error" class="break-words text-sm text-destructive">{{ error }}</p>
     <div class="flex flex-wrap gap-2">
-      <Button class="cursor-pointer" size="sm" :disabled="!canRun" @click="backup">
-        <CloudUpload class="size-3.5" />
+      <Button class="cursor-pointer" size="sm" :disabled="!canRun" :loading="busy" @click="backup">
+        <CloudUpload v-if="!busy" class="size-3.5" />
         {{ busy ? t('settings.backupWorking') : t('settings.backupAction') }}
       </Button>
       <Button

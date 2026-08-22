@@ -18,6 +18,7 @@ import SkillsToolbar, {
 import SkillAgentTree from '@/components/SkillAgentTree.vue'
 import SkillCard from '@/components/SkillCard.vue'
 import { Button } from '@/components/ui/button'
+import { LoadingSpinner } from '@/components/ui/loading-spinner'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { useSkillBatchActions } from '@/composables/useSkillBatchActions'
 import { useSkillGroupContext } from '@/composables/useSkillGroupContext'
@@ -255,8 +256,9 @@ function clearFilters(): void {
         @request="requestBatch"
       />
 
-      <div v-if="loading && skills.length === 0" class="py-24 text-center text-sm text-muted-foreground">
-        {{ t('app.scanning') }}
+      <div v-if="loading && skills.length === 0" class="flex items-center justify-center gap-2 py-24 text-sm text-muted-foreground">
+        <LoadingSpinner />
+        <span>{{ t('app.scanning') }}</span>
       </div>
       <div v-else-if="error" class="py-24 text-center text-sm text-destructive">{{ error }}</div>
       <GroupEmptyState

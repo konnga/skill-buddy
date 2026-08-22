@@ -94,7 +94,7 @@ test('管理 Preset 状态、整组启停和可移植 JSON', async () => {
     ]) {
       await page.getByRole('button', { name: '导入技能包' }).first().click()
       const dialog = page.getByRole('dialog', { name: '导入技能包' })
-      await dialog.getByPlaceholder('粘贴 skillbuddy-preset JSON…').fill(imported)
+      await dialog.getByPlaceholder('粘贴 skillbuddy-preset JSON').fill(imported)
       await dialog.getByRole('button', { name: '导入技能包' }).click()
       await expect(page.getByText(expectedToast)).toBeVisible()
     }

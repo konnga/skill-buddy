@@ -182,7 +182,7 @@ async function save(): Promise<void> {
       <Button variant="ghost" size="sm" :disabled="busy" @click="emit('cancel')">
         {{ t('common.cancel') }}
       </Button>
-      <Button size="sm" :disabled="busy || !description.trim()" @click="save">
+      <Button size="sm" :disabled="!description.trim()" :loading="busy" @click="save">
         {{ busy ? t('editor.saving') : t('editor.saveN', { n: targetPaths.size }) }}
       </Button>
     </div>

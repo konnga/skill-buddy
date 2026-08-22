@@ -65,7 +65,7 @@ const groups: SettingsNavGroup[] = [
 
 const searching = computed(() => query.value.trim().length > 0)
 const activeTitle = computed(() => {
-  if (searching.value) return t('settings.searchPh').replace('…', '').replace('...', '')
+  if (searching.value) return t('settings.searchPh')
   const item = groups.flatMap((group) => group.items).find(({ id }) => id === category.value)
   return item ? t(item.labelKey) : ''
 })

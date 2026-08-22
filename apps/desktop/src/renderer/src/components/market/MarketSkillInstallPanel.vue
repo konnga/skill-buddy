@@ -28,7 +28,8 @@ const targetsModel = computed({
     <p v-if="props.error" class="break-all text-sm text-destructive">{{ props.error }}</p>
     <Button
       class="mt-1 w-fit cursor-pointer"
-      :disabled="props.busy || props.targets.length === 0"
+      :disabled="props.targets.length === 0"
+      :loading="props.busy"
       @click="emit('install')"
     >
       {{

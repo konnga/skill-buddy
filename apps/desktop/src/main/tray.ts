@@ -32,7 +32,7 @@ const MESSAGES: Record<TrayLocale, TrayMessages> = {
   'zh-CN': {
     title: 'SkillBuddy',
     normal: '状态正常',
-    scanning: '正在扫描…',
+    scanning: '正在扫描',
     attention: (count) => `${count} 项需要处理`,
     error: '扫描失败，点击重试',
     lastChecked: (time) => `上次检查：${time}`,
@@ -46,7 +46,7 @@ const MESSAGES: Record<TrayLocale, TrayMessages> = {
   en: {
     title: 'SkillBuddy',
     normal: 'All systems normal',
-    scanning: 'Scanning…',
+    scanning: 'Scanning',
     attention: (count) => `${count} item${count === 1 ? '' : 's'} need attention`,
     error: 'Scan failed — click to retry',
     lastChecked: (time) => `Last checked: ${time}`,

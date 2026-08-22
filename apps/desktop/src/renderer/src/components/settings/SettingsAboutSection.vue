@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, shallowRef } from 'vue'
+import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
-import type { AppInfo, UpdateCheckResult } from '#shared/ipc'
 import skillbuddyMarkUrl from '@/assets/logo.png'
 import { Button } from '@/components/ui/button'
+import { useAppUpdate } from '@/composables/useAppUpdate'
 import { useSettings } from '@/composables/useSettings'
 import { useSkills } from '@/composables/useSkills'
 import { showToast } from '@/composables/useToast'
@@ -14,9 +14,17 @@ const { platforms } = useSkills()
 const { projectRoots } = useSettings()
 
 const searching = computed(() => props.query.trim().length > 0)
-const appInfo = ref<AppInfo | null>(null)
-const updateChecking = shallowRef(false)
-const updateResult = ref<UpdateCheckResult | null>(null)
+const {
+  appInfo,
+  checking: updateChecking,
+  updateResult,
+  checkUpdate,
+  downloading,
+  downloaded,
+  downloadPercent,
+  downloadUpdate,
+  hasDownload,
+} = useAppUpdate()
 const GITHUB_URL = 'https://github.com/konnga/skill-buddy'
 const CHANGELOG_URL = 'https://github.com/konnga/skill-buddy/releases'
 
@@ -24,20 +32,6 @@ function visible(...texts: string[]): boolean {
   if (!searching.value) return true
   const query = props.query.trim().toLowerCase()
   return texts.some((text) => text.toLowerCase().includes(query))
-}
-
-onMounted(async () => {
-  appInfo.value = await window.skillsManager.getAppInfo()
-})
-
-async function checkUpdate(): Promise<void> {
-  updateChecking.value = true
-  updateResult.value = null
-  try {
-    updateResult.value = await window.skillsManager.checkUpdate()
-  } finally {
-    updateChecking.value = false
-  }
 }
 
 function openReleasePage(): void {
@@ -90,7 +84,7 @@ async function copyDiagnostics(): Promise<void> {
             />
             <div class="min-w-0">
               <p class="mt-0.5 text-base text-muted-foreground">
-                SkillBuddy v{{ appInfo?.version ?? '…' }}
+                SkillBuddy v{{ appInfo?.version ?? '-' }}
               </p>
             </div>
           </div>
@@ -112,7 +106,23 @@ async function copyDiagnostics(): Promise<void> {
               {{ t('settings.aboutChangelog') }}
             </Button>
             <Button
-              v-if="updateResult?.status === 'update'"
+              v-if="hasDownload"
+              size="sm"
+              class="cursor-pointer"
+              :loading="downloading"
+              :disabled="downloaded"
+              @click="downloadUpdate"
+            >
+              {{
+                downloaded
+                  ? t('settings.aboutDownloaded')
+                  : downloading
+                    ? `${downloadPercent}%`
+                    : t('settings.aboutDownloadUpdate')
+              }}
+            </Button>
+            <Button
+              v-else-if="updateResult?.status === 'update'"
               size="sm"
               class="cursor-pointer"
               @click="openReleasePage"
@@ -123,7 +133,7 @@ async function copyDiagnostics(): Promise<void> {
               variant="outline"
               size="sm"
               class="cursor-pointer"
-              :disabled="updateChecking"
+              :loading="updateChecking"
               @click="checkUpdate"
             >
               {{ updateChecking ? t('settings.aboutChecking') : t('settings.aboutCheckUpdate') }}

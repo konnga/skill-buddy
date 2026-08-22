@@ -11,6 +11,7 @@ import McpSyncDialog from '@/components/mcp/McpSyncDialog.vue'
 import SidebarToggle from '@/components/SidebarToggle.vue'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { LoadingSpinner } from '@/components/ui/loading-spinner'
 import { useMcpServers } from '@/composables/useMcpServers'
 import { useSettings } from '@/composables/useSettings'
 import { showToast } from '@/composables/useToast'
@@ -164,12 +165,12 @@ async function executePlan(): Promise<void> {
         variant="outline"
         size="icon"
         class="app-no-drag cursor-pointer"
-        :disabled="loading"
+        :loading="loading"
         :title="t('app.rescan')"
         :aria-label="t('app.rescan')"
         @click="refresh()"
       >
-        <RefreshCw :class="loading ? 'animate-spin' : ''" />
+        <RefreshCw v-if="!loading" />
       </Button>
     </header>
 
@@ -189,7 +190,10 @@ async function executePlan(): Promise<void> {
     </div>
 
     <div v-if="loading && servers.length === 0" class="grid flex-1 place-items-center">
-      <span class="text-sm text-muted-foreground">{{ t('mcp.scanning') }}</span>
+      <div class="flex items-center gap-2 text-sm text-muted-foreground">
+        <LoadingSpinner />
+        <span>{{ t('mcp.scanning') }}</span>
+      </div>
     </div>
     <div
       v-else-if="servers.length === 0"

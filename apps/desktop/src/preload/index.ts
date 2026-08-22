@@ -59,6 +59,8 @@ import type {
   TrayStatus,
   TargetResult,
   UpdateCheckResult,
+  UpdateDownloadProgress,
+  UpdateDownloadResult,
 } from '#shared/ipc'
 import { plainTeamLibraryConfig } from '#shared/team-library'
 
@@ -278,6 +280,11 @@ const api = {
     ipcRenderer.invoke('theme:set', mode),
   getAppInfo: (): Promise<AppInfo> => ipcRenderer.invoke('app:info'),
   checkUpdate: (): Promise<UpdateCheckResult> => ipcRenderer.invoke('app:check-update'),
+  downloadUpdate: (latest: string): Promise<UpdateDownloadResult> =>
+    ipcRenderer.invoke('app:download-update', latest),
+  onUpdateDownloadProgress: (callback: (progress: UpdateDownloadProgress) => void): void => {
+    ipcRenderer.on('app:update-progress', (_event, progress: UpdateDownloadProgress) => callback(progress))
+  },
   getLoginItem: (): Promise<boolean> => ipcRenderer.invoke('system:get-login-item'),
   setLoginItem: (openAtLogin: boolean): Promise<void> =>
     ipcRenderer.invoke('system:set-login-item', openAtLogin),

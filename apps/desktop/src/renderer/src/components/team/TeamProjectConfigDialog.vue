@@ -152,7 +152,7 @@ async function submit(): Promise<void> {
         </form>
         <div class="flex justify-end gap-2 border-t px-5 py-4">
           <Button variant="ghost" size="sm" class="cursor-pointer" @click="emit('close')">{{ t('common.cancel') }}</Button>
-          <Button size="sm" class="cursor-pointer" :disabled="busy || saving || !catalog" @click="submit">{{ busy || saving ? t('team.saving') : t('team.projectSaveConfig') }}</Button>
+          <Button size="sm" class="cursor-pointer" :disabled="!catalog" :loading="busy || saving" @click="submit">{{ busy || saving ? t('team.saving') : t('team.projectSaveConfig') }}</Button>
         </div>
       </DialogContent>
     </DialogPortal>

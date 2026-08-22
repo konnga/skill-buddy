@@ -216,7 +216,7 @@ async function runImport(): Promise<void> {
           <Button v-if="step === 1" :disabled="enabled.size === 0" @click="step = 2">
             {{ t('importApps.continue') }}
           </Button>
-          <Button v-else :disabled="busy || targets.length === 0" @click="runImport">
+          <Button v-else :disabled="targets.length === 0" :loading="busy" @click="runImport">
             {{ busy ? t('importApps.running') : t('importApps.run') }}
           </Button>
         </footer>

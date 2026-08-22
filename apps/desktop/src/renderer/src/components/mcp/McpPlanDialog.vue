@@ -121,7 +121,8 @@ function basename(path: string): string {
           <Button
             size="sm"
             :variant="plan?.intent === 'remove' ? 'destructive' : 'default'"
-            :disabled="!plan?.canApply || applying"
+            :disabled="!plan?.canApply"
+            :loading="applying"
             @click="emit('apply')"
           >
             {{ applying ? t('mcp.plan.applying') : applyLabel }}

@@ -23,10 +23,10 @@ const { t } = useI18n()
         class="size-8 cursor-pointer"
         :title="t('team.projectRefresh')"
         :aria-label="t('team.projectRefresh')"
-        :disabled="loading"
+        :loading="loading"
         @click="emit('refresh')"
       >
-        <RefreshCw :class="['size-4', loading && 'animate-spin']" />
+        <RefreshCw v-if="!loading" class="size-4" />
       </Button>
     </div>
     <TeamProjectComplianceItem

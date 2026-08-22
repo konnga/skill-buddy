@@ -4,6 +4,7 @@ import { useI18n } from 'vue-i18n'
 import { Boxes, FilePlus2 } from '@lucide/vue'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { LoadingSpinner } from '@/components/ui/loading-spinner'
 import { Select, type SelectOption } from '@/components/ui/select'
 
 const props = defineProps<{
@@ -32,8 +33,9 @@ const branchModel = computed({
 </script>
 
 <template>
-  <div v-if="props.restoring" class="rounded-md border border-dashed px-5 py-8 text-center text-sm text-muted-foreground">
-    {{ t('team.managementRestoring') }}
+  <div v-if="props.restoring" class="flex items-center justify-center gap-2 rounded-md border border-dashed px-5 py-8 text-sm text-muted-foreground">
+    <LoadingSpinner />
+    <span>{{ t('team.managementRestoring') }}</span>
   </div>
   <div v-else class="rounded-md border border-dashed px-5 py-8">
     <div class="flex items-start gap-3">
@@ -58,10 +60,11 @@ const branchModel = computed({
     <Button
       class="mt-4 cursor-pointer"
       size="sm"
-      :disabled="props.busy || !props.canStart"
+      :disabled="!props.canStart"
+      :loading="props.busy"
       @click="emit('start')"
     >
-      <FilePlus2 />
+      <FilePlus2 v-if="!props.busy" />
       {{ props.busy ? t('team.managementPreparing') : t('team.managementCreate') }}
     </Button>
   </div>

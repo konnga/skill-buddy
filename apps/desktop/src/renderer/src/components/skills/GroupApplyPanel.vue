@@ -37,7 +37,8 @@ const actionDisabled = computed(
       <Button
         size="sm"
         class="cursor-pointer"
-        :disabled="actionDisabled"
+        :disabled="props.targets.length === 0 || props.skillCount === 0"
+        :loading="props.busy"
         @click="emit('apply')"
       >
         {{

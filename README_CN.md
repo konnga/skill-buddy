@@ -128,6 +128,17 @@ Windows 和 Linux 使用对应平台的 Electron 分支，并分别提供安装�
 - [前往 GitHub Releases](https://github.com/konnga/skill-buddy/releases)
 - [查看更新日志](CHANGELOG.md)
 
+### macOS 首次启动
+
+由于项目没有使用 Apple Developer ID 签名和公证，macOS 安装包使用临时签名。Gatekeeper 可能提示应用“已损坏”或无法打开。将应用拖入“应用程序”后，确认安装包来自官方 GitHub Release，再执行：
+
+```bash
+xattr -dr com.apple.quarantine /Applications/SkillBuddy.app
+open /Applications/SkillBuddy.app
+```
+
+也可以按住 Control 键点击应用并选择“打开”。只有 macOS 仍显示“应用已损坏”提示时，才需要执行上面的命令。
+
 Registry 自托管服务和 CLI 是独立的可选组件，不包含在桌面端安装包中。
 
 SkillBuddy 会读取各 Agent 已有的本地目录。安装、同步、启停或删除等写操作只会作用于界面中明确选择的目标。

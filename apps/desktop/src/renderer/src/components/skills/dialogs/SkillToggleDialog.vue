@@ -77,7 +77,7 @@ const isBusy = computed(() =>
             variant="ghost"
             size="sm"
             class="cursor-pointer"
-            :disabled="isBusy"
+            :loading="isBusy"
             @click="emit('openChange', false)"
           >
             {{ t('common.cancel') }}

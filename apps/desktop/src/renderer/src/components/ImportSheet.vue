@@ -112,7 +112,8 @@ const {
           <Button
             size="sm"
             class="cursor-pointer"
-            :disabled="busy || selected.size === 0 || targets.length === 0"
+            :disabled="selected.size === 0 || targets.length === 0"
+            :loading="busy"
             @click="runImport"
           >
             {{ busy ? t('import.importing') : t('import.install', { n: selected.size }) }}

@@ -58,7 +58,7 @@ function openResult(): void {
     <div class="grid gap-3 rounded-md border px-4 py-4">
       <label class="grid gap-1.5 text-sm font-medium">{{ t('team.contributionTitle') }}<Input v-model="title" /></label>
       <label class="grid gap-1.5 text-sm font-medium">{{ t('team.contributionBody') }}<textarea v-model="body" rows="4" class="resize-y rounded-md border border-input bg-transparent px-3 py-2 text-sm outline-none focus-visible:ring-1 focus-visible:ring-ring" /></label>
-      <Button class="w-fit cursor-pointer" size="sm" :disabled="busy || !canPublish" @click="emit('publish', title, body)"><GitPullRequest />{{ busy ? t('team.contributionPublishing') : t('team.contributionPublish') }}</Button>
+      <Button class="w-fit cursor-pointer" size="sm" :disabled="!canPublish" :loading="busy" @click="emit('publish', title, body)"><GitPullRequest v-if="!busy" />{{ busy ? t('team.contributionPublishing') : t('team.contributionPublish') }}</Button>
     </div>
 
     <div v-if="result" class="rounded-md border px-4 py-3 text-sm">

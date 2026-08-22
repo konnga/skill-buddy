@@ -138,10 +138,11 @@ const targetsModel = computed({
         v-if="!props.installOnly && !props.teamLibraryMode"
         size="sm"
         class="w-fit cursor-pointer"
-        :disabled="props.planning || props.targets.length === 0 || !currentCandidate"
+        :disabled="props.targets.length === 0 || !currentCandidate"
+        :loading="props.planning"
         @click="emit('review')"
       >
-        <CloudDownload />
+        <CloudDownload v-if="!props.planning" />
         {{ t('mcp.form.review') }}
       </Button>
     </template>

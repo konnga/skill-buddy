@@ -135,7 +135,7 @@ function submit(): void {
         </form>
         <div class="flex justify-end gap-2 border-t px-5 py-4">
           <Button variant="ghost" size="sm" class="cursor-pointer" @click="emit('close')">{{ t('common.cancel') }}</Button>
-          <Button size="sm" class="cursor-pointer" :disabled="busy || !valid" @click="submit">{{ busy ? t('team.saving') : t('team.saveToChanges') }}</Button>
+          <Button size="sm" class="cursor-pointer" :disabled="!valid" :loading="busy" @click="submit">{{ busy ? t('team.saving') : t('team.saveToChanges') }}</Button>
         </div>
       </DialogContent>
     </DialogPortal>

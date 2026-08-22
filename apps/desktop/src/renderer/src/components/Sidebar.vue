@@ -3,6 +3,7 @@ import { computed, onBeforeUnmount, shallowRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { PanelLeft, Settings } from '@lucide/vue'
 import skillbuddyMarkUrl from '@/assets/logo.png'
+import AppUpdateButton from '@/components/AppUpdateButton.vue'
 import SidebarAgentsSection from '@/components/sidebar/SidebarAgentsSection.vue'
 import SidebarPrimaryNav from '@/components/sidebar/SidebarPrimaryNav.vue'
 import SidebarScopesSection from '@/components/sidebar/SidebarScopesSection.vue'
@@ -193,15 +194,16 @@ async function addProjectRoot(): Promise<void> {
         </nav>
       </ScrollArea>
 
-      <div class="shrink-0 px-2 pb-3">
+      <div class="flex shrink-0 items-center gap-1 px-2 pb-3">
         <button
           type="button"
-          class="flex w-full cursor-pointer items-center gap-2 rounded-md px-3 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-accent/60 hover:text-foreground"
+          class="flex min-w-0 flex-1 cursor-pointer items-center gap-2 rounded-md px-3 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-accent/60 hover:text-foreground"
           @click="emit('openSettings')"
         >
-          <Settings class="size-4" />
-          {{ t('common.settings') }}
+          <Settings class="size-4 shrink-0" />
+          <span class="truncate">{{ t('common.settings') }}</span>
         </button>
+        <AppUpdateButton />
       </div>
     </div>
   </aside>

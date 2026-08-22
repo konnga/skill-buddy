@@ -100,7 +100,8 @@ const {
         variant="outline"
         size="sm"
         class="cursor-pointer"
-        :disabled="!selectionReady || preparing || installing"
+        :disabled="!selectionReady || installing"
+        :loading="preparing"
         @click="prepare"
       >
         {{ preparing ? t('team.bundlePreparing') : t('team.bundlePrepare') }}
@@ -108,7 +109,8 @@ const {
       <Button
         size="sm"
         class="cursor-pointer"
-        :disabled="!planCanApply || installing"
+        :disabled="!planCanApply"
+        :loading="installing"
         @click="installPrepared"
       >
         {{ installing ? t('team.bundleInstalling') : t('team.bundleInstall') }}

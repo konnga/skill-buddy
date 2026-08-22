@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { Check, FileText, LoaderCircle } from '@lucide/vue'
+import { Check, FileText } from '@lucide/vue'
 import type { FoundSkill } from '@skillbuddy/core'
 import type { InstallTarget } from '#shared/ipc'
 import MarkdownView from '@/components/AsyncMarkdownView.vue'
@@ -56,11 +56,11 @@ const targetsModel = computed({
         <Button
           size="sm"
           class="cursor-pointer"
-          :disabled="props.installing || props.targets.length === 0 || props.installed"
+          :disabled="props.targets.length === 0 || props.installed"
+          :loading="props.installing"
           @click="emit('install')"
         >
-          <LoaderCircle v-if="props.installing" class="size-3.5 animate-spin" />
-          <Check v-else class="size-3.5" />
+          <Check v-if="!props.installing" class="size-3.5" />
           {{
             props.installed
               ? t('newSkill.installed')

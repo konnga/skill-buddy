@@ -32,17 +32,17 @@ interface PlatformIconDef {
 const ICONS: Record<string, PlatformIconDef> = {
   'claude-code': { src: claudeIcon },
   codex: { src: codexIcon },
-  copilot: { maskSrc: githubcopilotIcon },
-  cursor: { maskSrc: cursorIcon },
+  copilot: { src: githubcopilotIcon },
+  cursor: { src: cursorIcon },
   'gemini-cli': { src: geminiIcon },
-  opencode: { maskSrc: opencodeIcon },
+  opencode: { src: opencodeIcon },
   codebuddy: { src: codebuddyIcon },
   trae: { src: traeIcon },
   'trae-cn': { src: traeIcon },
   workbuddy: { src: workbuddyIcon },
   doubao: { src: doubaoIcon },
   kimi: { src: kimiIcon },
-  zcode: { maskSrc: zcodeIcon },
+  zcode: { src: zcodeIcon },
 }
 
 export function platformIcon(id: string): PlatformIconDef {

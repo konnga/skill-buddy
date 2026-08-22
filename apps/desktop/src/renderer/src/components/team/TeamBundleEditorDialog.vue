@@ -96,7 +96,7 @@ function submit(): void {
             <span v-else class="flex-1" />
             <div class="flex shrink-0 justify-end gap-2">
               <Button type="button" variant="ghost" size="sm" class="cursor-pointer" @click="emit('close')">{{ t('common.cancel') }}</Button>
-              <Button type="submit" size="sm" class="cursor-pointer" :disabled="busy || !form.id.trim() || !form.name.trim() || form.skills.length + form.mcp.length === 0">{{ busy ? t('team.saving') : t('team.saveToChanges') }}</Button>
+              <Button type="submit" size="sm" class="cursor-pointer" :disabled="!form.id.trim() || !form.name.trim() || form.skills.length + form.mcp.length === 0" :loading="busy">{{ busy ? t('team.saving') : t('team.saveToChanges') }}</Button>
             </div>
           </div>
         </form>

@@ -90,7 +90,8 @@ function handleProjectRootChange(root: string | undefined): void {
           <Button
             size="sm"
             class="cursor-pointer"
-            :disabled="props.busy || !props.projectRoot || props.projectAgents.length === 0"
+            :disabled="!props.projectRoot || props.projectAgents.length === 0"
+            :loading="props.busy"
             @click="emit('confirm')"
           >
             {{ t('batch.addProjectAction') }}

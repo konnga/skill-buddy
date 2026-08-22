@@ -408,11 +408,34 @@ export interface AppInfo {
 }
 
 /** 检查更新的结果：有新版本 / 已是最新 / 尚无发布 / 出错。 */
+export interface UpdateReleaseAsset {
+  name: string
+  size: number
+}
+
 export type UpdateCheckResult =
-  | { status: 'update'; latest: string; url: string }
+  | { status: 'update'; latest: string; url: string; asset: UpdateReleaseAsset | null }
   | { status: 'latest'; latest: string; url: string }
   | { status: 'none' }
   | { status: 'error'; message: string }
+
+/** 安装包下载进度，由主进程推送给发起下载的渲染进程。 */
+export type UpdateDownloadProgress =
+  | {
+      status: 'downloading'
+      percent: number
+      transferred: number
+      total: number
+    }
+  | { status: 'completed'; percent: 100; path: string }
+  | { status: 'error'; message: string }
+
+/** 安装包下载完成后的打开结果。 */
+export interface UpdateDownloadResult {
+  path: string
+  opened: boolean
+  message?: string
+}
 
 /** 原生确认对话框参数。 */
 export interface ConfirmOptions {
