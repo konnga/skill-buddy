@@ -78,11 +78,11 @@
     "test:e2e": "playwright test",
     "typecheck": "vue-tsc --noEmit -p tsconfig.web.json && tsc --noEmit -p tsconfig.node.json",
     "start": "electron-vite preview",
-    "dist:mac:arm64": "pnpm build && electron-builder --mac --arm64",
-    "dist:win:x64": "pnpm build && electron-builder --win --x64",
-    "dist:win:arm64": "pnpm build && electron-builder --win --arm64",
-    "dist:linux:x64": "pnpm build && electron-builder --linux --x64",
-    "dist:linux:arm64": "pnpm build && electron-builder --linux --arm64"
+    "dist:mac:arm64": "pnpm build && electron-builder --mac --arm64 --publish never",
+    "dist:win:x64": "pnpm build && electron-builder --win --x64 --publish never",
+    "dist:win:arm64": "pnpm build && electron-builder --win --arm64 --publish never",
+    "dist:linux:x64": "pnpm build && electron-builder --linux --x64 --publish never",
+    "dist:linux:arm64": "pnpm build && electron-builder --linux --arm64 --publish never"
   },
   "dependencies": {
     "@skillbuddy/core": "workspace:*",
