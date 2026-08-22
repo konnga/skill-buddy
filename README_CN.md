@@ -114,12 +114,18 @@ SkillBuddy 桌面端当前提供以下构建目标：
 
 | 操作系统 | 处理器架构 | 最低版本 | 支持状态 |
 | --- | --- | --- | --- |
-| macOS | Apple Silicon（`arm64`） | macOS 11 Big Sur | 正式支持，DMG |
+| macOS | Apple Silicon（`arm64`） | macOS 11 Big Sur | 正式支持，DMG 和 ZIP |
 | macOS | Intel（`x64`） | - | 不支持 |
-| Windows | `x64` | Windows 10 及以上 | 正式支持，NSIS 安装包 |
-| Linux | `x64` | 支持 AppImage 的发行版 | 正式支持，AppImage |
+| Windows | `x64` | Windows 10 及以上 | 正式支持，NSIS 安装包和 ZIP |
+| Windows | `arm64` | Windows 11 | 预览构建，NSIS 安装包和 ZIP，待 ARM64 真机验证 |
+| Linux | `x64` | 现代桌面发行版 | 正式支持，AppImage、DEB 和 RPM |
+| Linux | `arm64` | 现代桌面发行版 | 预览构建，AppImage、DEB 和 RPM，待 ARM64 真机验证 |
 
-Windows 和 Linux 使用对应平台的 Electron 分支，并分别提供安装包。Intel Mac 没有配置 x64 macOS 构建目标，因此不支持。
+发布文件统一采用 `SkillBuddy-v<版本>-<系统>-<架构>.<扩展名>` 命名。暂不构建 Intel macOS 安装包。
+
+- macOS：`SkillBuddy-v<版本>-macos-arm64.dmg` 和 `.zip`
+- Windows x64/arm64：`SkillBuddy-v<版本>-windows-<架构>.exe` 和 `.zip`
+- Linux x64/arm64：`SkillBuddy-v<版本>-linux-<架构>.AppImage`、`.deb` 和 `.rpm`（x64 构建使用 `x86_64`）
 
 ## 下载与运行
 
@@ -130,14 +136,14 @@ Windows 和 Linux 使用对应平台的 Electron 分支，并分别提供安装�
 
 ### macOS 首次启动
 
-由于项目没有使用 Apple Developer ID 签名和公证，macOS 安装包使用临时签名。Gatekeeper 可能提示应用“已损坏”或无法打开。将应用拖入“应用程序”后，确认安装包来自官方 GitHub Release，再执行：
+由于项目没有使用 Apple Developer ID 签名和公证，macOS 安装包使用完整的临时签名。Gatekeeper 可能因为无法识别开发者而阻止打开。将应用拖入“应用程序”后先打开一次，然后前往“系统设置 → 隐私与安全性 → 安全性”，点击“仍要打开”，确认后即可启动 SkillBuddy。也可以按住 Control 键点击应用并选择“打开”。如果系统中没有出现授权按钮，再确认安装包来自官方 GitHub Release 后使用下面的兜底命令：
 
 ```bash
 xattr -dr com.apple.quarantine /Applications/SkillBuddy.app
 open /Applications/SkillBuddy.app
 ```
 
-也可以按住 Control 键点击应用并选择“打开”。只有 macOS 仍显示“应用已损坏”提示时，才需要执行上面的命令。
+`xattr` 命令只会移除下载隔离属性，应作为最后的兜底方式。如果 macOS 明确提示应用“已损坏”，不要直接绕过提示，应重新下载安装包，因为这通常表示应用签名无效或不完整。
 
 Registry 自托管服务和 CLI 是独立的可选组件，不包含在桌面端安装包中。
 

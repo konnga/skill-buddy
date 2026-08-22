@@ -2,12 +2,18 @@
   "name": "@skillbuddy/desktop",
   "version": "0.1.2",
   "productName": "SkillBuddy",
-  "author": "SkillBuddy",
+  "author": {
+    "name": "SkillBuddy",
+    "email": "wjc402402@163.com"
+  },
+  "homepage": "https://github.com/konnga/skill-buddy",
+  "repository": "https://github.com/konnga/skill-buddy.git",
   "type": "module",
   "imports": {
     "#*": "./src/*.ts"
   },
   "description": "SkillBuddy desktop app (Electron + Vue 3)",
+  "desktopName": "skillbuddy",
   "main": "./out/main/index.js",
   "build": {
     "appId": "com.konnga.skillbuddy",
@@ -21,32 +27,23 @@
     ],
     "mac": {
       "icon": "resources/icons/icon.icns",
+      "identity": "-",
+      "hardenedRuntime": false,
+      "gatekeeperAssess": false,
       "minimumSystemVersion": "11.0",
-      "target": [
-        {
-          "target": "dmg",
-          "arch": ["arm64"]
-        }
-      ]
+      "artifactName": "${productName}-v${version}-macos-${arch}.${ext}",
+      "target": ["dmg", "zip"]
     },
     "win": {
       "icon": "resources/icons/icon.ico",
-      "target": [
-        {
-          "target": "nsis",
-          "arch": ["x64"]
-        }
-      ]
+      "artifactName": "${productName}-v${version}-windows-${arch}.${ext}",
+      "target": ["nsis", "zip"]
     },
     "linux": {
       "icon": "resources/icons/icon.png",
+      "artifactName": "${productName}-v${version}-linux-${arch}.${ext}",
       "executableName": "skillbuddy",
-      "target": [
-        {
-          "target": "AppImage",
-          "arch": ["x64"]
-        }
-      ],
+      "target": ["AppImage", "deb", "rpm"],
       "category": "Development"
     },
     "extraResources": [
@@ -81,9 +78,11 @@
     "test:e2e": "playwright test",
     "typecheck": "vue-tsc --noEmit -p tsconfig.web.json && tsc --noEmit -p tsconfig.node.json",
     "start": "electron-vite preview",
-    "dist:mac:arm64": "pnpm build && CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --mac dmg --arm64",
-    "dist:win:x64": "pnpm build && electron-builder --win nsis --x64",
-    "dist:linux:x64": "pnpm build && electron-builder --linux AppImage --x64"
+    "dist:mac:arm64": "pnpm build && electron-builder --mac --arm64",
+    "dist:win:x64": "pnpm build && electron-builder --win --x64",
+    "dist:win:arm64": "pnpm build && electron-builder --win --arm64",
+    "dist:linux:x64": "pnpm build && electron-builder --linux --x64",
+    "dist:linux:arm64": "pnpm build && electron-builder --linux --arm64"
   },
   "dependencies": {
     "@skillbuddy/core": "workspace:*",

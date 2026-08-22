@@ -119,9 +119,19 @@ async function fetchLatestReleasePage(): Promise<ReleaseFetchResult> {
 }
 
 function updateAssetNames(platform: NodeJS.Platform, arch: string): string[] {
-  if (platform === 'darwin' && arch === 'arm64') return ['.dmg']
-  if (platform === 'win32' && arch === 'x64') return ['.exe']
-  if (platform === 'linux' && arch === 'x64') return ['.AppImage']
+  if (platform === 'darwin' && arch === 'arm64') return ['-macos-arm64.dmg', '.dmg']
+  if (platform === 'win32' && arch === 'x64') {
+    return ['-windows-x64.exe', '.exe']
+  }
+  if (platform === 'win32' && arch === 'arm64') {
+    return ['-windows-arm64.exe']
+  }
+  if (platform === 'linux' && arch === 'x64') {
+    return ['-linux-x86_64.AppImage', '-linux-x64.AppImage', '.AppImage']
+  }
+  if (platform === 'linux' && arch === 'arm64') {
+    return ['-linux-arm64.AppImage']
+  }
   return []
 }
 

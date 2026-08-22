@@ -20,17 +20,39 @@ jobs:
             os: macos-14
             command: dist:mac:arm64
             artifact: skillbuddy-macos-arm64
-            path: apps/desktop/dist/*.dmg
+            path: |
+              apps/desktop/dist/*.dmg
+              apps/desktop/dist/*.zip
           - name: Windows x64
             os: windows-latest
             command: dist:win:x64
             artifact: skillbuddy-windows-x64
-            path: apps/desktop/dist/*.exe
+            path: |
+              apps/desktop/dist/*.exe
+              apps/desktop/dist/*.zip
+          - name: Windows arm64
+            os: windows-latest
+            command: dist:win:arm64
+            artifact: skillbuddy-windows-arm64
+            path: |
+              apps/desktop/dist/*.exe
+              apps/desktop/dist/*.zip
           - name: Linux x64
             os: ubuntu-latest
             command: dist:linux:x64
             artifact: skillbuddy-linux-x64
-            path: apps/desktop/dist/*.AppImage
+            path: |
+              apps/desktop/dist/*.AppImage
+              apps/desktop/dist/*.deb
+              apps/desktop/dist/*.rpm
+          - name: Linux arm64
+            os: ubuntu-latest
+            command: dist:linux:arm64
+            artifact: skillbuddy-linux-arm64
+            path: |
+              apps/desktop/dist/*.AppImage
+              apps/desktop/dist/*.deb
+              apps/desktop/dist/*.rpm
 
     steps:
       - name: 检出代码

@@ -114,12 +114,18 @@ The SkillBuddy desktop application currently provides the following build target
 
 | Operating system | Architecture | Minimum version | Support status |
 | --- | --- | --- | --- |
-| macOS | Apple Silicon (`arm64`) | macOS 11 Big Sur | Supported, DMG |
+| macOS | Apple Silicon (`arm64`) | macOS 11 Big Sur | Supported, DMG and ZIP |
 | macOS | Intel (`x64`) | - | Not supported |
-| Windows | `x64` | Windows 10 or later | Supported, NSIS installer |
-| Linux | `x64` | Distribution with AppImage support | Supported, AppImage |
+| Windows | `x64` | Windows 10 or later | Supported, NSIS installer and ZIP |
+| Windows | `arm64` | Windows 11 | Preview build, NSIS installer and ZIP; real-device verification pending |
+| Linux | `x64` | Modern desktop distribution | Supported, AppImage, DEB, and RPM |
+| Linux | `arm64` | Modern desktop distribution | Preview build, AppImage, DEB, and RPM; real-device verification pending |
 
-Windows and Linux builds use the platform-native Electron branches and are distributed as separate installers. Intel Mac is not a supported target because no x64 macOS build is configured.
+Release assets use the `SkillBuddy-v<version>-<system>-<architecture>.<extension>` naming convention. Intel macOS packages are not currently built.
+
+- macOS: `SkillBuddy-v<version>-macos-arm64.dmg` and `.zip`
+- Windows x64/arm64: `SkillBuddy-v<version>-windows-<architecture>.exe` and `.zip`
+- Linux x64/arm64: `SkillBuddy-v<version>-linux-<architecture>.AppImage`, `.deb`, and `.rpm` (`x86_64` for x64 builds)
 
 ## Download
 
@@ -130,14 +136,14 @@ Download the installer for your system from:
 
 ### macOS First Launch
 
-The macOS installer is ad hoc-signed and not notarized with an Apple Developer ID. Gatekeeper may report that the app is damaged or cannot be opened. After moving the app to `Applications`, run the following command for an installer downloaded from the official GitHub Release:
+The macOS installer uses a complete ad-hoc signature and is not notarized with an Apple Developer ID. Gatekeeper may block it because it is not from an identified developer. After moving the app to `Applications`, open it once, then go to **System Settings → Privacy & Security → Security** and click **Open Anyway**. Confirm the prompt to launch SkillBuddy. You can also control-click the app and choose **Open**. If the security approval button does not appear, use the following fallback for an installer downloaded from the official GitHub Release:
 
 ```bash
 xattr -dr com.apple.quarantine /Applications/SkillBuddy.app
 open /Applications/SkillBuddy.app
 ```
 
-You can also control-click the app and choose **Open**. The command is only needed when macOS continues to show the damaged-app warning.
+The `xattr` command only removes the download quarantine attribute and should be used as a last resort. If macOS reports that the app is damaged, do not bypass the warning: download a current installer because that indicates an invalid or incomplete app signature.
 
 The self-hosted Registry service and CLI are separate optional components and are not included in the desktop installer.
 

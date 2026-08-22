@@ -15,7 +15,9 @@
     "typecheck": "pnpm -r typecheck",
     "dist:mac:arm64": "pnpm --filter @skillbuddy/desktop dist:mac:arm64",
     "dist:win:x64": "pnpm --filter @skillbuddy/desktop dist:win:x64",
-    "dist:linux:x64": "pnpm --filter @skillbuddy/desktop dist:linux:x64"
+    "dist:win:arm64": "pnpm --filter @skillbuddy/desktop dist:win:arm64",
+    "dist:linux:x64": "pnpm --filter @skillbuddy/desktop dist:linux:x64",
+    "dist:linux:arm64": "pnpm --filter @skillbuddy/desktop dist:linux:arm64"
   },
   "devDependencies": {
     "typescript": "^5.7.0"
