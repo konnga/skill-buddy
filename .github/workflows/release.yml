@@ -82,6 +82,18 @@ jobs:
         working-directory: release
         run: sha256sum * > SHA256SUMS.txt
 
+      - name: 提取当前版本变更日志
+        env:
+          VERSION: ${{ github.ref_name }}
+        run: |
+          VERSION="${VERSION#v}"
+          awk -v version="$VERSION" '
+            index($0, "## " version " ") == 1 { found = 1 }
+            found && index($0, "## ") == 1 && index($0, "## " version " ") != 1 { exit }
+            found { print }
+          ' CHANGELOG.md > release-notes.md
+          test -s release-notes.md
+
       - name: 发布 GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
@@ -89,5 +101,5 @@ jobs:
           VERSION="${GITHUB_REF_NAME#v}"
           gh release create "$GITHUB_REF_NAME" release/* \
             --title "SkillBuddy $VERSION" \
-            --notes-file CHANGELOG.md \
+            --notes-file release-notes.md \
             --latest
