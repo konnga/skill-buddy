@@ -2,6 +2,30 @@
 
 All notable changes to SkillBuddy are documented in this file.
 
+## 0.1.3 - 2026-08-22
+
+### Added
+
+- Added Windows arm64 and Linux arm64 preview builds alongside the existing macOS arm64 and x64 desktop packages.
+- Added ZIP, DEB, and RPM release assets where supported by each platform.
+- Standardized release asset names to include the product, version, operating system, and architecture.
+
+### Fixed
+
+- Improved update downloads so the updater selects an installer matching the current operating system and architecture.
+
+---
+
+### 新增
+
+- 在现有 macOS arm64 和 x64 桌面安装包基础上，新增 Windows arm64 和 Linux arm64 预览构建。
+- 按平台增加 ZIP、DEB 和 RPM 发布资产。
+- 统一发布文件命名，包含产品名、版本、操作系统和处理器架构。
+
+### 修复
+
+- 优化版本更新下载逻辑，确保更新程序选择与当前操作系统和处理器架构匹配的安装包。
+
 ## 0.1.2 - 2026-08-22
 
 ### Fixed
