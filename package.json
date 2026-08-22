@@ -1,6 +1,6 @@
 {
   "name": "skillbuddy",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "private": true,
   "description": "SkillBuddy — visual management platform for AI agent skills (Claude Code, Codex, Cursor, OpenCode, Trae, CodeBuddy, WorkBuddy, and more)",
   "packageManager": "pnpm@10.32.1",

@@ -2,6 +2,12 @@
 
 All notable changes to SkillBuddy are documented in this file.
 
+## 0.1.2 - 2026-08-22
+
+### Fixed
+
+- Fixed update checks failing with GitHub API 403 rate-limit responses by using the configured token and a public Releases page fallback.
+
 ## 0.1.1 - 2026-08-22
 
 ### Added
@@ -53,6 +59,12 @@ The first public desktop release of SkillBuddy for macOS, Windows, and Linux.
 - Please report issues through [GitHub Issues](https://github.com/konnga/skill-buddy/issues).
 
 ---
+
+## 0.1.2 - 2026-08-22
+
+### 修复
+
+- 修复 GitHub API 返回 403 限流时更新检查失败的问题，支持使用已配置 Token 并回退到公开 Releases 页面。
 
 ## 0.1.1 - 2026-08-22
 
