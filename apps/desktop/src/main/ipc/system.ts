@@ -23,12 +23,15 @@ import {
   onDesktopPreferencesChanged,
   setDesktopPreferences,
 } from '../preferences'
+import { readSecret } from '../secrets.js'
 import { toggleMainWindow } from '../window'
 
 /** 检查更新所用的 GitHub 仓库（Releases 页）。 */
 const UPDATE_REPO = 'konnga/skill-buddy'
 const UPDATE_API = `https://api.github.com/repos/${UPDATE_REPO}/releases/latest`
-const UPDATE_HEADERS = { accept: 'application/vnd.github+json', 'user-agent': 'SkillBuddy' }
+const UPDATE_RELEASES_URL = `https://github.com/${UPDATE_REPO}/releases`
+const UPDATE_LATEST_URL = `${UPDATE_RELEASES_URL}/latest`
+const UPDATE_HEADERS = { 'user-agent': 'SkillBuddy' }
 
 interface ReleaseAssetResponse {
   name?: string
@@ -43,6 +46,77 @@ interface ReleaseResponse {
 }
 
 let cachedRelease: ReleaseResponse | null = null
+
+interface ReleaseFetchResult {
+  status: number
+  data: ReleaseResponse
+}
+
+async function githubApiHeaders(): Promise<Record<string, string>> {
+  const headers: Record<string, string> = {
+    ...UPDATE_HEADERS,
+    accept: 'application/vnd.github+json',
+    'x-github-api-version': '2022-11-28',
+  }
+  const token = await readSecret('githubToken')
+  if (token) headers.authorization = `Bearer ${token}`
+  return headers
+}
+
+async function updateFetch(
+  url: string,
+  options: { headers?: Record<string, string>; timeoutMs?: number } = {},
+): Promise<Response> {
+  const { headers = UPDATE_HEADERS, timeoutMs = 10_000 } = options
+  try {
+    return await session.defaultSession.fetch(url, {
+      headers,
+      redirect: 'follow',
+      signal: AbortSignal.timeout(timeoutMs),
+    })
+  } catch {
+    return fetch(url, {
+      headers,
+      redirect: 'follow',
+      signal: AbortSignal.timeout(timeoutMs),
+    })
+  }
+}
+
+/** GitHub API 限流时，从公开 Releases 页面获取最新标签和安装包。 */
+async function fetchLatestReleasePage(): Promise<ReleaseFetchResult> {
+  const latestResponse = await updateFetch(UPDATE_LATEST_URL)
+  if (!latestResponse.ok) return { status: latestResponse.status, data: {} }
+  const latestHtml = await latestResponse.text()
+  const tag =
+    latestResponse.url.match(/\/releases\/tag\/([^/?#]+)/)?.[1]
+    ?? latestHtml.match(/\/releases\/tag\/([^"/?#]+)/)?.[1]
+  if (!tag) return { status: 404, data: {} }
+
+  const assetsResponse = await updateFetch(
+    `${UPDATE_RELEASES_URL}/expanded_assets/${encodeURIComponent(tag)}`,
+  )
+  const assets: ReleaseAssetResponse[] = []
+  if (assetsResponse.ok) {
+    const html = await assetsResponse.text()
+    const pattern = /href="([^"]*\/releases\/download\/[^"]+)"/g
+    for (const match of html.matchAll(pattern)) {
+      const href = match[1]?.replaceAll('&amp;', '&')
+      if (!href) continue
+      const browserDownloadUrl = new URL(href, 'https://github.com').toString()
+      const name = decodeURIComponent(new URL(browserDownloadUrl).pathname.split('/').at(-1) ?? '')
+      if (name) assets.push({ name, size: 0, browser_download_url: browserDownloadUrl })
+    }
+  }
+  return {
+    status: 200,
+    data: {
+      tag_name: tag,
+      html_url: `${UPDATE_RELEASES_URL}/tag/${tag}`,
+      assets,
+    },
+  }
+}
 
 function updateAssetNames(platform: NodeJS.Platform, arch: string): string[] {
   if (platform === 'darwin' && arch === 'arm64') return ['.dmg']
@@ -66,22 +140,18 @@ function selectUpdateAsset(data: ReleaseResponse): UpdateReleaseAsset | null {
   return { name: asset.name, size: asset.size ?? 0 }
 }
 
-async function fetchLatestRelease(): Promise<{ response: Response; data: ReleaseResponse }> {
-  let response: Response
-  try {
-    response = await session.defaultSession.fetch(UPDATE_API, {
-      headers: UPDATE_HEADERS,
-      signal: AbortSignal.timeout(10_000),
-    })
-  } catch {
-    response = await fetch(UPDATE_API, {
-      headers: UPDATE_HEADERS,
-      signal: AbortSignal.timeout(10_000),
-    })
+async function fetchLatestRelease(): Promise<ReleaseFetchResult> {
+  const response = await updateFetch(UPDATE_API, { headers: await githubApiHeaders() })
+  if (response.ok) {
+    const data = (await response.json()) as ReleaseResponse
+    cachedRelease = data
+    return { status: response.status, data }
   }
-  const data = (await response.json()) as ReleaseResponse
-  if (response.ok) cachedRelease = data
-  return { response, data }
+  if (response.status === 404) return { status: 404, data: {} }
+
+  const fallback = await fetchLatestReleasePage()
+  if (fallback.status === 200) cachedRelease = fallback.data
+  return fallback
 }
 
 /** 简单的 x.y.z 版本比较：latest 是否比 current 新。 */
@@ -111,10 +181,10 @@ export function registerSystemIpc(): void {
 
   ipcMain.handle('app:check-update', async (): Promise<UpdateCheckResult> => {
     try {
-      const { response, data } = await fetchLatestRelease()
+      const { status, data } = await fetchLatestRelease()
       // 仓库尚未发布任何 Release 时 GitHub 返回 404
-      if (response.status === 404) return { status: 'none' }
-      if (!response.ok) return { status: 'error', message: `GitHub ${response.status}` }
+      if (status === 404) return { status: 'none' }
+      if (status !== 200) return { status: 'error', message: `GitHub ${status}` }
       const latest = (data.tag_name ?? '').replace(/^v/, '')
       if (!latest) return { status: 'none' }
       const url = data.html_url ?? `https://github.com/${UPDATE_REPO}/releases`
@@ -138,7 +208,7 @@ export function registerSystemIpc(): void {
         let data = cachedRelease
         if ((data?.tag_name ?? '').replace(/^v/, '') !== latest) {
           const result = await fetchLatestRelease()
-          if (!result.response.ok) throw new Error(`GitHub ${result.response.status}`)
+          if (result.status !== 200) throw new Error(`GitHub ${result.status}`)
           data = result.data
         }
         if (!data) throw new Error('无法读取发布信息')
@@ -149,9 +219,8 @@ export function registerSystemIpc(): void {
           throw new Error('当前系统暂无可用安装包')
         }
 
-        const responseAsset = await session.defaultSession.fetch(asset.browser_download_url, {
-          headers: UPDATE_HEADERS,
-          signal: AbortSignal.timeout(30 * 60_000),
+        const responseAsset = await updateFetch(asset.browser_download_url, {
+          timeoutMs: 30 * 60_000,
         })
         if (!responseAsset.ok || !responseAsset.body) throw new Error(`下载失败：${responseAsset.status}`)
         const downloadDir = app.getPath('downloads')
