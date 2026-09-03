@@ -170,6 +170,20 @@ export const BUILTIN_PLATFORMS: readonly PlatformDef[] = [
     detectPath: '~/.zcode',
   },
   {
+    id: 'deepseek-harness',
+    displayName: 'DeepSeek Harness',
+    userSkillsDir: '~/.dsh/skills',
+    projectSkillsDir: '.dsh/skills',
+    detectPath: '~/.dsh',
+  },
+  {
+    id: 'hermes',
+    displayName: 'Hermes',
+    userSkillsDir: '~/.hermes/skills',
+    projectSkillsDir: '.hermes/skills',
+    detectPath: '~/.hermes',
+  },
+  {
     id: 'wps-lingxi',
     displayName: 'WPS 灵犀',
     // Electron desktop assistant: skills live under app.getPath('userData'),

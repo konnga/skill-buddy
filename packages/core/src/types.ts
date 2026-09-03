@@ -16,6 +16,8 @@ export type BuiltinAgentId =
   | 'doubao'
   | 'kimi'
   | 'zcode'
+  | 'deepseek-harness'
+  | 'hermes'
   | 'wps-lingxi'
 
 /** An agent platform id: a built-in id (with autocomplete) or any custom string. */

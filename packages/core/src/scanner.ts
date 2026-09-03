@@ -206,16 +206,15 @@ async function scanSkillRoot(
   warnings: SkillParseWarning[] = [],
 ): Promise<InstalledSkill[]> {
   const skills: InstalledSkill[] = []
-  for (const name of await listDirectories(root.path)) {
-    const skillPath = join(root.path, name)
+  const scanDirectory = async (skillPath: string, name: string): Promise<boolean> => {
     let state
     try {
       state = await readSkillDirState(skillPath, name, (warning) => warnings.push(warning))
     } catch {
       // Skill 文件可能来自第三方或外部同步目录；单个异常项应被隔离。
-      continue
+      return false
     }
-    if (!state) continue
+    if (!state) return false
     const link = await readLinkMeta(skillPath, root)
     let modifiedAt: number | undefined
     try {
@@ -240,6 +239,26 @@ async function scanSkillRoot(
       parseError: state.parseError,
       skill: state.skill,
     })
+    return true
+  }
+
+  const scanHermesCategory = async (directory: string): Promise<void> => {
+    for (const name of await listDirectories(directory)) {
+      // Hermes 的 .hub 等隐藏目录是包管理元数据，不是 Skill 分类。
+      if (name.startsWith('.')) continue
+      const skillPath = join(directory, name)
+      if (!(await scanDirectory(skillPath, name))) {
+        await scanHermesCategory(skillPath)
+      }
+    }
+  }
+
+  for (const name of await listDirectories(root.path)) {
+    if (name.startsWith('.')) continue
+    const skillPath = join(root.path, name)
+    if (!(await scanDirectory(skillPath, name)) && root.agent === 'hermes') {
+      await scanHermesCategory(skillPath)
+    }
   }
   skills.push(...(await scanParkedLinks(root, warnings)))
   return skills

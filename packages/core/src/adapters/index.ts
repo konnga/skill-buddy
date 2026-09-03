@@ -36,6 +36,7 @@ export {
 } from './claude-code-adapter.js'
 export { CodexAdapter, discoverCodexSupplementalRoots } from './codex-adapter.js'
 export { DoubaoAdapter, discoverDoubaoSupplementalRoots } from './doubao-adapter.js'
+export { HermesAdapter } from './hermes-adapter.js'
 export { LingxiAdapter, discoverLingxiSupplementalRoots } from './lingxi-adapter.js'
 export { OmpAdapter, discoverOmpSupplementalRoots } from './omp-adapter.js'
 export { PiAdapter, discoverPiSupplementalRoots } from './pi-adapter.js'
