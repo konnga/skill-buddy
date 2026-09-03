@@ -27,6 +27,44 @@ afterEach(async () => {
 })
 
 describe('supplemental skill roots', () => {
+  it('recursively scans category directories for Hermes roots', async () => {
+    const home = await tempHome()
+    const rootPath = join(home, '.hermes', 'skills')
+    const topLevelSkill = join(rootPath, 'algorithmic-art')
+    const nestedSkill = join(rootPath, 'software-development', 'systematic-debugging')
+    await Promise.all([
+      fs.mkdir(topLevelSkill, { recursive: true }),
+      fs.mkdir(nestedSkill, { recursive: true }),
+    ])
+    await Promise.all([
+      fs.writeFile(
+        join(topLevelSkill, 'SKILL.md'),
+        '---\nname: algorithmic-art\ndescription: Art\n---\n',
+      ),
+      fs.writeFile(
+        join(nestedSkill, 'SKILL.md'),
+        '---\nname: systematic-debugging\ndescription: Debugging\n---\n',
+      ),
+    ])
+
+    const roots: SkillRoot[] = [{
+      agent: 'hermes',
+      scope: 'user',
+      path: rootPath,
+      origin: 'user',
+      readOnly: false,
+      canToggle: true,
+    }]
+
+    const installations = await scanInstalledSkills([], roots)
+
+    expect(installations).toEqual(expect.arrayContaining([
+      expect.objectContaining({ path: topLevelSkill }),
+      expect.objectContaining({ path: nestedSkill }),
+    ]))
+    expect(installations).toHaveLength(2)
+  })
+
   it('discovers the shared user Skills roots loaded by OMP as read-only', async () => {
     const home = await tempHome()
     const installedPlugin = join(home, '.claude', 'plugins', 'cache', 'market', 'installed', '1.0.0')

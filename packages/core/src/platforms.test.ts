@@ -27,4 +27,20 @@ describe('BUILTIN_PLATFORMS', () => {
       })
     },
   )
+
+  it.each([
+    ['deepseek-harness', 'DeepSeek Harness', '~/.dsh/skills', '.dsh/skills', '~/.dsh'],
+    ['hermes', 'Hermes', '~/.hermes/skills', '.hermes/skills', '~/.hermes'],
+  ] as const)(
+    'registers %s with user and project Skills roots',
+    (id, displayName, userSkillsDir, projectSkillsDir, detectPath) => {
+      expect(BUILTIN_PLATFORMS).toContainEqual({
+        id,
+        displayName,
+        userSkillsDir,
+        projectSkillsDir,
+        detectPath,
+      })
+    },
+  )
 })

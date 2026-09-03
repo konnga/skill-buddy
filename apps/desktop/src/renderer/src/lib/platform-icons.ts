@@ -14,6 +14,7 @@ import doubaoIcon from '@/assets/platform-icons/doubao.webp'
 import geminiIcon from '@lobehub/icons-static-svg/icons/gemini-color.svg'
 import githubcopilotSvg from '@lobehub/icons-static-svg/icons/githubcopilot.svg?raw'
 import grokSvg from '@lobehub/icons-static-svg/icons/grok.svg?raw'
+import hermesIcon from '@/assets/platform-icons/hermes.png'
 import kimiSvg from '@lobehub/icons-static-svg/icons/kimi.svg?raw'
 import opencodeSvg from '@lobehub/icons-static-svg/icons/opencode.svg?raw'
 import ompIcon from '@/assets/platform-icons/omp.svg'
@@ -62,6 +63,8 @@ const ICONS: Record<string, PlatformIconDef> = {
   'wps-lingxi': { src: wpsLingxiIcon },
   kimi: { maskSrc: svgMask(kimiSvg) },
   zcode: { maskSrc: svgMask(zcodeSvg) },
+  'deepseek-harness': { src: deepseekIcon },
+  hermes: { src: hermesIcon },
 }
 
 export function platformIcon(id: string): PlatformIconDef {

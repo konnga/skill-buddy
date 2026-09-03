@@ -25,6 +25,8 @@
 | Kimi Code | `~/.kimi/skills/` | `.kimi/skills/` | `~/.kimi` | 待真机复核 |
 | ZCode | `~/.zcode/skills/` | `.zcode/skills/` | `~/.zcode` | 待真机复核 |
 | WPS 灵犀 | `<userData>/serverdir/user_skills/` | 无（桌面助手） | `<userData>` | 本机实测（macOS） |
+| DeepSeek Harness | `~/.dsh/skills/` | `.dsh/skills/` | `~/.dsh` | 已确认 |
+| Hermes | `~/.hermes/skills/` | `.hermes/skills/` | `~/.hermes` | 本机实测（macOS） |
 
 ## 平台备注
 
@@ -157,6 +159,15 @@ Skill 必须依据 `~/.claude/plugins/installed_plugins.json` 中的 `installPat
 - 内置目录暂按 ZCode CLI 的 home/workspace 命名接入：
   `~/.zcode/skills/` 与 `.zcode/skills/`
 - 当前环境未安装 ZCode，需在真机上复核自动检测与安装后可见性
+
+### Hermes Agent
+
+- 用户级目录为 `~/.hermes/skills/`，项目级目录为 `.hermes/skills/`。
+- Hermes 会按主题分类嵌套组织 Skill，例如
+  `software-development/systematic-debugging/SKILL.md`。SkillBuddy 使用专用适配器
+  递归发现这些目录，而不是只扫描 `skills/` 的直接子目录。
+- 新安装的 Skill 默认写入 `skills/<name>/`；已有嵌套 Skill 的启停与卸载会定位到
+  它的实际目录。
 
 ### WPS 灵犀
 - Electron 桌面助手，技能目录挂在 `app.getPath('userData')` 下，

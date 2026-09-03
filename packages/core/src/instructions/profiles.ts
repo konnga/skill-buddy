@@ -52,6 +52,7 @@ export const INSTRUCTION_PROFILES: InstructionRuleProfile[] = [
     ...base,
     key: surface('deepseek', 'harness', 'cli'),
     displayName: 'DeepSeek Harness',
+    platformId: 'deepseek-harness',
     globalPaths: [join(home, '.dsh', 'AGENTS.md')],
     projectFileCandidates: ['AGENTS.md', 'CLAUDE.md'],
     localOverlayCandidates: ['AGENTS.local.md', 'CLAUDE.local.md'],
