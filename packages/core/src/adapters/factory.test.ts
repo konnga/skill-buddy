@@ -5,6 +5,7 @@ import { CodexAdapter } from './codex-adapter.js'
 import { createPlatformAdapter } from './factory.js'
 import { DoubaoAdapter } from './doubao-adapter.js'
 import { LingxiAdapter } from './lingxi-adapter.js'
+import { HermesAdapter } from './hermes-adapter.js'
 import { OmpAdapter } from './omp-adapter.js'
 import { PlatformAdapter } from './platform-adapter.js'
 import { PiAdapter } from './pi-adapter.js'
@@ -28,6 +29,9 @@ describe('createPlatformAdapter', () => {
     )
     expect(createPlatformAdapter(BUILTIN_PLATFORMS.find((p) => p.id === 'wps-lingxi')!)).toBeInstanceOf(
       LingxiAdapter,
+    )
+    expect(createPlatformAdapter(BUILTIN_PLATFORMS.find((p) => p.id === 'hermes')!)).toBeInstanceOf(
+      HermesAdapter,
     )
   })
 

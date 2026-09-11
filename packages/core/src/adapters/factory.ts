@@ -3,6 +3,7 @@ import type { AgentAdapter, AgentId } from '../types.js'
 import { ClaudeCodeAdapter } from './claude-code-adapter.js'
 import { CodexAdapter } from './codex-adapter.js'
 import { DoubaoAdapter } from './doubao-adapter.js'
+import { HermesAdapter } from './hermes-adapter.js'
 import { LingxiAdapter } from './lingxi-adapter.js'
 import { OmpAdapter } from './omp-adapter.js'
 import { PiAdapter } from './pi-adapter.js'
@@ -16,6 +17,7 @@ const builtinFactories: Partial<Record<AgentId, AdapterFactory>> = {
   omp: (def, homeDir) => new OmpAdapter(def, homeDir),
   pi: (def, homeDir) => new PiAdapter(def, homeDir),
   doubao: (def, homeDir) => new DoubaoAdapter(def, homeDir),
+  hermes: (def, homeDir) => new HermesAdapter(def, homeDir),
   'wps-lingxi': (def, homeDir) => new LingxiAdapter(def, homeDir),
 }
 
