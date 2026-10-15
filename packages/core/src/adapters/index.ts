@@ -62,6 +62,10 @@ export {
   discoverClaudePluginRoots,
 } from './claude-code-adapter.js'
 export { CodexAdapter, discoverCodexSupplementalRoots } from './codex-adapter.js'
+export {
+  DeepSeekHarnessAdapter,
+  discoverDeepSeekHarnessSupplementalRoots,
+} from './deepseek-harness-adapter.js'
 export { DoubaoAdapter, discoverDoubaoSupplementalRoots } from './doubao-adapter.js'
 export { LingxiAdapter, discoverLingxiSupplementalRoots } from './lingxi-adapter.js'
 export { OmpAdapter, discoverOmpSupplementalRoots } from './omp-adapter.js'

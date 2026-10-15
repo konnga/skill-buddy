@@ -2,6 +2,7 @@ import type { PlatformDef } from '../platforms.js'
 import type { AgentAdapter, AgentId } from '../types.js'
 import { ClaudeCodeAdapter } from './claude-code-adapter.js'
 import { CodexAdapter } from './codex-adapter.js'
+import { DeepSeekHarnessAdapter } from './deepseek-harness-adapter.js'
 import { DoubaoAdapter } from './doubao-adapter.js'
 import { LingxiAdapter } from './lingxi-adapter.js'
 import { OmpAdapter } from './omp-adapter.js'
@@ -13,6 +14,7 @@ export type AdapterFactory = (def: PlatformDef, homeDir?: string) => AgentAdapte
 const builtinFactories: Partial<Record<AgentId, AdapterFactory>> = {
   'claude-code': (def, homeDir) => new ClaudeCodeAdapter(def, homeDir),
   codex: (def, homeDir) => new CodexAdapter(def, homeDir),
+  'deepseek-harness': (def, homeDir) => new DeepSeekHarnessAdapter(def, homeDir),
   omp: (def, homeDir) => new OmpAdapter(def, homeDir),
   pi: (def, homeDir) => new PiAdapter(def, homeDir),
   doubao: (def, homeDir) => new DoubaoAdapter(def, homeDir),

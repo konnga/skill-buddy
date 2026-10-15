@@ -56,6 +56,33 @@ describe('BUILTIN_PLATFORMS', () => {
     })
   })
 
+  it('registers DeepSeek Harness with personal and project Skills roots', () => {
+    expect(BUILTIN_PLATFORMS).toContainEqual({
+      id: 'deepseek-harness',
+      displayName: 'DeepSeek Harness',
+      userSkillsDir: '~/.dsh/skills',
+      projectSkillsDir: '.dsh/skills',
+      detectPath: '~/.dsh',
+      installPathsByOs: {
+        darwin: ['/Applications/DeepSeek Harness.app', '~/Applications/DeepSeek Harness.app'],
+      },
+      macBundleId: 'com.deepseek.dsh',
+      residualPathsByOs: {
+        darwin: ['~/Library/Application Support/@deepseek-ai/dsh-desktop'],
+      },
+    })
+  })
+
+  /**
+   * 平台 id 是各处按 id 查找的键（adapter 工厂、图标、设置页列表行 key）。
+   * 重复的 id 会让同一个平台在列表里出现两次、并让 `find` 只命中前一条 ——
+   * 给已存在的平台挪位置（重排数组）时最容易留下这种重复，所以在表这一层兜住。
+   */
+  it('keeps platform ids unique', () => {
+    const ids = BUILTIN_PLATFORMS.map((platform) => platform.id)
+    expect(new Set(ids).size).toBe(ids.length)
+  })
+
   it.each([
     ['pi', 'Pi', '~/.pi/agent/skills', '.pi/skills', '~/.pi/agent'],
     ['omp', 'OMP Agent', '~/.omp/agent/skills', '.omp/skills', '~/.omp/agent'],

@@ -81,8 +81,8 @@ export function resolvePlatformOsList(
  * 内置平台表。
  *
  * 关于 `installPathsByOs`：只有**能查到安装包**的 GUI 应用才声明它，目前覆盖
- * Cursor、Trae、豆包、WPS 灵犀、Google Antigravity 的 macOS 落点。以下平台
- * 刻意不声明，因此永不产生「应用已删除」提示：
+ * Cursor、Trae、豆包、WPS 灵犀、DeepSeek Harness、Google Antigravity 的 macOS
+ * 落点。以下平台刻意不声明，因此永不产生「应用已删除」提示：
  *
  * - CLI 类：claude-code、codex、gemini-cli、kimi、qwen-code、opencode、pi、omp、
  *   copilot（VS Code 扩展与 CLI）。它们没有可查的 GUI 包体（包管理器装的命令行
@@ -122,6 +122,46 @@ export const BUILTIN_PLATFORMS: readonly PlatformDef[] = [
       darwin: ['/Applications/Cursor.app', '~/Applications/Cursor.app'],
     },
     macBundleId: 'com.todesktop.230313mzl4w4u92',
+  },
+  {
+    /**
+     * 真机核实（本机装有 `@deepseek-ai/dsh` 与 `/Applications/DeepSeek Harness.app`；
+     * 以 harness 自带的 `@deepseek-ai/dsh-skill-filesystem` README 与扫描实现为准）。
+     *
+     * `dsh` 是 profile 启动器（`dsh --profile web|desktop|tui|headless`），各接入面
+     * 共用同一个 `$DSH_HOME`：技能、指令、会话都在那里。所以 web 端与桌面端是**同一个
+     * 平台的两个界面**，不是两个平台 —— 桌面端的 Electron userData 里没有技能目录，
+     * 只有 Cache/Cookies 这类运行时数据。
+     *
+     * 用户根是 `<dshHome>/skills`，`dshHome` 取 `$DSH_HOME`、默认 `~/.dsh`；项目根是
+     * `<repo-root>/.dsh/skills`。用户根会跳过 `.system` 子目录 —— 那是 harness 自己
+     * 所有的 skill，由适配器的 supplementalRoots 只读登记。
+     * `$DSH_BUNDLED_SKILL_DIR` 只有环境变量、没有默认落点，故不在此声明。
+     *
+     * 位置：技能侧的列表（侧边栏、安装目标、设置页平台区）直接按本数组顺序展示，
+     * 不做额外排序 —— 表头那一段（Claude Code → Codex → Cursor）是字母序，DeepSeek
+     * Harness 属于同一段拉丁字母序列，故排在 Cursor 之后。新增平台时先看清自己该落在
+     * 哪一段，别顺手追加到表尾。
+     */
+    id: 'deepseek-harness',
+    displayName: 'DeepSeek Harness',
+    userSkillsDir: '~/.dsh/skills',
+    projectSkillsDir: '.dsh/skills',
+    detectPath: '~/.dsh',
+    // 证据：`/Applications/DeepSeek Harness.app/Contents/Info.plist`
+    // （CFBundleName `DeepSeek Harness`、CFBundleIdentifier `com.deepseek.dsh`、0.2.0-rc.2）。
+    installPathsByOs: {
+      darwin: ['/Applications/DeepSeek Harness.app', '~/Applications/DeepSeek Harness.app'],
+    },
+    macBundleId: 'com.deepseek.dsh',
+    /**
+     * 桌面端的 Electron userData：只放缓存与本地状态，技能/指令不在里面（已实测）。
+     * 它随应用安装产生，应用被删后会留下，因此作为残留候选。
+     * 不要扩到父目录 `~/Library/Application Support/@deepseek-ai`。
+     */
+    residualPathsByOs: {
+      darwin: ['~/Library/Application Support/@deepseek-ai/dsh-desktop'],
+    },
   },
   {
     id: 'opencode',

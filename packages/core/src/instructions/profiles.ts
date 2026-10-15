@@ -50,8 +50,11 @@ export const INSTRUCTION_PROFILES: InstructionRuleProfile[] = [
   },
   {
     ...base,
-    key: surface('deepseek', 'harness', 'cli'),
+    // `dsh` 只是 profile 启动器，对外的主界面是桌面端与 web 端；两者共用同一份
+    // `~/.dsh`，所以指令侧只登记一个接入面，surfaceId 取主界面 `desktop`。
+    key: surface('deepseek', 'harness', 'desktop'),
     displayName: 'DeepSeek Harness',
+    platformId: 'deepseek-harness',
     globalPaths: [join(home, '.dsh', 'AGENTS.md')],
     projectFileCandidates: ['AGENTS.md', 'CLAUDE.md'],
     localOverlayCandidates: ['AGENTS.local.md', 'CLAUDE.local.md'],

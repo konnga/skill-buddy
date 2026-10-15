@@ -18,6 +18,7 @@ export type BuiltinAgentId =
   | 'kimi'
   | 'zcode'
   | 'wps-lingxi'
+  | 'deepseek-harness'
 
 /** An agent platform id: a built-in id (with autocomplete) or any custom string. */
 export type AgentId = BuiltinAgentId | (string & {})
