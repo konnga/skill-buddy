@@ -49,6 +49,7 @@ const ICONS: Record<string, PlatformIconDef> = {
   cursor: { maskSrc: svgMask(cursorSvg) },
   deepseek: { src: deepseekIcon },
   harness: { src: deepseekIcon },
+  'deepseek-harness': { src: deepseekIcon },
   'gemini-cli': { src: geminiIcon },
   grok: { maskSrc: svgMask(grokSvg) },
   'grok-build': { maskSrc: svgMask(grokSvg) },

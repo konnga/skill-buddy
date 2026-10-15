@@ -65,6 +65,8 @@ const platformSurfaces: Record<string, string> = {
   kimi: 'cli',
   zcode: 'editor',
   'wps-lingxi': 'desktop',
+  // dsh 是 profile 启动器，web 与桌面端是同一份 `~/.dsh` 的两个界面。
+  'deepseek-harness': 'web/desktop',
 }
 
 function targetKey(target: InstallTarget): string {
