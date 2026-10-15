@@ -1,3 +1,4 @@
+import { comparePlatformDisplayName } from '../platforms.js'
 import { aggregateMcpServers } from './aggregate.js'
 import { allMcpAdapters } from './adapters/index.js'
 import type { McpAdapter } from './adapters/types.js'
@@ -77,6 +78,10 @@ export async function scanMcpServers(
     }),
   )
   const installations: McpInstallation[] = installationGroups.flat()
+
+  // 展示顺序与技能侧一致，按显示名排序。稳定排序保持同一平台的多个接入面相邻
+  // （它们的显示名共享前缀），这条不变量的断言在 catalog.test.ts。
+  platforms.sort((left, right) => comparePlatformDisplayName(left.displayName, right.displayName))
 
   return {
     installations,

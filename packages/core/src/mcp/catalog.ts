@@ -124,12 +124,12 @@ function standardCapabilities(
 }
 
 /**
- * MCP 接入面的顺序 = 平台在 `BUILTIN_PLATFORMS` 中的先后顺序，同一平台的多个接入面相邻。
+ * MCP 接入面的声明顺序 = 平台在 `BUILTIN_PLATFORMS` 中的先后顺序，同一平台的多个接入面相邻。
  *
- * 该数组的声明顺序直接决定 `scanMcpServers` 返回的 `platforms` 顺序，进而决定
- * `McpTargetPicker` 等安装目标列表的展示顺序；技能侧（侧边栏、`PlatformTargetPicker`）
- * 走 `BUILTIN_PLATFORMS`。两处必须一致，否则同一个平台在两类列表里位置不同。
- * `catalog.test.ts` 有断言锁定该不变量 —— 新增平台时两处都要按同一位置插入。
+ * 声明顺序**不决定**用户看到的顺序：`scanMcpServers` 与技能侧的 `listPlatformStatus`
+ * 都在运行时用 `comparePlatformDisplayName` 按显示名排序。它仍然是「哪个平台有哪些
+ * 接入面」的登记顺序，两张表要保持一致，否则新增平台时容易漏掉一侧；`catalog.test.ts`
+ * 有断言锁定该不变量。
  */
 export const INITIAL_MCP_PROFILES: readonly McpPlatformProfile[] = [
   {

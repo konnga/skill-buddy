@@ -78,6 +78,25 @@ export function resolvePlatformOsList(
 }
 
 /**
+ * 列表展示顺序的统一比较器：按平台显示名的字母序。
+ *
+ * 声明顺序是「引入时间顺序」，运行时注册的自定义平台还会追加在末尾，所以任何
+ * 面向用户的平台列表都不能直接沿用声明顺序 —— 否则新平台永远排在最后（用户看到
+ * 的就是「DeepSeek Harness 在 WPS 灵犀之后」）。排序放在运行时聚合处
+ * （`listPlatformStatus` 与 `scanMcpServers`），而不是重排声明表：只有这样才能把
+ * 自定义平台一起排进去。
+ *
+ * 固定用 `en` 规则、忽略大小写：界面语言不该改变列表顺序。中英文名混排时汉字排在
+ * 拉丁字母之后（`豆包` 落在 `ZCode` 后面），这是刻意的取舍 —— 换成 `zh` 规则会把
+ * 汉字整段提到最前，反而不像「字母序」。
+ */
+export function comparePlatformDisplayName(left: string, right: string): number {
+  return platformNameCollator.compare(left, right)
+}
+
+const platformNameCollator = new Intl.Collator('en', { sensitivity: 'base', numeric: true })
+
+/**
  * 内置平台表。
  *
  * 关于 `installPathsByOs`：只有**能查到安装包**的 GUI 应用才声明它，目前覆盖
@@ -138,10 +157,10 @@ export const BUILTIN_PLATFORMS: readonly PlatformDef[] = [
      * 所有的 skill，由适配器的 supplementalRoots 只读登记。
      * `$DSH_BUNDLED_SKILL_DIR` 只有环境变量、没有默认落点，故不在此声明。
      *
-     * 位置：技能侧的列表（侧边栏、安装目标、设置页平台区）直接按本数组顺序展示，
-     * 不做额外排序 —— 表头那一段（Claude Code → Codex → Cursor）是字母序，DeepSeek
-     * Harness 属于同一段拉丁字母序列，故排在 Cursor 之后。新增平台时先看清自己该落在
-     * 哪一段，别顺手追加到表尾。
+     * 位置：本表的声明顺序**不决定**用户看到的顺序 —— 技能侧与 MCP 侧的列表都由
+     * `comparePlatformDisplayName` 在运行时按显示名排序。这里仍按「与相邻平台同属
+     * 一段字母序」的位置插入（本平台是拉丁字母名，就放在 Cursor 之后），只是为了
+     * 让声明表自己可读，别习惯性地追加到表尾。
      */
     id: 'deepseek-harness',
     displayName: 'DeepSeek Harness',

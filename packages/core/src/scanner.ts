@@ -2,6 +2,7 @@ import { promises as fs } from 'node:fs'
 import { homedir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { allAdapters, allPlatformDefs } from './adapters/index.js'
+import { comparePlatformDisplayName } from './platforms.js'
 import { detectPlatformResidue, filterSafeResidueCandidates, platformOwnedRoots } from './platform-residue.js'
 import {
   DISABLED_SKILL_FILE_NAME,
@@ -97,6 +98,10 @@ export async function listPlatformStatus(
             : [],
       }
     }),
+  ).then((statuses) =>
+    // 展示顺序按显示名排序，不跟着注册顺序走：侧边栏、设置页、安装目标三处都直接
+    // 渲染这个数组，声明顺序排出来是「引入时间顺序」，新平台会永远落在表尾。
+    statuses.sort((left, right) => comparePlatformDisplayName(left.displayName, right.displayName)),
   )
 }
 
