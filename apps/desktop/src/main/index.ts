@@ -74,6 +74,14 @@ app.on('second-instance', (_event, argv) => {
 })
 
 void app.whenReady().then(async () => {
+  // Chromium 只在浏览器进程能确定应用语言时才会给渲染进程带上 `--lang`；拿不到时
+  // 渲染进程的 locale 是空串（content/renderer/render_thread_impl.cc），Blink 的
+  // `DefaultLanguage()` 于是返回 null AtomicString（platform/language.cc）。Windows
+  // 上 `<details>` 会在自己的构造函数里用这个语言查 LCID（locale_win.cc），空指针
+  // 直接崩掉渲染进程 —— issue #17 的技能详情页白屏就是这个。这里显式补上，保证
+  // 渲染进程始终有非空语言。必须在窗口（也就是渲染进程）创建之前设置。
+  app.commandLine.appendSwitch('lang', app.getLocale() || 'en-US')
+
   await loadDesktopPreferences()
   if (process.platform === 'darwin') app.dock.setIcon(desktopIconPath())
 
