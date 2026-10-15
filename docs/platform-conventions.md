@@ -26,6 +26,7 @@
 | Kimi Code | `~/.kimi/skills/` | `.kimi/skills/` | `~/.kimi` | 待真机复核 |
 | ZCode | `~/.zcode/skills/` | `.zcode/skills/` | `~/.zcode` | 待真机复核 |
 | WPS 灵犀 | `<userData>/serverdir/user_skills/` | 无（桌面助手） | `<userData>` | 本机实测（macOS） |
+| DeepSeek Harness | `~/.dsh/skills/`（=`$DSH_HOME/skills`） | `.dsh/skills/` | `~/.dsh` | 本机实测（包自带文档 + 扫描实现） |
 
 ## 平台备注
 
@@ -207,6 +208,50 @@ Skill 必须依据 `~/.claude/plugins/installed_plugins.json` 中的 `installPat
   明文配置文件
 - macOS 为本机实测（1.2.36 / sandbox 3.23.0）；Windows 与 Linux 按 Electron
   userData 惯例推断，待真机复核
+
+### DeepSeek Harness（真机核实 2026-10-15：`@deepseek-ai/dsh` 自带包文档与扫描实现）
+
+> 依据不是官网，而是本机安装的 `@deepseek-ai/dsh`、`DeepSeek Harness.app`
+> 及其插件包 `@deepseek-ai/dsh-skill-filesystem` 的 README 与 `lib/index.js`。
+> 该包是 skill 发现逻辑的事实来源，比公开文档更准。
+
+- **web 端与桌面端是同一个平台的两个界面，不是两个平台。** `dsh` 是 profile
+  启动器（`dsh --profile web|desktop|tui|headless`），profile 目录在
+  `$DSH_HOME/profiles/` 下；技能、指令、会话都由同一个 `$DSH_HOME` 提供。
+  桌面端是 Electron 应用（`~/Library/Application Support/@deepseek-ai/dsh-desktop`
+  实测只有 Cache/Cookies/GPUCache 这类运行时数据，**没有**技能或 `AGENTS.md`），
+  它启动的正是 `profiles/desktop`。
+- 主目录由 `resolveDshHome()` 解析，优先级 `显式配置 > $DSH_HOME > ~/.dsh`。
+  用户级技能根是 `<dshHome>/skills`，即默认 `~/.dsh/skills/`。
+- 项目级根是 `<repo-root>/.dsh/skills/`。项目根按「最近的含 `.git` 的祖先目录」
+  判定，找不到时退回当前工作目录。
+- 另有共享根 `<repo-root>/.agents/skills/` 与 `~/.agents/skills/`，rank 低于
+  自己的 `.dsh` 根。前者已由 Codex 条目覆盖，不重复登记。
+- **`~/.dsh/skills/.system/` 归 harness 自己所有**：官方扫描实现对该根设
+  `skipSystem: true`，会跳过这个子目录。SkillBuddy 把它登记为只读 system 根
+  （`DeepSeekHarnessAdapter.supplementalRoots`），否则会被当成普通用户技能，
+  出现可改写、可删除的入口。
+- 技能形态支持两种：目录包 `<name>/SKILL.md`，以及**平铺文件 `<name>.md`**。
+  官方刻意不支持嵌套 `**/SKILL.md`。SkillBuddy 目前只识别目录包，平铺 `.md`
+  技能不会被列出（与其它平台一致的限制）。
+- frontmatter 必填 `name` / `description`（kebab-case），可选 `whenToUse`、
+  `metadata`、`disable-model-invocation`、`user-invocable`；后两个是调用策略，
+  驼峰拼写或非布尔值会让整条技能被拒绝，而不是降级。
+- `$DSH_BUNDLED_SKILL_DIR` 是内置技能根，但只有环境变量、没有默认落点，
+  因此无法在 `PlatformDef` 里声明，SkillBuddy 不覆盖它。
+- 桌面端包体已核实：`/Applications/DeepSeek Harness.app`，
+  CFBundleIdentifier `com.deepseek.dsh`（0.2.0-rc.2），因此声明了
+  `installPathsByOs` 与 `macBundleId`，可以区分「应用已删除、只剩数据目录」。
+  `~/Library/Application Support/@deepseek-ai/dsh-desktop` 只作为残留候选，
+  **不要**扩到父目录 `@deepseek-ai`。
+- MCP 侧未接入：服务器不是独立配置文件，而是 profile 的插件实例
+  （`name: '@deepseek-ai/dsh-mcp-client'`，配置在 `config:` 下，含
+  `serverName` / `transport` / `command` / `args` / `env` / `url` / `headers`）。
+  用户层要写进 `<dshHome>/profiles/<profile>/cordis.patch.yml`
+  （`cordis.yml` 是组合结果，官方注释明确要求改 patch 文件）—— 也就是说
+  MCP 配置是**按 profile 分开**的，桌面端与 web 端各有一份。要接入需要 YAML
+  编解码器，以及「按数组元素里的 `name` 过滤」的取值方式，现有
+  `json/jsonc/toml` 编解码器与 `nodePath` 对象取值都表达不了。
 
 ## 跨平台聚合的两个推论
 

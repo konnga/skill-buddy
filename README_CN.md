@@ -113,6 +113,7 @@ SkillBuddy 内置以下 Skills 目录约定：
 | Kimi Code | ✓ | ✓ |
 | ZCode | ✓ | ✓ |
 | WPS 灵犀 | ✓ | - |
+| DeepSeek Harness | ✓ | ✓ |
 
 不同平台的 MCP 配置格式、作用域和能力并不完全一致。SkillBuddy 会在界面中展示实际检测到的入口和能力，并在应用变更前进行校验。部分平台约定仍需要更多真机反馈，详见 [平台约定说明](docs/platform-conventions.md)。
 
