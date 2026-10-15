@@ -2,16 +2,28 @@
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { config as configureMarkdown, MdPreview } from 'md-editor-v3'
 import 'md-editor-v3/lib/preview.css'
+import 'katex/dist/katex.min.css'
+import katex from 'katex'
+import mermaid from 'mermaid'
 import hljs from '@/lib/highlight'
 import { sanitizeMarkdownHtml } from '@/lib/sanitize-markdown'
 import { normalizeMarkdownPreviewId } from '@/lib/markdown-preview'
 
 const props = defineProps<{ content: string; previewId?: string }>()
 
+/* md-editor-v3 默认从 unpkg 加载 katex/mermaid/echarts，会被应用的 CSP
+   （script-src 'self'）拦掉，桌面端也必须能离线渲染，所以传入本地实例。
+   echarts 在技能文档里基本用不上，由模板上的 no-echarts 关掉。 */
 configureMarkdown({
   editorExtensions: {
     highlight: {
       instance: hljs,
+    },
+    katex: {
+      instance: katex,
+    },
+    mermaid: {
+      instance: mermaid,
     },
   },
 })
@@ -41,6 +53,7 @@ const id = computed(() => normalizeMarkdownPreviewId(props.previewId))
     code-theme="github"
     :show-code-row-number="false"
     :sanitize="sanitizeMarkdownHtml"
+    no-echarts
     class="markdown-view"
   />
 </template>
