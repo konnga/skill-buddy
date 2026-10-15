@@ -179,6 +179,21 @@ const hasActiveFilters = computed(
 
 watch(viewMode, (value) => localStorage.setItem('skm.skillsViewMode', JSON.stringify(value)))
 
+/**
+ * 解析失败提示可以关掉，但**解析结果变化时要重新出现**：否则新出现的解析错误
+ * 会被上一次的「已关闭」静默吞掉。签名只取会变化的字段，重新扫描出同一批问题时
+ * 保持关闭状态。
+ */
+const warningsSignature = computed(() =>
+  scanWarnings.value
+    .map((warning) => `${warning.path}:${warning.line ?? ''}:${warning.message}`)
+    .join('\n'),
+)
+const warningsDismissed = shallowRef(false)
+watch(warningsSignature, () => {
+  warningsDismissed.value = false
+})
+
 function clearFilters(): void {
   search.value = ''
   platformFilter.value = null
@@ -235,12 +250,23 @@ function clearFilters(): void {
     />
 
     <div
-      v-if="scanWarnings.length > 0"
+      v-if="scanWarnings.length > 0 && !warningsDismissed"
       class="mx-6 mt-3 flex shrink-0 flex-col gap-1 rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm text-amber-700 dark:text-amber-300"
     >
       <div class="flex items-center gap-2 font-medium">
         <TriangleAlert class="size-4 shrink-0" />
-        <span>{{ t('app.skillParseWarnings', { n: scanWarnings.length }) }}</span>
+        <span class="flex-1">{{ t('app.skillParseWarnings', { n: scanWarnings.length }) }}</span>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          class="-my-1 size-7 shrink-0 cursor-pointer text-amber-700 hover:bg-amber-500/20 dark:text-amber-300"
+          :title="t('common.close')"
+          :aria-label="t('common.close')"
+          @click="warningsDismissed = true"
+        >
+          <X class="size-4" />
+        </Button>
       </div>
       <div v-for="warning in scanWarnings" :key="warning.path" class="break-all pl-6 text-xs">
         <span>{{ warning.path }}</span>
