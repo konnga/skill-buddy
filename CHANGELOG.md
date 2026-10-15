@@ -2,6 +2,40 @@
 
 All notable changes to SkillBuddy are documented in this file.
 
+## 0.1.14 - 2026-10-15
+
+### Added
+
+- Added DeepSeek Harness support: Skill directories, AI instruction rules, and residue detection for a removed app.
+- Added a close button to the Skill parse-failure banner; it comes back when the failing files change.
+
+### Improved
+
+- Bundled formula and diagram rendering.
+- Ordered platforms alphabetically.
+- The interface language now follows the system locale.
+
+### Fixed
+
+- Fixed the Windows renderer crash when opening a Skill detail page.
+
+---
+
+### 新增
+
+- 新增 DeepSeek Harness 支持，技能目录、指令规则，以及应用卸载后的残留检测。
+- 解析失败提示新增关闭按钮；失败文件变化时重新出现。
+
+### 优化
+
+- 内置公式与图表解析。
+- 平台按照字母顺序排序。
+- 界面语言跟随系统语言。
+
+### 修复
+
+- 修复 Windows 上打开技能详情页导致渲染进程崩溃的问题。
+
 ## 0.1.13 - 2026-09-12
 
 ### Added
