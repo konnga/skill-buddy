@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { DeepReadonly } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { FileCog, Pencil, Plus, Trash2 } from '@lucide/vue'
+import { FileCog, FolderInput, Pencil, Plus, Trash2 } from '@lucide/vue'
 import type { TeamLibraryCatalog } from '#shared/ipc'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -11,6 +11,7 @@ type InstructionEntry = DeepReadonly<TeamLibraryCatalog['instructions'][number]>
 const props = defineProps<{ instructions: readonly InstructionEntry[] }>()
 const emit = defineEmits<{
   create: []
+  local: []
   edit: [path: string]
   remove: [path: string]
 }>()
@@ -19,18 +20,29 @@ const { t } = useI18n()
 
 <template>
   <section class="flex flex-col gap-3">
-    <div class="flex items-center justify-between gap-3">
+    <div class="flex flex-wrap items-center justify-between gap-3">
       <p class="text-sm text-muted-foreground">
         {{ t('team.instructionTemplateHint') }}
       </p>
-      <Button
-        size="sm"
-        class="cursor-pointer"
-        @click="emit('create')"
-      >
-        <Plus class="size-4" />
-        {{ t('team.instructionTemplateCreate') }}
-      </Button>
+      <div class="flex items-center gap-2">
+        <Button
+          variant="outline"
+          size="sm"
+          class="cursor-pointer"
+          @click="emit('local')"
+        >
+          <FolderInput class="size-4" />
+          {{ t('team.localInstructionAdd') }}
+        </Button>
+        <Button
+          size="sm"
+          class="cursor-pointer"
+          @click="emit('create')"
+        >
+          <Plus class="size-4" />
+          {{ t('team.instructionTemplateCreate') }}
+        </Button>
+      </div>
     </div>
     <p
       v-if="props.instructions.length === 0"

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { DeepReadonly } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { PackagePlus, Pencil, Trash2 } from '@lucide/vue'
+import { FolderInput, PackagePlus, Pencil, Trash2 } from '@lucide/vue'
 import type { TeamLibraryCatalog } from '#shared/ipc'
 import { Button } from '@/components/ui/button'
 
@@ -10,6 +10,7 @@ type BundleEntry = DeepReadonly<TeamLibraryCatalog['bundles'][number]>
 const props = defineProps<{ bundles: readonly BundleEntry[] }>()
 const emit = defineEmits<{
   create: []
+  local: []
   edit: [item: BundleEntry]
   remove: [path: string]
 }>()
@@ -18,14 +19,16 @@ const { t } = useI18n()
 
 <template>
   <section class="flex flex-col gap-3">
-    <Button
-      size="sm"
-      class="w-fit cursor-pointer self-end"
-      @click="emit('create')"
-    >
-      <PackagePlus />
-      {{ t('team.bundleCreate') }}
-    </Button>
+    <div class="flex items-center justify-end gap-2">
+      <Button variant="outline" size="sm" class="cursor-pointer" @click="emit('local')">
+        <FolderInput />
+        {{ t('team.localBundleAdd') }}
+      </Button>
+      <Button size="sm" class="cursor-pointer" @click="emit('create')">
+        <PackagePlus />
+        {{ t('team.bundleCreate') }}
+      </Button>
+    </div>
     <p
       v-if="props.bundles.length === 0"
       class="rounded-md border border-dashed py-12 text-center text-sm text-muted-foreground"

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { DeepReadonly } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { LibraryBig, Pencil, ServerCog, Trash2 } from '@lucide/vue'
+import { FolderInput, LibraryBig, Pencil, ServerCog, Trash2 } from '@lucide/vue'
 import type { TeamLibraryCatalog } from '#shared/ipc'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -11,6 +11,7 @@ type McpEntry = DeepReadonly<TeamLibraryCatalog['mcpServers'][number]>
 const props = defineProps<{ mcpServers: readonly McpEntry[] }>()
 const emit = defineEmits<{
   market: []
+  local: []
   edit: [path: string]
   remove: [path: string]
 }>()
@@ -21,10 +22,16 @@ const { t } = useI18n()
   <section class="flex flex-col gap-3">
     <div class="flex flex-wrap items-center justify-between gap-3">
       <p class="text-sm text-muted-foreground">{{ t('team.mcpMarketHint') }}</p>
-      <Button size="sm" class="cursor-pointer" @click="emit('market')">
-        <LibraryBig />
-        {{ t('team.mcpMarketAdd') }}
-      </Button>
+      <div class="flex items-center gap-2">
+        <Button variant="outline" size="sm" class="cursor-pointer" @click="emit('local')">
+          <FolderInput />
+          {{ t('team.localMcpAdd') }}
+        </Button>
+        <Button size="sm" class="cursor-pointer" @click="emit('market')">
+          <LibraryBig />
+          {{ t('team.mcpMarketAdd') }}
+        </Button>
+      </div>
     </div>
     <p
       v-if="props.mcpServers.length === 0"

@@ -10,6 +10,10 @@ import TeamLibrarySetupPanel from '@/components/team/TeamLibrarySetupPanel.vue'
 import TeamPublishResult from '@/components/team/TeamPublishResult.vue'
 import TeamLibrarySkillsTab from '@/components/team/TeamLibrarySkillsTab.vue'
 import TeamLibraryWorkspaceHeader from '@/components/team/TeamLibraryWorkspaceHeader.vue'
+import TeamLocalBundleDialog from '@/components/team/TeamLocalBundleDialog.vue'
+import TeamLocalInstructionDialog from '@/components/team/TeamLocalInstructionDialog.vue'
+import TeamLocalMcpDialog from '@/components/team/TeamLocalMcpDialog.vue'
+import TeamLocalSkillDialog from '@/components/team/TeamLocalSkillDialog.vue'
 import TeamMcpEditorDialog from '@/components/team/TeamMcpEditorDialog.vue'
 import TeamInstructionEditorDialog from '@/components/team/TeamInstructionEditorDialog.vue'
 import TeamMcpMarketDialog from '@/components/team/TeamMcpMarketDialog.vue'
@@ -45,6 +49,13 @@ const {
   skillMarketOpen,
   skillMarketBusy,
   skillMarketError,
+  localSkillOpen,
+  localSkillBusy,
+  localSkillError,
+  localMcpOpen,
+  localInstructionOpen,
+  localInstructionBusy,
+  existingSkillNames,
   mcpMarketOpen,
   mcpMarketBusy,
   mcpMarketError,
@@ -54,14 +65,24 @@ const {
   saveSkill,
   editMcp,
   saveMcp,
+  openLocalMcp,
+  addLocalMcp,
   createInstruction,
   editInstruction,
   saveInstruction,
+  openLocalInstructions,
+  addLocalInstruction,
   createBundle,
   editBundle,
   saveBundle,
   closeBundleDialog,
+  localBundleOpen,
+  localBundleBusy,
+  openLocalBundles,
+  createBundleFromLocal,
   openSkillMarket,
+  openLocalSkills,
+  addLocalSkill,
   addMarketSkill,
   openMcpMarket,
   addMarketMcp,
@@ -114,6 +135,7 @@ async function discardDraft(): Promise<void> {
         v-if="activeTab === 'skills'"
         :skills="catalog?.skills ?? []"
         @market="openSkillMarket"
+        @local="openLocalSkills"
         @edit="editSkill"
         @remove="remove($event, t('team.assetSkill'))"
       />
@@ -121,6 +143,7 @@ async function discardDraft(): Promise<void> {
         v-else-if="activeTab === 'mcp'"
         :mcp-servers="catalog?.mcpServers ?? []"
         @market="openMcpMarket"
+        @local="openLocalMcp"
         @edit="editMcp"
         @remove="remove($event, t('team.assetMcp'))"
       />
@@ -128,6 +151,7 @@ async function discardDraft(): Promise<void> {
         v-else-if="activeTab === 'instructions'"
         :instructions="catalog?.instructions ?? []"
         @create="createInstruction"
+        @local="openLocalInstructions"
         @edit="editInstruction"
         @remove="remove($event, t('team.assetInstruction'))"
       />
@@ -135,6 +159,7 @@ async function discardDraft(): Promise<void> {
         v-else-if="activeTab === 'bundles'"
         :bundles="catalog?.bundles ?? []"
         @create="createBundle"
+        @local="openLocalBundles"
         @edit="editBundle"
         @remove="remove($event, t('team.assetBundle'))"
       />
@@ -190,12 +215,40 @@ async function discardDraft(): Promise<void> {
       @close="closeBundleDialog"
       @save="saveBundle"
     />
+    <TeamLocalBundleDialog
+      :open="localBundleOpen"
+      :busy="localBundleBusy"
+      :available-names="existingSkillNames"
+      @close="!localBundleBusy && (localBundleOpen = false)"
+      @select="createBundleFromLocal"
+    />
+    <TeamLocalMcpDialog
+      :open="localMcpOpen"
+      :busy="manager.busy.value"
+      :existing-names="existingMcpNames"
+      @close="localMcpOpen = false"
+      @select="addLocalMcp"
+    />
+    <TeamLocalInstructionDialog
+      :open="localInstructionOpen"
+      :busy="localInstructionBusy"
+      @close="!localInstructionBusy && (localInstructionOpen = false)"
+      @select="addLocalInstruction"
+    />
     <TeamSkillMarketDialog
       :open="skillMarketOpen"
       :busy="skillMarketBusy"
       :error="skillMarketError"
       @close="!skillMarketBusy && (skillMarketOpen = false)"
       @select="addMarketSkill"
+    />
+    <TeamLocalSkillDialog
+      :open="localSkillOpen"
+      :busy="localSkillBusy"
+      :error="localSkillError"
+      :existing-names="existingSkillNames"
+      @close="!localSkillBusy && (localSkillOpen = false)"
+      @select="addLocalSkill"
     />
     <TeamMcpMarketDialog
       :open="mcpMarketOpen"

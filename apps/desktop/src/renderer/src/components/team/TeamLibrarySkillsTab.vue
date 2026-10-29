@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { DeepReadonly } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { LibraryBig, Pencil, Sparkles, Trash2 } from '@lucide/vue'
+import { LibraryBig, FolderInput, Pencil, Sparkles, Trash2 } from '@lucide/vue'
 import type { TeamLibraryCatalog } from '#shared/ipc'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -11,6 +11,7 @@ type SkillEntry = DeepReadonly<TeamLibraryCatalog['skills'][number]>
 const props = defineProps<{ skills: readonly SkillEntry[] }>()
 const emit = defineEmits<{
   market: []
+  local: []
   edit: [path: string]
   remove: [path: string]
 }>()
@@ -21,10 +22,16 @@ const { t } = useI18n()
   <section class="flex flex-col gap-3">
     <div class="flex flex-wrap items-center justify-between gap-3">
       <p class="text-sm text-muted-foreground">{{ t('team.skillMarketHint') }}</p>
-      <Button size="sm" class="cursor-pointer" @click="emit('market')">
-        <LibraryBig />
-        {{ t('team.skillMarketAdd') }}
-      </Button>
+      <div class="flex items-center gap-2">
+        <Button variant="outline" size="sm" class="cursor-pointer" @click="emit('local')">
+          <FolderInput />
+          {{ t('team.localSkillAdd') }}
+        </Button>
+        <Button size="sm" class="cursor-pointer" @click="emit('market')">
+          <LibraryBig />
+          {{ t('team.skillMarketAdd') }}
+        </Button>
+      </div>
     </div>
     <p
       v-if="props.skills.length === 0"

@@ -1,6 +1,8 @@
 import { computed, ref, shallowRef, watch, type DeepReadonly } from 'vue'
 import { useI18n } from 'vue-i18n'
+import type { AggregatedMcpServer, AggregatedSkill } from '@skillbuddy/core'
 import type {
+  InstructionDocument,
   TeamLibraryBundleDraft,
   TeamLibraryInstructionDraft,
   TeamLibraryMcpDraft,
@@ -8,12 +10,31 @@ import type {
   TeamLibrarySkillDraft,
 } from '#shared/ipc'
 import { teamLibraryConfigKey } from '#shared/team-library'
-import { useSettings } from '@/composables/useSettings'
+import { useSettings, type SkillGroup } from '@/composables/useSettings'
+import { useSkills } from '@/composables/useSkills'
 import { useTeamLibraryManagement } from '@/composables/useTeamLibraryManagement'
 import { fetchMarketSkillSource, matchMarketSkill, type MarketItem } from '@/lib/market'
+import { showToast } from '@/composables/useToast'
 import { confirmDialog } from '@/composables/useConfirm'
 
 export type TeamLibraryTab = 'skills' | 'mcp' | 'instructions' | 'bundles' | 'policy' | 'changes'
+
+/** 团队库资源 ID 走主进程的 kebab-case 校验，并且直接用作文件名。 */
+function toKebab(value: string): string {
+  return value
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+}
+
+/** 取一个当前草稿里没占用的 ID，冲突时追加 -2、-3… */
+function uniqueId(base: string, fallback: string, taken: Set<string>): string {
+  const root = base || fallback
+  if (!taken.has(root)) return root
+  let index = 2
+  while (taken.has(`${root}-${index}`)) index += 1
+  return `${root}-${index}`
+}
 
 export interface TeamPolicyForm {
   requiredSkills: string
@@ -28,6 +49,7 @@ export interface TeamPolicyForm {
 export function useTeamLibraryWorkspaceEditor() {
   const { t } = useI18n()
   const { teamLibraries } = useSettings()
+  const { skills: localSkills, refresh: refreshLocalSkills } = useSkills()
   const manager = useTeamLibraryManagement()
   const activeTab = shallowRef<TeamLibraryTab>('skills')
   const libraryKey = shallowRef(
@@ -39,12 +61,20 @@ export function useTeamLibraryWorkspaceEditor() {
   const skillMarketOpen = shallowRef(false)
   const skillMarketBusy = shallowRef(false)
   const skillMarketError = shallowRef<string | null>(null)
+  const localSkillOpen = shallowRef(false)
+  const localSkillBusy = shallowRef(false)
+  const localSkillError = shallowRef<string | null>(null)
+  const localMcpOpen = shallowRef(false)
+  const localInstructionOpen = shallowRef(false)
+  const localInstructionBusy = shallowRef(false)
   const mcpMarketOpen = shallowRef(false)
   const mcpMarketBusy = shallowRef(false)
   const mcpMarketError = shallowRef<string | null>(null)
   const bundleDialogOpen = shallowRef(false)
   const instructionDialogOpen = shallowRef(false)
   const bundleError = shallowRef<string | null>(null)
+  const localBundleOpen = shallowRef(false)
+  const localBundleBusy = shallowRef(false)
   const policyScope = shallowRef('organization')
   const newTeamId = shallowRef('')
   const newTeamName = shallowRef('')
@@ -188,9 +218,73 @@ export function useTeamLibraryWorkspaceEditor() {
     if (await manager.saveMcp(input)) mcpDialogOpen.value = false
   }
 
+  function openLocalMcp(): void {
+    localMcpOpen.value = true
+  }
+
+  /**
+   * 本地 MCP 配置里的 name 未必符合团队库的 kebab-case 约束（且直接做文件名），
+   * 这里规范一下再预填，改过名会提示。
+   */
+  function addLocalMcp(server: AggregatedMcpServer): void {
+    localMcpOpen.value = false
+    const definition = server.installations[0]?.definition
+    if (!definition) {
+      showToast.error(t('team.localMcpMissingDefinition', { name: server.name }))
+      return
+    }
+    if (existingMcpNames.value.includes(server.name)) {
+      showToast.warning(t('team.duplicateDraftMcp', { name: server.name }))
+      return
+    }
+    const name = toKebab(server.name) || 'mcp-server'
+    if (name !== server.name) {
+      showToast.info(t('team.localMcpRenamed', { from: server.name, to: name }))
+    }
+    editingMcp.value = {
+      description: definition.description ?? '',
+      definition: { ...definition, name },
+    }
+    mcpDialogOpen.value = true
+  }
+
   function createInstruction(): void {
     editingInstruction.value = null
     instructionDialogOpen.value = true
+  }
+
+  function openLocalInstructions(): void {
+    localInstructionOpen.value = true
+  }
+
+  /**
+   * 本地指令文件按需读内容（扫描结果不带正文），再预填成团队库模板。
+   * target 取原文件名，导入后落到同名文件。
+   */
+  async function addLocalInstruction(document: InstructionDocument): Promise<void> {
+    if (!manager.workspace.value) return
+    localInstructionBusy.value = true
+    try {
+      const result = await window.skillsManager.readInstruction({ path: document.path })
+      if (result.truncated) {
+        showToast.warning(t('team.localInstructionTruncated', { name: document.fileName }))
+      }
+      const name = document.fileName.replace(/\.md$/i, '') || document.fileName
+      const taken = new Set((catalog.value?.instructions ?? []).map((item) => item.id))
+      editingInstruction.value = {
+        id: uniqueId(toKebab(name), 'instruction', taken),
+        name,
+        description: '',
+        target: document.fileName,
+        content: result.content,
+      }
+      localInstructionOpen.value = false
+      instructionDialogOpen.value = true
+    } catch (cause) {
+      showToast.error(cause instanceof Error ? cause.message : String(cause))
+    } finally {
+      localInstructionBusy.value = false
+    }
   }
 
   async function editInstruction(path: string): Promise<void> {
@@ -216,9 +310,120 @@ export function useTeamLibraryWorkspaceEditor() {
     bundleDialogOpen.value = true
   }
 
+  function openLocalBundles(): void {
+    localBundleOpen.value = true
+  }
+
+  /** 团队库岗位包 ID 必须是 kebab-case；中文技能包名转不出来时退回 bundle-N。 */
+  function bundleIdFrom(name: string): string {
+    const taken = new Set((catalog.value?.bundles ?? []).map((item) => item.id))
+    return uniqueId(toKebab(name), 'bundle', taken)
+  }
+
+  /**
+   * 本地技能包按 Skill 名称记录成员，团队库岗位包按目录路径引用。
+   *
+   * 草稿里已有的直接映射；草稿里没有但本机装了的，顺带导入一份（与 Skills 页
+   * 「从本地添加」同一条链路）；两边都没有的才记为缺失。
+   */
+  async function createBundleFromLocal(group: SkillGroup): Promise<void> {
+    if (!manager.workspace.value) return
+    localBundleBusy.value = true
+    try {
+      if (localSkills.value.length === 0) await refreshLocalSkills({ silent: true })
+      const pathByName = new Map(
+        (catalog.value?.skills ?? []).map((item) => [item.name.toLowerCase(), item.path]),
+      )
+      const localByName = new Map(localSkills.value.map((item) => [item.name.toLowerCase(), item]))
+      const skillPaths: string[] = []
+      const imported: string[] = []
+      const missing: string[] = []
+      for (const name of group.skills) {
+        const key = name.toLowerCase()
+        const existing = pathByName.get(key)
+        if (existing) {
+          skillPaths.push(existing)
+          continue
+        }
+        const local = localByName.get(key)
+        const sourcePath = local ? localSkillSource(local) : null
+        if (!sourcePath) {
+          missing.push(name)
+          continue
+        }
+        const result = await manager.importSkill({ sourcePath })
+        if (result) {
+          skillPaths.push(result.path)
+          imported.push(name)
+        } else {
+          missing.push(name)
+        }
+      }
+      if (imported.length > 0) {
+        showToast.success(t('team.localBundleImported', { n: imported.length }))
+      }
+      if (missing.length > 0) {
+        showToast.warning(
+          t('team.localBundleSkipped', { n: missing.length, names: missing.join('、') }),
+        )
+      }
+      editingBundle.value = {
+        id: bundleIdFrom(group.name),
+        name: group.name,
+        description: group.description ?? '',
+        skills: skillPaths,
+        mcp: [],
+      }
+      bundleError.value = null
+      localBundleOpen.value = false
+      bundleDialogOpen.value = true
+    } finally {
+      localBundleBusy.value = false
+    }
+  }
+
   function openSkillMarket(): void {
     skillMarketError.value = null
     skillMarketOpen.value = true
+  }
+
+  function openLocalSkills(): void {
+    localSkillError.value = null
+    localSkillOpen.value = true
+  }
+
+  /**
+   * 本地 Skill 可能同时装在多个 Agent 下，优先取可读写且启用的那份；
+   * 团队库导入需要的是包含 SKILL.md 的目录。
+   */
+  function localSkillSource(skill: AggregatedSkill): string | null {
+    const installation =
+      skill.installations.find((item) => !item.readOnly && item.enabled !== false) ??
+      skill.installations.find((item) => item.enabled !== false) ??
+      skill.installations[0]
+    return installation?.path ?? null
+  }
+
+  async function addLocalSkill(skill: AggregatedSkill): Promise<void> {
+    if (!manager.workspace.value) return
+    localSkillError.value = null
+    if (existingSkillNames.value.includes(skill.name)) {
+      localSkillError.value = t('team.duplicateDraftSkill', { name: skill.name })
+      return
+    }
+    const sourcePath = localSkillSource(skill)
+    if (!sourcePath) {
+      localSkillError.value = t('team.localSkillMissingPath', { name: skill.name })
+      return
+    }
+    localSkillBusy.value = true
+    try {
+      const mutation = await manager.importSkill({ sourcePath })
+      if (mutation) localSkillOpen.value = false
+      else localSkillError.value = manager.error.value
+    } finally {
+      localSkillBusy.value = false
+    }
   }
 
   function openMcpMarket(): void {
@@ -367,6 +572,13 @@ export function useTeamLibraryWorkspaceEditor() {
     skillMarketOpen,
     skillMarketBusy,
     skillMarketError,
+    localSkillOpen,
+    localSkillBusy,
+    localSkillError,
+    localMcpOpen,
+    localInstructionOpen,
+    localInstructionBusy,
+    existingSkillNames,
     mcpMarketOpen,
     mcpMarketBusy,
     mcpMarketError,
@@ -376,14 +588,24 @@ export function useTeamLibraryWorkspaceEditor() {
     saveSkill,
     editMcp,
     saveMcp,
+    openLocalMcp,
+    addLocalMcp,
     createInstruction,
     editInstruction,
     saveInstruction,
+    openLocalInstructions,
+    addLocalInstruction,
     createBundle,
     editBundle,
     saveBundle,
     closeBundleDialog,
+    localBundleOpen,
+    localBundleBusy,
+    openLocalBundles,
+    createBundleFromLocal,
     openSkillMarket,
+    openLocalSkills,
+    addLocalSkill,
     addMarketSkill,
     openMcpMarket,
     addMarketMcp,
