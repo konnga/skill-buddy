@@ -50,7 +50,7 @@ const branchModel = computed({
     <div class="mt-5 grid gap-3 sm:grid-cols-2">
       <label class="grid gap-1.5 text-sm font-medium">
         {{ t('team.managementLibrary') }}
-        <Select v-model="libraryModel" :options="props.libraryOptions" />
+        <Select v-model="libraryModel" :options="props.libraryOptions" class="h-9" />
       </label>
       <label class="grid gap-1.5 text-sm font-medium">
         {{ t('team.managementBranch') }}
