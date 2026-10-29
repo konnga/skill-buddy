@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, shallowRef, type DeepReadonly } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { FileDiff, FolderOpen, GitPullRequest, RotateCcw } from '@lucide/vue'
+import { ChevronDown, FileCode, FileDiff, FolderOpen, GitPullRequest, RotateCcw } from '@lucide/vue'
 import type { TeamContributionDiff, TeamContributionPublishResult } from '#shared/ipc'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -17,6 +17,10 @@ const emit = defineEmits<{ publish: [title: string, body: string]; open: []; dis
 const { t } = useI18n()
 const title = shallowRef(t('team.managementDefaultTitle'))
 const body = shallowRef(t('team.managementDefaultBody'))
+/** 变更文件可能几十个，默认展开但允许收起，方便往下看提交表单。 */
+const filesOpen = shallowRef(true)
+/** 差异正文很长，默认收起。 */
+const patchOpen = shallowRef(false)
 const canPublish = computed(() => Boolean(props.diff?.files.length && !props.diff?.issues?.length && title.value.trim()))
 
 </script>
@@ -39,8 +43,19 @@ const canPublish = computed(() => Boolean(props.diff?.files.length && !props.dif
     </div>
 
     <div v-if="diff?.files.length" class="overflow-hidden rounded-md border">
-      <div class="flex items-center gap-2 border-b bg-muted/25 px-3 py-2 text-sm font-medium"><FileDiff class="size-4" />{{ t('team.pendingFiles', { n: diff.files.length }) }}</div>
-      <ul class="divide-y">
+      <button
+        type="button"
+        class="flex w-full cursor-pointer items-center gap-2 bg-muted/25 px-3 py-2 text-sm font-medium transition-colors hover:bg-muted/40"
+        :aria-expanded="filesOpen"
+        @click="filesOpen = !filesOpen"
+      >
+        <FileDiff class="size-4 shrink-0" />
+        <span class="min-w-0 flex-1 truncate text-left">{{ t('team.pendingFiles', { n: diff.files.length }) }}</span>
+        <ChevronDown
+          :class="['size-4 shrink-0 text-muted-foreground transition-transform', !filesOpen && '-rotate-90']"
+        />
+      </button>
+      <ul v-if="filesOpen" class="divide-y border-t">
         <li v-for="file in diff.files" :key="file.path" class="flex items-center gap-3 px-3 py-2 text-sm">
           <Badge variant="outline">{{ file.status }}</Badge><code class="truncate text-xs">{{ file.path }}</code>
         </li>
@@ -48,10 +63,21 @@ const canPublish = computed(() => Boolean(props.diff?.files.length && !props.dif
     </div>
     <p v-else class="rounded-md border border-dashed py-12 text-center text-sm text-muted-foreground">{{ t('team.noChanges') }}</p>
 
-    <details v-if="diff?.patch" class="rounded-md border">
-      <summary class="cursor-pointer px-3 py-2 text-sm font-medium">{{ t('team.viewDiff') }}</summary>
-      <pre class="max-h-80 overflow-auto border-t bg-muted/20 px-3 py-3 text-xs leading-5">{{ diff.patch }}</pre>
-    </details>
+    <div v-if="diff?.patch" class="overflow-hidden rounded-md border">
+      <button
+        type="button"
+        class="flex w-full cursor-pointer items-center gap-2 bg-muted/25 px-3 py-2 text-sm font-medium transition-colors hover:bg-muted/40"
+        :aria-expanded="patchOpen"
+        @click="patchOpen = !patchOpen"
+      >
+        <FileCode class="size-4 shrink-0" />
+        <span class="min-w-0 flex-1 truncate text-left">{{ t('team.viewDiff') }}</span>
+        <ChevronDown
+          :class="['size-4 shrink-0 text-muted-foreground transition-transform', !patchOpen && '-rotate-90']"
+        />
+      </button>
+      <pre v-if="patchOpen" class="max-h-80 overflow-auto border-t bg-muted/20 px-3 py-3 text-xs leading-5">{{ diff.patch }}</pre>
+    </div>
 
     <div class="grid gap-3 rounded-md border px-4 py-4">
       <label class="grid gap-1.5 text-sm font-medium">{{ t('team.contributionTitle') }}<Input v-model="title" /></label>
