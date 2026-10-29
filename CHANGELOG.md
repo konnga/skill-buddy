@@ -2,6 +2,34 @@
 
 All notable changes to SkillBuddy are documented in this file.
 
+## 0.1.15 - 2026-10-29
+
+### Added
+
+- Team library resources can be added from what already exists on this machine: Skills, MCP servers, instruction templates, and role bundles. Picking a local bundle also imports its member Skills that are not in the library yet.
+
+### Improved
+
+- The pending file list and the diff panel in the changes tab can now be collapsed, so a long list no longer pushes the publish form out of view.
+
+### Fixed
+
+- Fixed the team library selector overflowing its grid column and covering the adjacent input when the repository URL was long.
+
+---
+
+### 新增
+
+- 团队库支持从本机已有内容添加资源：Skills、MCP Servers、指令模板、岗位包。选择本地技能包时，会把其中尚未加入团队库的 Skill 一并导入。
+
+### 优化
+
+- 变更页的待发布文件列表与文件差异面板支持折叠，长列表不再把提交表单挤到屏幕外。
+
+### 修复
+
+- 修复团队库选择器在仓库地址较长时溢出列宽、遮挡右侧输入框的问题。
+
 ## 0.1.14 - 2026-10-15
 
 ### Added
