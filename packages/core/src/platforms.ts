@@ -108,7 +108,7 @@ const platformNameCollator = new Intl.Collator('en', { sensitivity: 'base', nume
  *   程序没有稳定落点）。
  * - zcode：`~/.zcode` 同时被 GUI 与 `~/.zcode/cli` 的 agent 使用（日志至今仍在写），
  *   拿「GUI 包体不存在」推断整个目录是残留会产生误报。
- * - workbuddy：`~/.workbuddy` 是宿主运行时自己的数据目录（含 skills 与运行时二进制），
+ * - workbuddy / workbuddy-ai：各自的数据目录含 skills 与运行时二进制，
  *   把它做成可删目标的风险远大于收益。
  * - trae-cn / codebuddy / 豆包之外的平台：本机没有安装痕迹，无法核实包名，不猜。
  */
@@ -286,12 +286,18 @@ export const BUILTIN_PLATFORMS: readonly PlatformDef[] = [
   {
     id: 'workbuddy',
     displayName: 'WorkBuddy',
-    // Desktop assistant — no per-project scope. Deliberately the
-    // 使用官方教程约定的路径，不采用第三方市场缓存目录
-    // subdir (their issue #343). Pending real-machine verification.
+    /** 本机 WorkBuddy 5.9.3 的 product.json 与 Skills 扫描代码确认此目录。 */
     userSkillsDir: '~/.workbuddy/skills',
     projectSkillsDir: null,
     detectPath: '~/.workbuddy',
+  },
+  {
+    id: 'workbuddy-ai',
+    displayName: 'WorkBuddy AI',
+    /** 国际版 5.9.4 的 dataFolderName / customUserDataDir 均为 `.workbuddy-ai`。 */
+    userSkillsDir: '~/.workbuddy-ai/skills',
+    projectSkillsDir: null,
+    detectPath: '~/.workbuddy-ai',
   },
   {
     id: 'doubao',

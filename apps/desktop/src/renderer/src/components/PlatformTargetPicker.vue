@@ -61,6 +61,7 @@ const platformSurfaces: Record<string, string> = {
   'trae-cn': 'editor',
   codebuddy: 'cli',
   workbuddy: 'desktop',
+  'workbuddy-ai': 'desktop',
   doubao: 'desktop',
   kimi: 'cli',
   zcode: 'editor',

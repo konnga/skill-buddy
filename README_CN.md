@@ -109,6 +109,7 @@ SkillBuddy 内置以下 Skills 目录约定：
 | CodeBuddy | ✓ | ✓ |
 | Trae / Trae CN | ✓ | ✓ |
 | WorkBuddy | ✓ | - |
+| WorkBuddy AI | ✓ | - |
 | 豆包 | ✓ | - |
 | Kimi Code | ✓ | ✓ |
 | ZCode | ✓ | ✓ |
@@ -122,7 +123,7 @@ SkillBuddy 内置以下 Skills 目录约定：
 **AI 指令**页面用于管理 AI 工具在会话开始时读取的项目规则与上下文文件 —— 也就是平时散落在 `AGENTS.md`、`CLAUDE.md`、`GEMINI.md`、`CODEBUDDY.md` 和各工具规则目录中的那些文件。
 
 - **两种作用域**：用户主目录下的全局指令文件，以及已登记项目内部的指令文件。
-- **分工具建模**：每个工具的入口文件名、同目录优先级、本地覆盖文件（`AGENTS.local.md`、`CODEBUDDY.local.md`）、override 文件（`AGENTS.override.md`）、规则目录和回退文件都单独登记。首期覆盖 Codex、Cursor、Claude Code、DeepSeek Harness、OpenCode、Pi Coding Agent、CodeBuddy Code、Google Antigravity、Gemini CLI、ZCode、Grok Build 和 WorkBuddy。
+- **分工具建模**：每个工具的入口文件名、同目录优先级、本地覆盖文件（`AGENTS.local.md`、`CODEBUDDY.local.md`）、override 文件（`AGENTS.override.md`）、规则目录和回退文件都单独登记。首期覆盖 Codex、Cursor、Claude Code、DeepSeek Harness、OpenCode、Pi Coding Agent、CodeBuddy Code、Google Antigravity、Gemini CLI、ZCode、Grok Build、WorkBuddy 和 WorkBuddy AI。
 - **生效链**：指定工具和目录后，可以看到真正生效的文件顺序 —— 先全局文件，再从仓库根逐级向下到该目录 —— 并标注哪些是回退来源、被更高优先级文件遮蔽，或需要额外配置后才会生效。
 - **诊断**：失效或越出项目的链接、`AGENTS.md` 与 `CLAUDE.md` 的内容漂移、内容重复的文件、无法解析的 `@path` 导入，都会按严重级别列出，可自动修复的会单独标记。
 - **跨工具桥接**：项目只维护 `AGENTS.md` 时，可以创建 Claude Code 桥接文件来导入它；已经带有独立规则的 `CLAUDE.md` 不会被覆盖。

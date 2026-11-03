@@ -109,6 +109,7 @@ SkillBuddy includes built-in Skill directory conventions for:
 | CodeBuddy | ✓ | ✓ |
 | Trae / Trae CN | ✓ | ✓ |
 | WorkBuddy | ✓ | - |
+| WorkBuddy AI | ✓ | - |
 | Doubao | ✓ | - |
 | Kimi Code | ✓ | ✓ |
 | ZCode | ✓ | ✓ |
@@ -122,7 +123,7 @@ MCP formats, scopes, and capabilities vary by platform. SkillBuddy displays the 
 The **AI Instructions** page manages the project rule and context files that AI tools read at session start — the files that otherwise stay scattered across `AGENTS.md`, `CLAUDE.md`, `GEMINI.md`, `CODEBUDDY.md`, and per-tool rule directories.
 
 - **Two scopes**: global instruction files under your home directory, and instruction files anywhere inside the projects you have registered.
-- **Per-tool conventions**: each tool's entry file, same-directory precedence, local overlays (`AGENTS.local.md`, `CODEBUDDY.local.md`), overrides (`AGENTS.override.md`), rule directories, and fallback files are modelled separately. Covered at launch: Codex, Cursor, Claude Code, DeepSeek Harness, OpenCode, Pi Coding Agent, CodeBuddy Code, Google Antigravity, Gemini CLI, ZCode, Grok Build, and WorkBuddy.
+- **Per-tool conventions**: each tool's entry file, same-directory precedence, local overlays (`AGENTS.local.md`, `CODEBUDDY.local.md`), overrides (`AGENTS.override.md`), rule directories, and fallback files are modelled separately. Covered at launch: Codex, Cursor, Claude Code, DeepSeek Harness, OpenCode, Pi Coding Agent, CodeBuddy Code, Google Antigravity, Gemini CLI, ZCode, Grok Build, WorkBuddy, and WorkBuddy AI.
 - **Effective chains**: for a tool and a directory, see the ordered list of files that actually apply — global files first, then project files from the repository root down to that directory — including entries that are fallbacks, shadowed by a higher-precedence file, or waiting for additional tool configuration.
 - **Diagnostics**: broken or out-of-project links, `AGENTS.md` and `CLAUDE.md` content drift, duplicated files, and `@path` imports that do not resolve are reported with a severity, and fixable findings are marked as such.
 - **Cross-tool bridging**: when a project maintains only `AGENTS.md`, SkillBuddy can create the Claude Code bridge that imports it. A `CLAUDE.md` that already carries its own rules is left untouched instead of being overwritten.

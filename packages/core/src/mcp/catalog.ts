@@ -464,32 +464,38 @@ export const INITIAL_MCP_PROFILES: readonly McpPlatformProfile[] = [
       ],
     }),
   ),
-  {
-    agent: 'workbuddy',
-    surface: 'desktop',
-    displayName: 'WorkBuddy',
-    schema: 'standard',
-    capabilities: standardCapabilities({ scopes: ['user'] }),
-    detectPaths: (homeDir) => [join(homeDir, '.workbuddy')],
-    sourceTemplates: (homeDir) => [
+  ...(['workbuddy', 'workbuddy-ai'] as const).flatMap((agent): McpPlatformProfile[] => {
+    const displayName = agent === 'workbuddy' ? 'WorkBuddy' : 'WorkBuddy AI'
+    return [
       {
-        scope: 'user',
-        path: join(homeDir, '.workbuddy', '.mcp.json'),
-        format: 'json',
-        nodePath: ['mcpServers'],
-        origin: 'user',
+        agent,
+        surface: 'desktop',
+        displayName,
+        schema: 'standard',
+        capabilities: standardCapabilities({ scopes: ['user'] }),
+        detectPaths: (homeDir) => [join(homeDir, `.${agent}`)],
+        /** 两版使用同一文件优先级，但目录独立；均不存在时新建 `.mcp.json`。 */
+        sourceTemplates: (homeDir) =>
+          ['.mcp.json', 'mcp.json'].map((filename): McpSourceTemplate => ({
+            scope: 'user',
+            path: join(homeDir, `.${agent}`, filename),
+            format: 'json',
+            nodePath: ['mcpServers'],
+            origin: 'user',
+            fallbackGroup: `${agent}:user`,
+          })),
       },
-    ],
-  },
-  {
-    agent: 'workbuddy',
-    surface: 'connector',
-    displayName: 'WorkBuddy Connector',
-    schema: 'standard',
-    capabilities: standardCapabilities({ management: 'read-only', scopes: ['user'] }),
-    detectPaths: (homeDir) => [join(homeDir, '.workbuddy')],
-    sourceTemplates: () => [],
-  },
+      {
+        agent,
+        surface: 'connector',
+        displayName: `${displayName} Connector`,
+        schema: 'standard',
+        capabilities: standardCapabilities({ management: 'read-only', scopes: ['user'] }),
+        detectPaths: (homeDir) => [join(homeDir, `.${agent}`)],
+        sourceTemplates: () => [],
+      },
+    ]
+  }),
   {
     agent: 'kimi',
     surface: 'cli',

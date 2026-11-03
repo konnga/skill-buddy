@@ -70,8 +70,9 @@ export function deriveEffectiveInstructionChain(
     surfaceKey(binding.surface) === surfaceKey(surface) && binding.role === 'requires-config',
   ))
   if (requiresConfig) warnings.push({ code: 'requires-config', severity: 'info', message: '发现需要工具配置后才会生效的候选指令', paths: [], fixable: false })
-  if (profile.key.productId === 'workbuddy') warnings.push({ code: 'unsupported', severity: 'info', message: '该工具没有已验证的项目指令文件机制', paths: [], fixable: false })
-  if (chain.length === 0 && profile.key.productId !== 'workbuddy') warnings.push({ code: 'no-instructions', severity: 'warning', message: '目标目录没有发现该工具的指令文件', paths: [target], fixable: false })
+  const unsupportedProjectInstructions = ['workbuddy', 'workbuddy-ai'].includes(profile.key.productId)
+  if (unsupportedProjectInstructions) warnings.push({ code: 'unsupported', severity: 'info', message: '该工具没有已验证的项目指令文件机制', paths: [], fixable: false })
+  if (chain.length === 0 && !unsupportedProjectInstructions) warnings.push({ code: 'no-instructions', severity: 'warning', message: '目标目录没有发现该工具的指令文件', paths: [target], fixable: false })
   // community / unknown 已在上面提前返回，此处只会命中 verified：给出链但标注证据等级。
   if (profile.evidence !== 'official') warnings.push({ code: 'unverified-rule', severity: 'info', message: `规则证据等级：${profile.evidence}`, paths: [], fixable: false })
   return { surface, projectRoot: root, targetDirectory: target, documents: chain, warnings, includesGlobal: globalDocuments.length > 0 }

@@ -14,6 +14,7 @@ export type BuiltinAgentId =
   | 'trae-cn'
   | 'codebuddy'
   | 'workbuddy'
+  | 'workbuddy-ai'
   | 'doubao'
   | 'kimi'
   | 'zcode'

@@ -83,6 +83,25 @@ describe('effective instruction chains', () => {
     expect(chain.documents.map((item) => item.path)).toEqual([join(realNested, 'CLAUDE.md')])
   })
 
+  it.each(['workbuddy', 'workbuddy-ai'] as const)(
+    '%s recognizes its desktop surface while keeping project instructions unsupported',
+    async (productId) => {
+      const root = await createProject()
+      await fs.writeFile(join(root, 'AGENTS.md'), 'shared instructions\n')
+      const scan = await scanInstructionDocuments([root], { includeGlobal: false })
+      const realRoot = await fs.realpath(root)
+      const surface = { vendorId: 'tencent', productId, surfaceId: 'desktop' }
+      expect(findInstructionProfile(surface)?.platformId).toBe(productId)
+      expect(
+        scan.documents.find((document) => document.fileName === 'AGENTS.md')?.bindings,
+      ).toContainEqual(expect.objectContaining({ surface, role: 'unsupported' }))
+
+      const chain = deriveEffectiveInstructionChain(surface, realRoot, realRoot, scan.documents)
+      expect(chain.documents).toEqual([])
+      expect(chain.warnings.map((warning) => warning.code)).toEqual(['unsupported'])
+    },
+  )
+
   it('blocks targets outside the project and unknown surfaces', async () => {
     const root = await createProject()
     const scan = await scanInstructionDocuments([root], { includeGlobal: false })

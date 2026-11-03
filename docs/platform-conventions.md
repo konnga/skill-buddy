@@ -14,7 +14,8 @@
 | OpenCode | `~/.config/opencode/skills/` | `.opencode/skills/` | `~/.config/opencode` | 官方 |
 | Pi | `~/.pi/agent/skills/` | `.pi/skills/` | `~/.pi/agent` | 官方 |
 | OMP Agent（oh-my-pi） | `getAgentDir()/skills/`（默认 `~/.omp/agent/skills/`） | `.omp/skills/` | `getAgentDir()` | 官方 |
-| WorkBuddy | `~/.workbuddy/skills/` | 无（桌面助手，无项目概念） | `~/.workbuddy` | 多来源一致（非官方一手） |
+| WorkBuddy | `~/.workbuddy/skills/` | 暂未适配 | `~/.workbuddy` | 本机核实（5.9.3 安装包与扫描实现） |
+| WorkBuddy AI（国际版） | `~/.workbuddy-ai/skills/` | 暂未适配 | `~/.workbuddy-ai` | 本机核实（5.9.4 安装包与扫描实现） |
 | GitHub Copilot | `~/.copilot/skills/` | `.github/skills/` | `~/.copilot` | 官方 |
 | Gemini CLI | `~/.gemini/skills/` | `.gemini/skills/` | `~/.gemini` | 官方 |
 | Google Antigravity | `~/.gemini/config/skills/` | `.agents/skills/`（含 `.agent/`/`_agents/`/`_agent/`） | `~/.gemini/config` | 本机实测（应用自带文档 + 二进制） |
@@ -99,16 +100,33 @@ Skill 必须依据 `~/.claude/plugins/installed_plugins.json` 中的 `installPat
 - 自动检测跟随 Pi 的 `~/.pi/agent` 和 OMP 当前 profile 的 `getAgentDir()`；两者均
   使用标准 `SKILL.md` 目录格式。
 
-### WorkBuddy（腾讯 CodeBuddy 产品线桌面助手）
+### WorkBuddy / WorkBuddy AI（国内版与国际版）
 
-- 官方文档只讲界面操作不写路径；`~/.workbuddy/skills/` 来自多个独立
-  中文教程（腾讯云社区/苏米客/CSDN），一致但非一手
-- 部分公开实现写入 `~/.workbuddy/skills-marketplace/skills`
-  （其源码 tool_adapters.rs），与所有教程不一致——疑为其 issue #343
-  「WorkBuddy 识别不到」的根因。**我们采用教程一致的 `~/.workbuddy/skills/`，
-  待有真机后实测验证**
-- 单一来源提到 frontmatter 需 `agent_created: true` WorkBuddy 才能后续
-  修改该 skill——未采信（单来源），待实测后决定是否写入
+- 2026-11-03 核实本机 macOS 安装包：WorkBuddy 5.9.3 的 `cli/product.json`
+  声明 `dataFolderName: ".workbuddy"`；WorkBuddy AI 5.9.4 声明
+  `dataFolderName: ".workbuddy-ai"`，其 `config.customUserDataDir` 也为 `.workbuddy-ai`。
+- 两版使用同一 Skills 目录规则：`<dataFolderName>/skills/`，因此分别注册为
+  `workbuddy` 与 `workbuddy-ai`，各自扫描和安装，项目级 Skills 暂未适配。
+
+- MCP 使用标准 JSON 的 `mcpServers` 节点，各自数据目录内按 `.mcp.json` →
+  `mcp.json` 的顺序选择首个已存在配置；都不存在时以 `.mcp.json` 为写入目标。
+- 运行时还支持旧的 `~/.codebuddy.json` 兼容回退；本项目将该文件保留为
+  CodeBuddy 的兼容来源，不将它同时归入两个 WorkBuddy 平台。
+- Connector 接入面只读；项目指令机制保持未验证状态，不生成指令桥接目标。
+- macOS Bundle ID 分别为 `com.tencent.workbuddy.mac` 与
+  `com.workbuddy.workbuddy-ai`。两版运行时目录含二进制等应用数据，未开放残留清理。
+
+默认目录由系统用户主目录加产品目录名组成；运行时和适配器都使用 `homedir()`
+与 `path.join()`，不会将 macOS 的 `/Users/...` 路径写死到其它系统。
+
+| 系统 | WorkBuddy 数据目录 | WorkBuddy AI 数据目录 |
+|---|---|---|
+| macOS | `~/.workbuddy` | `~/.workbuddy-ai` |
+| Windows | `%USERPROFILE%\.workbuddy` | `%USERPROFILE%\.workbuddy-ai` |
+| Linux | `~/.workbuddy` | `~/.workbuddy-ai` |
+
+各系统的 Skills 均在数据目录的 `skills` 子目录，MCP 文件名优先级也保持一致。
+Windows、Linux 路径依据共用运行时代码核实，尚未进行这两个系统的真机验收。
 
 ### GitHub Copilot（docs.github.com，2026-04 agent mode 铺开 / 2026-07 code review GA）
 

@@ -60,6 +60,8 @@ describe('MCP 平台目录', () => {
         'zcode:agents-compat',
         'workbuddy:desktop',
         'workbuddy:connector',
+        'workbuddy-ai:desktop',
+        'workbuddy-ai:connector',
         'gemini-cli:cli',
         'copilot:cli',
         'copilot:vscode',
@@ -221,16 +223,98 @@ describe('MCP 平台目录', () => {
     ])
   })
 
+  it.each(['workbuddy', 'workbuddy-ai'] as const)(
+    '%s 只选择本版的首个已存在 MCP 配置，缺省时新建 .mcp.json',
+    async (agent) => {
+      const home = await fs.mkdtemp(join(tmpdir(), `skillbuddy-${agent}-priority-`))
+      temporaryRoots.push(home)
+      const adapter = new PlatformMcpAdapter(profile(agent, 'desktop'), home)
+      const directory = join(home, `.${agent}`)
+      const primary = join(directory, '.mcp.json')
+      const backup = join(directory, 'mcp.json')
+      const [initial] = await adapter.configSources()
+      expect(initial?.configPath).toBe(primary)
+      expect(initial?.exists).toBe(false)
+      expect(await adapter.detect()).toBe(false)
+
+      await fs.mkdir(directory)
+      await fs.writeFile(backup, '{"keep":true,"mcpServers":{}}')
+      const [fallback] = await adapter.configSources()
+      expect(fallback?.configPath).toBe(backup)
+      expect(fallback?.exists).toBe(true)
+      const mutation = await adapter.prepareUpsert(
+        {
+          name: 'remote',
+          transport: { kind: 'streamable-http', url: 'https://example.com/mcp', headers: {} },
+          requiredSecrets: [],
+        },
+        { agent, surface: 'desktop', scope: 'user' },
+      )
+      expect(mutation.source.configPath).toBe(backup)
+      expect(JSON.parse(mutation.afterText).keep).toBe(true)
+
+      await fs.writeFile(primary, '{"mcpServers":{}}')
+      const sources = await adapter.configSources()
+      expect(sources).toHaveLength(1)
+      expect(sources[0]?.configPath).toBe(primary)
+    },
+  )
+
+  it('国际版 MCP 读写不落到国内版或共享的 CodeBuddy 兼容文件', async () => {
+    const home = await fs.mkdtemp(join(tmpdir(), 'skillbuddy-workbuddy-isolation-'))
+    temporaryRoots.push(home)
+    const domestic = new PlatformMcpAdapter(profile('workbuddy', 'desktop'), home)
+    const international = new PlatformMcpAdapter(profile('workbuddy-ai', 'desktop'), home)
+    const legacyPath = join(home, '.codebuddy.json')
+    const legacyText = '{"mcpServers":{"legacy":{"command":"node","args":["legacy.js"]}}}'
+    await fs.writeFile(legacyPath, legacyText)
+    expect(await domestic.detect()).toBe(false)
+    expect(await international.detect()).toBe(false)
+
+    const domesticPath = join(home, '.workbuddy', '.mcp.json')
+    const domesticText = '{"mcpServers":{"domestic":{"command":"node","args":["domestic.js"]}}}'
+    await fs.mkdir(dirname(domesticPath))
+    await fs.writeFile(domesticPath, domesticText)
+    expect(await domestic.detect()).toBe(true)
+    expect(await international.detect()).toBe(false)
+
+    const mutation = await international.prepareUpsert(
+      {
+        name: 'international',
+        transport: { kind: 'stdio', command: 'node', args: ['international.js'], env: {} },
+        requiredSecrets: [],
+      },
+      { agent: 'workbuddy-ai', surface: 'desktop', scope: 'user' },
+    )
+    expect(mutation.source.configPath).toBe(join(home, '.workbuddy-ai', '.mcp.json'))
+    await fs.mkdir(dirname(mutation.source.configPath))
+    await fs.writeFile(mutation.source.configPath, mutation.afterText)
+
+    for (const [adapter, name] of [
+      [domestic, 'domestic'],
+      [international, 'international'],
+    ] as const) {
+      const [source] = await adapter.configSources()
+      if (!source) throw new Error('missing MCP source')
+      const installations = await adapter.read(source, {})
+      expect(installations.map((installation) => installation.definition.name)).toEqual([name])
+    }
+    expect(await fs.readFile(domesticPath, 'utf8')).toBe(domesticText)
+    expect(await fs.readFile(legacyPath, 'utf8')).toBe(legacyText)
+  })
+
   it('将 Cloud、Connector 和待验收兼容层标记为只读', () => {
     for (const key of [
       ['copilot', 'cloud'],
       ['workbuddy', 'connector'],
+      ['workbuddy-ai', 'connector'],
       ['zcode', 'native'],
       ['zcode', 'agents-compat'],
     ] as const) {
       expect(profile(key[0], key[1]).capabilities.management).toBe('read-only')
     }
     expect(profile('workbuddy', 'desktop').capabilities.management).toBe('read-write')
+    expect(profile('workbuddy-ai', 'desktop').capabilities.management).toBe('read-write')
   })
 
   it.each([
@@ -239,6 +323,7 @@ describe('MCP 平台目录', () => {
     ['kimi', 'cli', 'kimi.mcp.json', ['mcpServers'], 'json', 'database'],
     ['zcode', 'native', 'zcode.settings.json', ['mcp', 'servers'], 'json', 'docs'],
     ['workbuddy', 'desktop', 'workbuddy.mcp.json', ['mcpServers'], 'json', 'calendar'],
+    ['workbuddy-ai', 'desktop', 'workbuddy.mcp.json', ['mcpServers'], 'json', 'calendar'],
     ['gemini-cli', 'cli', 'gemini.settings.json', ['mcpServers'], 'json', 'github'],
     ['copilot', 'cli', 'copilot-cli.mcp.json', ['mcpServers'], 'json', 'issues'],
     ['copilot', 'vscode', 'vscode.mcp.json', ['servers'], 'json', 'fetch'],

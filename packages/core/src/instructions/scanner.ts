@@ -90,7 +90,7 @@ function bindingForDocument(path: string, scope: 'user' | 'project', projectRoot
     const fallback = scope === 'project'
       && profile.projectFallbacks.some((item) => matchesCandidate(path, projectRoot, item))
     const unsupported = scope === 'project'
-      && profile.key.productId === 'workbuddy'
+      && ['workbuddy', 'workbuddy-ai'].includes(profile.key.productId)
       && basename(path).toLowerCase() === 'agents.md'
     const requiresConfig = scope === 'project' && (
       (profile.key.productId === 'gemini-cli' && basename(path).toLowerCase() === 'agents.md')

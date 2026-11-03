@@ -130,18 +130,18 @@ export const INSTRUCTION_PROFILES: InstructionRuleProfile[] = [
     projectFileCandidates: ['GEMINI.md', 'AGENTS.md'],
     sameDirectoryPrecedence: ['GEMINI.md', 'AGENTS.md'],
   },
-  {
+  ...(['workbuddy', 'workbuddy-ai'] as const).map((productId): InstructionRuleProfile => ({
     ...base,
-    key: surface('tencent', 'workbuddy', 'desktop'),
-    displayName: 'WorkBuddy',
-    platformId: 'workbuddy',
+    key: surface('tencent', productId, 'desktop'),
+    displayName: productId === 'workbuddy' ? 'WorkBuddy' : 'WorkBuddy AI',
+    platformId: productId,
     globalPaths: [],
     projectFileCandidates: [],
     supportsNested: false,
     traversal: 'tool-defined',
     sameDirectoryPrecedence: [],
     bridgeStrategies: [],
-  },
+  })),
   {
     ...base,
     key: surface('zcode', 'zcode', 'ide'),
