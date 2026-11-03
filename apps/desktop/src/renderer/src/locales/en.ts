@@ -184,7 +184,7 @@ export default {
       review: 'Review changes',
       import: {
         open: 'Import from JSON',
-        title: 'Paste MCP config JSON',
+        title: 'MCP config JSON',
         hint: 'Accepts Cursor / VS Code / Claude Code / OpenCode style configs',
         parse: 'Parse',
         use: 'Use',

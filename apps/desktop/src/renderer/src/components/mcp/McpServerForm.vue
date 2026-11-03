@@ -366,7 +366,7 @@ function applyCandidate(candidate: McpImportCandidate): void {
                 :placeholder="importPlaceholder"
                 class="w-full resize-y rounded-md border border-input bg-transparent px-3 py-2 font-mono text-xs outline-none focus-visible:ring-1 focus-visible:ring-ring"
               />
-              <div class="mt-2 flex flex-wrap items-center gap-2">
+              <div class="mt-2 flex justify-end">
                 <Button
                   type="button"
                   size="sm"
@@ -377,7 +377,6 @@ function applyCandidate(candidate: McpImportCandidate): void {
                 >
                   {{ t('mcp.form.import.parse') }}
                 </Button>
-                <span class="text-xs text-muted-foreground">{{ t('mcp.form.import.hint') }}</span>
               </div>
               <p v-if="importError" class="mt-2 text-xs text-destructive">{{ importError }}</p>
               <ul v-if="importWarnings.length" class="mt-2 space-y-1">

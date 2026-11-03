@@ -183,7 +183,7 @@ export default {
       review: '预览变更',
       import: {
         open: '从 JSON 导入',
-        title: '粘贴 MCP 配置 JSON',
+        title: 'MCP 配置 JSON',
         hint: '支持 Cursor / VS Code / Claude Code / OpenCode 等客户端配置',
         parse: '解析',
         use: '使用',
