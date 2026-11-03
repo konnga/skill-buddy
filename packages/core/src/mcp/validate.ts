@@ -1,10 +1,14 @@
 import { McpOperationError } from './operations.js'
 import type { McpServerDefinition } from './types.js'
 
-export const SENSITIVE_MCP_ARGUMENT = /(token|secret|password|passwd|api[-_]?key|authorization)/i
-export const SENSITIVE_MCP_URL_KEY = /(token|secret|password|passwd|api[-_]?key|auth|signature)/i
+import {
+  isValidMcpEnvName,
+  SENSITIVE_MCP_ARGUMENT,
+  SENSITIVE_MCP_URL_KEY,
+} from './patterns.js'
 
-const ENV_NAME_RE = /^[A-Za-z_][A-Za-z0-9_]*$/
+export { SENSITIVE_MCP_ARGUMENT, SENSITIVE_MCP_URL_KEY }
+
 const CONTROL_CHAR = /[\u0000-\u001f\u007f]/
 const REDACTED = '[redacted]'
 
@@ -56,7 +60,7 @@ function validateReferences(value: unknown, label: string): void {
       reject(`MCP ${label} 不接受明文字面量，请使用环境变量引用`)
     }
     if (reference.kind === 'env') {
-      if (typeof reference.name !== 'string' || !ENV_NAME_RE.test(reference.name)) {
+      if (typeof reference.name !== 'string' || !isValidMcpEnvName(reference.name)) {
         reject('MCP 环境变量引用名称无效')
       }
       continue
@@ -64,7 +68,7 @@ function validateReferences(value: unknown, label: string): void {
     if (
       reference.kind !== 'secret' ||
       typeof reference.key !== 'string' ||
-      !ENV_NAME_RE.test(reference.key) ||
+      !isValidMcpEnvName(reference.key) ||
       !['configured', 'missing', 'unknown'].includes(String(reference.state))
     ) {
       reject('MCP 密钥引用无效')
@@ -97,7 +101,7 @@ export function validateMcpDefinition(
   if (
     !Array.isArray(value.requiredSecrets) ||
     value.requiredSecrets.some(
-      (secret) => typeof secret !== 'string' || !ENV_NAME_RE.test(secret),
+      (secret) => typeof secret !== 'string' || !isValidMcpEnvName(secret),
     )
   ) {
     reject('MCP Server requiredSecrets 只能包含环境变量名称')

@@ -17,6 +17,10 @@
     "./semver": {
       "types": "./dist/semver.d.ts",
       "import": "./dist/semver.js"
+    },
+    "./mcp-config": {
+      "types": "./dist/mcp/config.d.ts",
+      "import": "./dist/mcp/config.js"
     }
   },
   "scripts": {
