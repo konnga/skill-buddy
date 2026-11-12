@@ -7,6 +7,7 @@ import { promisify } from 'node:util'
 import { fileURLToPath } from 'node:url'
 import { expect, test } from '@playwright/test'
 import { _electron as electron } from 'playwright'
+import { electronTestEnv } from './env.js'
 
 const execFileAsync = promisify(execFile)
 const desktopRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..')
@@ -60,7 +61,7 @@ test('从设置页备份并恢复 Git 快照', async () => {
         `--user-data-dir=${join(home, 'user-data')}`,
         join(desktopRoot, 'out', 'main', 'index.js'),
       ],
-      env: { ...process.env, HOME: home, CODEX_HOME: codexHome },
+      env: electronTestEnv({ HOME: home, CODEX_HOME: codexHome }),
     })
     const page = await application.firstWindow()
     const pageErrors: string[] = []

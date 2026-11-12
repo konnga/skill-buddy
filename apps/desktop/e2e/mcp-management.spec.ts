@@ -8,6 +8,7 @@ import { promisify } from 'node:util'
 import { fileURLToPath } from 'node:url'
 import { expect, test } from '@playwright/test'
 import { _electron as electron } from 'playwright'
+import { electronTestEnv } from './env.js'
 
 const desktopRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const execFileAsync = promisify(execFile)
@@ -105,7 +106,7 @@ test('扫描 MCP、查看详情并预览新安装计划', async () => {
         `--user-data-dir=${join(home, 'user-data')}`,
         join(desktopRoot, 'out', 'main', 'index.js'),
       ],
-      env: { ...process.env, HOME: home },
+      env: electronTestEnv({ HOME: home }),
     })
     const page = await application.firstWindow()
     await page.evaluate(() => {
@@ -222,7 +223,7 @@ test('从团队库选择 MCP 目标并预览安装计划', async () => {
         `--user-data-dir=${join(home, 'user-data')}`,
         join(desktopRoot, 'out', 'main', 'index.js'),
       ],
-      env: { ...process.env, HOME: home },
+      env: electronTestEnv({ HOME: home }),
     })
     const page = await application.firstWindow()
     await page.evaluate((remoteUrl) => {

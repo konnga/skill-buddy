@@ -4,6 +4,7 @@ import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { expect, test } from '@playwright/test'
 import { _electron as electron } from 'playwright'
+import { electronTestEnv } from './env.js'
 
 const desktopRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 
@@ -38,11 +39,7 @@ test('管理 Preset 状态、整组启停和可移植 JSON', async () => {
         `--user-data-dir=${join(home, 'user-data')}`,
         join(desktopRoot, 'out', 'main', 'index.js'),
       ],
-      env: {
-        ...process.env,
-        HOME: home,
-        CODEX_HOME: codexHome,
-      },
+      env: electronTestEnv({ HOME: home, CODEX_HOME: codexHome }),
     })
     const page = await application.firstWindow()
     await page.evaluate(() => {
