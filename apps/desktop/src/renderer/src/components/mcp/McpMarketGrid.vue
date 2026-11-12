@@ -46,7 +46,7 @@ onUnmounted(() => loadMoreObserver?.disconnect())
 </script>
 
 <template>
-  <ScrollArea class="flex-1" viewport-class="px-6 pb-6">
+  <ScrollArea class="min-h-0 flex-1" viewport-class="px-6 pb-6">
     <div v-if="props.loading" class="grid grid-cols-2 gap-3">
       <Skeleton v-for="index in 6" :key="index" class="h-44 rounded-xl" />
     </div>

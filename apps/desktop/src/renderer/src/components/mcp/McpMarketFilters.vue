@@ -35,7 +35,7 @@ function selectSource(value: McpMarketSourceId): void {
 </script>
 
 <template>
-  <div class="flex items-center gap-3 px-6 py-4">
+  <div class="flex shrink-0 items-center gap-3 px-6 py-4">
     <div class="grid shrink-0 grid-cols-2 gap-1 rounded-md bg-muted p-1">
       <button
         type="button"

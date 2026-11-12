@@ -48,7 +48,7 @@ const {
       @search="search"
     />
 
-    <p v-if="visibleError" class="break-all px-6 pb-3 text-sm text-destructive">
+    <p v-if="visibleError" class="shrink-0 break-all px-6 pb-3 text-sm text-destructive">
       {{ visibleError }}
     </p>
 

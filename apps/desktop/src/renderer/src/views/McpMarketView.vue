@@ -71,9 +71,13 @@ async function executePlan(): Promise<void> {
       </div>
     </header>
 
+    <!--
+      必须是 flex 容器：McpMarketCatalog 用 flex-1 撑满剩余高度，
+      父级如果是普通块级元素，flex-1 不生效，列表会把整页顶高导致窗口滚动。
+    -->
     <div
       v-show="!selectedItem"
-      class="min-h-0 flex-1"
+      class="flex min-h-0 flex-1 flex-col"
     >
       <KeepAlive>
         <McpMarketCatalog
