@@ -2,6 +2,34 @@
 
 All notable changes to SkillBuddy are documented in this file.
 
+## 0.2.0 - 2026-11-12
+
+### Added
+
+- WorkBuddy AI platform support.
+- Import MCP server configs from JSON.
+- Import MCP servers from local npm packages and the npx cache.
+
+### Fixed
+
+- Fixed packaged builds shipping an empty `locales/` directory, which made the app open to a blank window because the renderer crashed; this also fixes macOS losing its Chinese locale.
+- Fixed the MCP market list expanding the whole window instead of scrolling inside its own pane.
+- Fixed the app exiting right after launch when it inherited `ELECTRON_RUN_AS_NODE` from the host terminal.
+
+---
+
+### 新增
+
+- 支持 WorkBuddy AI 平台。
+- 支持从 JSON 导入 MCP 配置。
+- 支持从本机 npm 包与 npx 依赖中导入 MCP。
+
+### 修复
+
+- 修复打包后 `locales/` 目录为空导致应用启动白屏（渲染进程崩溃）的问题，同时修复 macOS 中文语言文件被误删的问题。
+- 修复 MCP 市场列表撑高整个窗口、而不是在自身面板内滚动的问题。
+- 修复从终端继承 `ELECTRON_RUN_AS_NODE` 时应用启动后立即退出的问题。
+
 ## 0.1.15 - 2026-10-29
 
 ### Added
