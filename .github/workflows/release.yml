@@ -23,14 +23,14 @@ jobs:
       matrix:
         include:
           - name: macOS arm64
-            os: macos-14
+            os: macos-15
             command: dist:mac:arm64
             artifact: skillbuddy-macos-arm64
             path: |
               apps/desktop/dist/*.dmg
               apps/desktop/dist/*.zip
           - name: macOS x64
-            os: macos-14
+            os: macos-15
             command: dist:mac:x64
             artifact: skillbuddy-macos-x64
             path: |
