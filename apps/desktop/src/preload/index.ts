@@ -83,6 +83,7 @@ import type {
   UpdateDownloadResult,
 } from '#shared/ipc'
 import { plainTeamLibraryConfig } from '#shared/team-library'
+import type { McpPackageProgress, McpPackageScanRequest, McpPackageScanResult } from '#shared/mcp-packages'
 
 /**
  * Electron 会把主进程抛出的错误包装成
@@ -237,6 +238,14 @@ const api = {
   restoreGitInstructions: (
     request: GitInstructionRestoreRequest,
   ): Promise<GitInstructionRestoreResult[]> => invoke('backup:restore-instructions', request),
+  scanMcpPackages: (request: McpPackageScanRequest): Promise<McpPackageScanResult> =>
+    invoke('mcp:packages-scan', request),
+  cancelMcpPackageScan: (requestId: string): Promise<void> => invoke('mcp:packages-cancel', requestId),
+  onMcpPackageProgress: (callback: (progress: McpPackageProgress) => void): (() => void) => {
+    const listener = (_event: Electron.IpcRendererEvent, progress: McpPackageProgress) => callback(progress)
+    ipcRenderer.on('mcp:packages-progress', listener)
+    return () => ipcRenderer.removeListener('mcp:packages-progress', listener)
+  },
   scanMcpServers: (projectRoots: string[] = []): Promise<McpScanResult> =>
     invoke('mcp:scan', projectRoots),
   createMcpUpsertPlan: (request: McpUpsertPlanRequest): Promise<McpOperationPlanView> =>

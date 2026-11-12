@@ -7,10 +7,16 @@ import type {
   McpUpsertPlanRequest,
 } from '#shared/ipc'
 import { McpService } from '../mcp/service'
+import { McpPackageDiscovery } from '../mcp/packages/discovery'
+import type { McpPackageScanRequest } from '#shared/mcp-packages'
 
 /** 注册 MCP 扫描、计划、执行、撤销和监听 IPC。 */
 export function registerMcpIpc(): McpService {
   const service = new McpService(join(app.getPath('userData'), 'mcp-backups'))
+  const packages = new McpPackageDiscovery()
+  app.once('will-quit', () => packages.dispose())
+  ipcMain.handle('mcp:packages-scan', (event, request: McpPackageScanRequest) => packages.scan(request, event.sender))
+  ipcMain.handle('mcp:packages-cancel', (event, requestId: string) => packages.cancel(requestId, event.sender.id))
   ipcMain.handle('mcp:scan', (_event, projectRoots: string[] = []) => service.scan(projectRoots))
   ipcMain.handle('mcp:plan-upsert', (_event, request: McpUpsertPlanRequest) =>
     service.createUpsertPlan(request),
