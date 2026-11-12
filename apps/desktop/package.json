@@ -17,7 +17,7 @@
   "main": "./out/main/index.js",
   "build": {
     "appId": "com.konnga.skillbuddy",
-    "electronLanguages": ["en-US", "zh-CN"],
+    "electronLanguages": ["en", "en-US", "zh-CN", "zh_CN"],
     "files": [
       "out/**/*",
       "package.json",
