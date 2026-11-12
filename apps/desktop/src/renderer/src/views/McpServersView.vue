@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { computed, onActivated, shallowRef, watch } from 'vue'
+import { computed, defineAsyncComponent, onActivated, onDeactivated, shallowRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { Plus, RefreshCw, Search, ServerCog, Store, TriangleAlert } from '@lucide/vue'
+import { PackageSearch, Plus, RefreshCw, Search, ServerCog, Store, TriangleAlert } from '@lucide/vue'
 import type { McpInstallation, McpServerDefinition, McpTarget } from '@skillbuddy/core'
+import type { McpPackageCandidate } from '#shared/mcp-packages'
 import McpPlanDialog from '@/components/mcp/McpPlanDialog.vue'
 import McpServerDetail from '@/components/mcp/McpServerDetail.vue'
 import McpServerForm from '@/components/mcp/McpServerForm.vue'
@@ -47,6 +48,9 @@ const {
 const selectedName = shallowRef('')
 const marketPageOpen = shallowRef(false)
 const newOpen = shallowRef(false)
+const packageImportOpen = shallowRef(false)
+const initialDefinition = shallowRef<McpServerDefinition | undefined>()
+const McpPackageImportDialog = defineAsyncComponent(() => import('@/components/mcp/McpPackageImportDialog.vue'))
 const syncSource = shallowRef<McpInstallation | null>(null)
 
 const selectedServer = computed(
@@ -87,6 +91,19 @@ onActivated(() => {
   if (checkedAt !== null && Date.now() - checkedAt < RESCAN_INTERVAL_MS) return
   void refresh()
 })
+
+onDeactivated(() => { packageImportOpen.value = false })
+
+function openCreate(): void {
+  initialDefinition.value = undefined
+  newOpen.value = true
+}
+
+function importPackage(candidate: McpPackageCandidate): void {
+  initialDefinition.value = candidate.definition
+  packageImportOpen.value = false
+  newOpen.value = true
+}
 
 function openSync(installation: McpInstallation): void {
   syncSource.value = installation
@@ -168,9 +185,19 @@ async function executePlan(): Promise<void> {
         variant="outline"
         size="icon"
         class="app-no-drag cursor-pointer"
+        :title="t('mcp.packages.title')"
+        :aria-label="t('mcp.packages.title')"
+        @click="packageImportOpen = true"
+      >
+        <PackageSearch />
+      </Button>
+      <Button
+        variant="outline"
+        size="icon"
+        class="app-no-drag cursor-pointer"
         :title="t('mcp.new')"
         :aria-label="t('mcp.new')"
-        @click="newOpen = true"
+        @click="openCreate"
       >
         <Plus />
       </Button>
@@ -216,7 +243,7 @@ async function executePlan(): Promise<void> {
         <ServerCog class="size-10" />
         <p class="text-sm font-medium text-foreground">{{ t('mcp.empty') }}</p>
         <div class="flex items-center gap-2">
-          <Button size="sm" class="cursor-pointer" @click="newOpen = true">
+          <Button size="sm" class="cursor-pointer" @click="openCreate">
             <Plus />
             {{ t('mcp.new') }}
           </Button>
@@ -263,8 +290,15 @@ async function executePlan(): Promise<void> {
       </div>
     </div>
 
+    <McpPackageImportDialog
+      v-if="packageImportOpen"
+      :project-roots="projectRoots"
+      @close="packageImportOpen = false"
+      @select="importPackage"
+    />
     <McpServerForm
       :open="newOpen"
+      :initial-definition="initialDefinition"
       :platforms="platforms"
       :project-roots="projectRoots"
       @close="newOpen = false"

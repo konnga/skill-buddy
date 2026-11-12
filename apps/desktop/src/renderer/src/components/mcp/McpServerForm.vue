@@ -42,6 +42,7 @@ const props = defineProps<{
   open: boolean
   platforms: McpPlatformStatus[]
   projectRoots: string[]
+  initialDefinition?: McpServerDefinition
 }>()
 const emit = defineEmits<{
   close: []
@@ -140,8 +141,14 @@ function reset(): void {
 watch(
   () => props.open,
   (open) => {
-    if (open) reset()
+    if (open) {
+      reset()
+      if (props.initialDefinition) applyCandidate({
+        serverName: props.initialDefinition.name, label: '', definition: props.initialDefinition,
+      })
+    }
   },
+  { immediate: true },
 )
 
 function addReference(): void {
