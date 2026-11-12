@@ -80,6 +80,7 @@ The screenshots below show complete application windows and the main SkillBuddy 
 - **Enable, disable, and uninstall**: manage writable Skills, with trash and undo support for removal.
 - **Skill discovery**: search skills.sh, SkillHub, and GitHub, then inspect content and resources before installation.
 - **MCP discovery and change plans**: find MCP Servers, validate target capabilities, and preview exact writes.
+- **MCP package import**: discover candidates from global npm packages, npx cache, and registered projects in an isolated process, then review their configuration. See [Package import](docs/mcp-package-import.md).
 - **AI instruction management**: discover `AGENTS.md`, `CLAUDE.md`, `GEMINI.md`, and tool-specific rule files across global and project scopes, then create, edit, or delete them with a reviewed write plan.
 - **Effective instruction chains**: see the ordered files each tool actually loads for a directory, and which entries are shadowed or waiting for extra tool configuration.
 - **Instruction diagnostics and bridging**: detect broken links, content drift, duplicates, and invalid `@path` imports, then add a Claude Code bridge for projects that only maintain `AGENTS.md`.
