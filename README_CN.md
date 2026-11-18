@@ -5,24 +5,24 @@
 <h1 align="center">SkillBuddy</h1>
 
 <p align="center">
-  <img src="docs/images/platform-logos/claude-code.svg" alt="Claude Code" title="Claude Code" height="22" />&nbsp;
-  <picture><source media="(prefers-color-scheme: dark)" srcset="docs/images/platform-logos/codex-dark.svg" /><img src="docs/images/platform-logos/codex.svg" alt="Codex" title="Codex" height="22" /></picture>&nbsp;
-  <picture><source media="(prefers-color-scheme: dark)" srcset="docs/images/platform-logos/cursor-dark.svg" /><img src="docs/images/platform-logos/cursor.svg" alt="Cursor" title="Cursor" height="22" /></picture>&nbsp;
-  <picture><source media="(prefers-color-scheme: dark)" srcset="docs/images/platform-logos/opencode-dark.svg" /><img src="docs/images/platform-logos/opencode.svg" alt="OpenCode" title="OpenCode" height="22" /></picture>&nbsp;
-  <picture><source media="(prefers-color-scheme: dark)" srcset="docs/images/platform-logos/pi-dark.svg" /><img src="docs/images/platform-logos/pi.svg" alt="Pi" title="Pi" height="22" /></picture>&nbsp;
-  <img src="docs/images/platform-logos/omp.svg" alt="OMP Agent" title="OMP Agent" height="22" />&nbsp;
-  <picture><source media="(prefers-color-scheme: dark)" srcset="docs/images/platform-logos/github-copilot-dark.svg" /><img src="docs/images/platform-logos/github-copilot.svg" alt="GitHub Copilot" title="GitHub Copilot" height="22" /></picture>&nbsp;
-  <img src="docs/images/platform-logos/gemini-cli.svg" alt="Gemini CLI" title="Gemini CLI" height="22" />&nbsp;
-  <img src="docs/images/platform-logos/google-antigravity.svg" alt="Google Antigravity" title="Google Antigravity" height="22" />&nbsp;
-  <img src="docs/images/platform-logos/qwen-code.svg" alt="Qwen Code" title="Qwen Code" height="22" />&nbsp;
-  <img src="docs/images/platform-logos/codebuddy.svg" alt="CodeBuddy" title="CodeBuddy" height="22" />&nbsp;
-  <img src="docs/images/platform-logos/trae.svg" alt="Trae / Trae CN" title="Trae / Trae CN" height="22" />&nbsp;
-  <img src="docs/images/platform-logos/workbuddy.svg" alt="WorkBuddy / WorkBuddy AI" title="WorkBuddy / WorkBuddy AI" height="22" />&nbsp;
-  <img src="docs/images/platform-logos/doubao.webp" alt="Doubao" title="Doubao" height="22" />&nbsp;
-  <picture><source media="(prefers-color-scheme: dark)" srcset="docs/images/platform-logos/kimi-code-dark.svg" /><img src="docs/images/platform-logos/kimi-code.svg" alt="Kimi Code" title="Kimi Code" height="22" /></picture>&nbsp;
-  <picture><source media="(prefers-color-scheme: dark)" srcset="docs/images/platform-logos/zcode-dark.svg" /><img src="docs/images/platform-logos/zcode.svg" alt="ZCode" title="ZCode" height="22" /></picture>&nbsp;
-  <img src="docs/images/platform-logos/wps-lingxi.png" alt="WPS Lingxi" title="WPS Lingxi" height="22" />&nbsp;
-  <img src="docs/images/platform-logos/deepseek-harness.svg" alt="DeepSeek Harness" title="DeepSeek Harness" height="22" />
+  <img src="docs/images/platform-logos/claude-code.svg" alt="Claude Code" title="Claude Code" height="24" />&nbsp;
+  <picture><source media="(prefers-color-scheme: dark)" srcset="docs/images/platform-logos/codex-dark.svg" /><img src="docs/images/platform-logos/codex.svg" alt="Codex" title="Codex" height="24" /></picture>&nbsp;
+  <picture><source media="(prefers-color-scheme: dark)" srcset="docs/images/platform-logos/cursor-dark.svg" /><img src="docs/images/platform-logos/cursor.svg" alt="Cursor" title="Cursor" height="24" /></picture>&nbsp;
+  <picture><source media="(prefers-color-scheme: dark)" srcset="docs/images/platform-logos/opencode-dark.svg" /><img src="docs/images/platform-logos/opencode.svg" alt="OpenCode" title="OpenCode" height="24" /></picture>&nbsp;
+  <picture><source media="(prefers-color-scheme: dark)" srcset="docs/images/platform-logos/pi-dark.svg" /><img src="docs/images/platform-logos/pi.svg" alt="Pi" title="Pi" height="24" /></picture>&nbsp;
+  <img src="docs/images/platform-logos/omp.svg" alt="OMP Agent" title="OMP Agent" height="20" />&nbsp;
+  <picture><source media="(prefers-color-scheme: dark)" srcset="docs/images/platform-logos/github-copilot-dark.svg" /><img src="docs/images/platform-logos/github-copilot.svg" alt="GitHub Copilot" title="GitHub Copilot" height="24" /></picture>&nbsp;
+  <img src="docs/images/platform-logos/gemini-cli.svg" alt="Gemini CLI" title="Gemini CLI" height="24" />&nbsp;
+  <img src="docs/images/platform-logos/google-antigravity.svg" alt="Google Antigravity" title="Google Antigravity" height="24" />&nbsp;
+  <img src="docs/images/platform-logos/qwen-code.svg" alt="Qwen Code" title="Qwen Code" height="24" />&nbsp;
+  <img src="docs/images/platform-logos/codebuddy.svg" alt="CodeBuddy" title="CodeBuddy" height="20" />&nbsp;
+  <img src="docs/images/platform-logos/trae.svg" alt="Trae / Trae CN" title="Trae / Trae CN" height="24" />&nbsp;
+  <img src="docs/images/platform-logos/workbuddy.svg" alt="WorkBuddy / WorkBuddy AI" title="WorkBuddy / WorkBuddy AI" height="20" />&nbsp;
+  <img src="docs/images/platform-logos/doubao.webp" alt="Doubao" title="Doubao" height="20" />&nbsp;
+  <picture><source media="(prefers-color-scheme: dark)" srcset="docs/images/platform-logos/kimi-code-dark.svg" /><img src="docs/images/platform-logos/kimi-code.svg" alt="Kimi Code" title="Kimi Code" height="24" /></picture>&nbsp;
+  <picture><source media="(prefers-color-scheme: dark)" srcset="docs/images/platform-logos/zcode-dark.svg" /><img src="docs/images/platform-logos/zcode.svg" alt="ZCode" title="ZCode" height="24" /></picture>&nbsp;
+  <img src="docs/images/platform-logos/wps-lingxi.png" alt="WPS Lingxi" title="WPS Lingxi" height="20" />&nbsp;
+  <img src="docs/images/platform-logos/deepseek-harness.svg" alt="DeepSeek Harness" title="DeepSeek Harness" height="24" />
 </p>
 
 <p align="center">
